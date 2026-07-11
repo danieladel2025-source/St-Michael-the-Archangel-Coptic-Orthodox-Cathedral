@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>لوحة المشرفين — كاتدرائية رئيس الملائكة الجليل ميخائيل - طنطا</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --ink: #0d1117;
+    --navy: #121a2b;
+    --paper: #f5f0e8;
+    --cream: #ede8dc;
+    --accent: #c8392b;
+    --accent2: #2980b9;
+    --gold: #d4a017;
+    --green: #1a7a4a;
+    --line: #b5a98a;
+    --shadow: rgba(13,17,23,0.14);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:'Cairo', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height:100vh;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 38px, var(--line) 38px, var(--line) 39px),
+      repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(181,169,138,0.15) 38px, rgba(181,169,138,0.15) 39px);
+  }
+
+  /* ===== شاشة الدخول ===== */
+  #loginScreen {
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .login-card {
+    background:#fff;
+    width:100%;
+    max-width:400px;
+    border-radius:14px;
+    box-shadow:0 20px 50px var(--shadow);
+    border-top:6px solid var(--gold);
+    padding:36px 32px 30px;
+    position:relative;
+  }
+  .seal {
+    width:64px; height:64px;
+    border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, var(--navy), var(--ink));
+    border:3px solid var(--gold);
+    color: var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    font-size:28px;
+    margin:0 auto 16px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  }
+  .login-title { text-align:center; font-size:19px; font-weight:900; color:var(--ink); }
+  .login-sub { text-align:center; font-size:12.5px; color:#8a8272; margin-top:4px; margin-bottom:24px; }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:12.5px; font-weight:700; color:#555; margin-bottom:6px; }
+  .field input {
+    width:100%; padding:11px 14px; border:1.5px solid var(--cream);
+    border-radius:9px; font-family:'Cairo',sans-serif; font-size:14px;
+    background:#fbfaf7; transition:border-color .2s;
+  }
+  .field input:focus { outline:none; border-color:var(--accent2); }
+  .login-btn {
+    width:100%; padding:12px; border:none; border-radius:9px;
+    background:var(--ink); color:#fff; font-family:'Cairo',sans-serif;
+    font-size:15px; font-weight:700; cursor:pointer; margin-top:6px;
+    transition: background .2s;
+  }
+  .login-btn:hover { background:var(--navy); }
+  .login-btn:disabled { opacity:.6; cursor:default; }
+  .login-error {
+    background:#fee2e2; color:#991b1b; border:1px solid #fecaca;
+    border-radius:8px; padding:9px 12px; font-size:12.5px; margin-bottom:14px; display:none;
+  }
+  .login-note { text-align:center; font-size:11px; color:#aaa; margin-top:18px; line-height:1.7; }
+
+  /* ===== لوحة الإدارة ===== */
+  #dashScreen { display:none; }
+  .header {
+    background: var(--navy);
+    color: var(--paper);
+    padding:16px 26px;
+    display:flex; align-items:center; justify-content:space-between;
+    box-shadow:0 4px 20px var(--shadow);
+    position:sticky; top:0; z-index:100;
+    flex-wrap:wrap; gap:12px;
+  }
+  .header-brand { display:flex; align-items:center; gap:12px; }
+  .header-icon {
+    width:42px; height:42px; background:var(--gold); color:var(--ink);
+    border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px;
+  }
+  .header h1 { font-size:18px; font-weight:900; }
+  .header-subtitle { font-size:11.5px; color:#a8b0c0; margin-top:2px; }
+  .header-actions { display:flex; gap:10px; align-items:center; }
+  .btn {
+    border:none; border-radius:8px; padding:9px 16px; font-family:'Cairo',sans-serif;
+    font-size:13px; font-weight:700; cursor:pointer; transition:opacity .2s;
+  }
+  .btn:hover { opacity:.88; }
+  .btn-outline { background:transparent; border:1.5px solid rgba(245,240,232,0.4); color:var(--paper); }
+  .btn-gold { background:var(--gold); color:var(--ink); }
+  .btn-red { background:var(--accent); color:#fff; }
+  .btn-blue { background:var(--accent2); color:#fff; }
+
+  .container { max-width:1180px; margin:0 auto; padding:22px 18px 60px; }
+
+  .toolbar { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:18px; }
+  .search-box {
+    flex:1; min-width:220px; padding:11px 16px; border-radius:10px;
+    border:1.5px solid var(--cream); background:#fff; font-family:'Cairo',sans-serif; font-size:14px;
+  }
+  .search-box:focus { outline:none; border-color:var(--accent2); }
+  .summary-pill {
+    background:#fff; border:1px solid var(--cream); border-radius:10px;
+    padding:9px 16px; font-size:12.5px; font-weight:700; color:#555;
+    box-shadow:0 2px 8px var(--shadow);
+  }
+
+  .class-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(270px,1fr)); gap:16px; }
+  .class-card {
+    background:#fff; border:1px solid var(--cream); border-top:4px solid var(--accent2);
+    border-radius:12px; padding:18px; box-shadow:0 4px 12px var(--shadow);
+    cursor:pointer; transition:transform .15s, box-shadow .15s;
+  }
+  .class-card:hover { transform:translateY(-2px); box-shadow:0 8px 22px var(--shadow); }
+  .class-card h3 { font-size:16px; font-weight:900; margin-bottom:6px; color:var(--ink); }
+  .class-card .meta { font-size:11.5px; color:#999; margin-bottom:12px; }
+  .class-card .stats { display:flex; gap:10px; flex-wrap:wrap; }
+  .chip { background:var(--cream); border-radius:16px; padding:4px 11px; font-size:11.5px; font-weight:700; color:#5a5342; }
+  .chip.green { background:#dcfce7; color:#166534; }
+  .chip.blue { background:#dbeafe; color:#1d4ed8; }
+
+  .empty-state { text-align:center; padding:70px 20px; color:#999; }
+  .empty-state .ic { font-size:44px; margin-bottom:12px; }
+
+  /* ===== تفاصيل الفصل ===== */
+  #detailOverlay {
+    display:none; position:fixed; inset:0; background:rgba(13,17,23,0.55);
+    z-index:500; align-items:flex-start; justify-content:center; overflow-y:auto; padding:26px 14px;
+  }
+  .detail-modal {
+    background:#fdfcf9; width:100%; max-width:980px; border-radius:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.35); overflow:hidden; margin-bottom:30px;
+  }
+  .detail-head {
+    background:var(--ink); color:var(--paper); padding:20px 26px;
+    display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;
+  }
+  .detail-head h2 { font-size:19px; font-weight:900; }
+  .detail-head .meta { font-size:12px; color:#bbb; margin-top:4px; }
+  .close-btn {
+    background:rgba(255,255,255,0.12); border:none; color:#fff; width:34px; height:34px;
+    border-radius:50%; font-size:16px; cursor:pointer;
+  }
+  .tabs { display:flex; gap:4px; padding:14px 22px 0; border-bottom:1px solid var(--cream); flex-wrap:wrap; }
+  .tab-btn {
+    border:none; background:transparent; padding:10px 16px; font-family:'Cairo',sans-serif;
+    font-size:13.5px; font-weight:700; color:#888; cursor:pointer; border-bottom:3px solid transparent;
+  }
+  .tab-btn.active { color:var(--accent2); border-bottom-color:var(--accent2); }
+  .tab-panel { display:none; padding:20px 22px 26px; }
+  .tab-panel.active { display:block; }
+
+  table.data-table { width:100%; border-collapse:collapse; font-size:13px; }
+  table.data-table th {
+    background:var(--cream); color:var(--ink); padding:9px 10px; text-align:right; font-size:12px; white-space:nowrap;
+  }
+  table.data-table td { padding:9px 10px; border-bottom:1px solid #f1ede4; }
+  table.data-table tr:hover td { background:#faf8f3; }
+  .pct-bar { width:70px; height:7px; background:#eee; border-radius:6px; overflow:hidden; display:inline-block; vertical-align:middle; margin-left:6px;}
+  .pct-fill { height:100%; background:var(--green); }
+  .no-data { text-align:center; color:#aaa; padding:30px; font-size:13px; }
+
+  .loading-spin {
+    display:inline-block; width:16px; height:16px; border:2.5px solid rgba(255,255,255,0.4);
+    border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .toast {
+    position:fixed; bottom:26px; left:50%; transform:translateX(-50%);
+    background:#222; color:#fff; padding:11px 22px; border-radius:10px; font-size:13px;
+    font-weight:700; z-index:9999; box-shadow:0 6px 20px rgba(0,0,0,0.3);
+  }
+
+  /* ===== بروفايل الطفل ===== */
+  #studentOverlay {
+    display:none; position:fixed; inset:0; background:rgba(13,17,23,0.65);
+    z-index:600; align-items:flex-start; justify-content:center; overflow-y:auto; padding:26px 14px;
+  }
+  .student-modal {
+    background:#fdfcf9; width:100%; max-width:620px; border-radius:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.4); overflow:hidden; margin-bottom:30px;
+  }
+  .stu-row { display:flex; gap:18px; padding:20px 24px; align-items:flex-start; flex-wrap:wrap; }
+  .stu-photo {
+    width:88px; height:88px; border-radius:12px; object-fit:cover; border:2px solid var(--cream); flex-shrink:0;
+  }
+  .stu-photo-placeholder {
+    width:88px; height:88px; border-radius:12px; background:var(--cream); display:flex; align-items:center;
+    justify-content:center; font-size:32px; color:#aaa; flex-shrink:0;
+  }
+  .stu-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; flex:1; min-width:220px; }
+  .stu-field { font-size:13px; }
+  .stu-field .lbl { color:#999; font-size:11px; display:block; margin-bottom:2px; }
+  .stu-field .val { font-weight:700; color:var(--ink); }
+  .stu-stats-row { display:flex; gap:10px; padding:0 24px 16px; flex-wrap:wrap; }
+  .stu-stat-card {
+    flex:1; min-width:100px; background:var(--cream); border-radius:10px; padding:10px 14px; text-align:center;
+  }
+  .stu-stat-card .num { font-size:20px; font-weight:900; color:var(--ink); }
+  .stu-stat-card .lbl { font-size:11px; color:#777; margin-top:2px; }
+  .stu-log-title { padding:0 24px; font-size:13px; font-weight:700; color:#777; margin-bottom:6px; }
+  .stu-log-wrap { max-height:260px; overflow-y:auto; padding:0 24px 22px; }
+  .row-clickable { cursor:pointer; }
+  .row-clickable:hover td { background:#f3f1e9 !important; }
+
+  /* ===== متابعة رعوية ===== */
+  .pastoral-card {
+    background:#fff; border:1px solid var(--cream); border-right:4px solid var(--accent);
+    border-radius:10px; padding:14px 18px; margin-bottom:10px; display:flex; justify-content:space-between;
+    align-items:center; gap:12px; flex-wrap:wrap; cursor:pointer; transition:box-shadow .15s;
+  }
+  .pastoral-card:hover { box-shadow:0 4px 14px var(--shadow); }
+  .pastoral-card .name { font-weight:900; font-size:14.5px; }
+  .pastoral-card .sub { font-size:12px; color:#999; margin-top:2px; }
+  .pastoral-pct { font-size:18px; font-weight:900; color:var(--accent); }
+
+  /* ===== نتائج البحث الشامل ===== */
+  .gsearch-result {
+    background:#fff; border:1px solid var(--cream); border-radius:10px; padding:12px 16px;
+    margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;
+    flex-wrap:wrap; gap:8px;
+  }
+  .gsearch-result:hover { background:#faf8f3; }
+  .gsearch-result .name { font-weight:900; font-size:14px; }
+  .gsearch-result .cls { font-size:12px; color:#999; }
+</style>
+</head>
+<body>
+
+<!-- ===== شاشة تسجيل الدخول ===== -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="seal">🕊️</div>
+    <div class="login-title">لوحة المشرفين</div>
+    <div class="login-sub">كاتدرائية رئيس الملائكة الجليل ميخائيل — طنطا</div>
+    <div class="login-error" id="loginError"></div>
+    <div class="field">
+      <label>البريد الإلكتروني</label>
+      <input type="email" id="loginEmail" placeholder="admin@example.com" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>كلمة المرور</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">دخول</button>
+    <div class="login-note">هذه الصفحة مخصصة للمشرفين فقط.<br>يتم إنشاء حسابات المشرفين يدويًا من لوحة Supabase.</div>
+  </div>
+</div>
+
+<!-- ===== لوحة الإدارة ===== -->
+<div id="dashScreen">
+  <div class="header">
+    <div class="header-brand">
+      <div class="header-icon">🔒</div>
+      <div>
+        <h1>لوحة المشرفين — متابعة الفصول</h1>
+        <div class="header-subtitle" id="userEmailLabel"></div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" id="navClasses" onclick="showView('classes')">📚 الفصول</button>
+      <button class="btn btn-outline" id="navPastoral" onclick="showView('pastoral')">💙 متابعة رعوية</button>
+      <button class="btn btn-outline" onclick="loadAllClasses()">⟳ تحديث</button>
+      <button class="btn btn-red" onclick="doLogout()">خروج</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="toolbar">
+      <input type="text" class="search-box" id="globalSearchBox" placeholder="🔍 ابحث عن مخدوم بالاسم في كل الفصول..." oninput="renderGlobalSearch()">
+      <span class="summary-pill" id="summaryPill">جاري التحميل...</span>
+    </div>
+    <div id="globalSearchResults"></div>
+
+    <div id="classesView">
+      <div class="toolbar">
+        <input type="text" class="search-box" id="searchBox" placeholder="🔍 ابحث باسم الفصل..." oninput="renderClassGrid()">
+      </div>
+      <div id="classGridWrap">
+        <div class="empty-state"><div class="ic">⏳</div>جاري تحميل الفصول من السحابة...</div>
+      </div>
+    </div>
+
+    <div id="pastoralView" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- ===== تفاصيل الفصل ===== -->
+<div id="detailOverlay">
+  <div class="detail-modal">
+    <div class="detail-head">
+      <div>
+        <h2 id="detailTitle">—</h2>
+        <div class="meta" id="detailMeta">—</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-gold" onclick="exportCurrentClassJSON()">⬇️ تصدير JSON</button>
+        <button class="btn btn-red" onclick="deleteCurrentClass()">🗑️ حذف الفصل</button>
+        <button class="close-btn" onclick="closeDetail()">✕</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="students" onclick="switchTab('students')">👦 المخدومون</button>
+      <button class="tab-btn" data-tab="servants" onclick="switchTab('servants')">🧑‍🤝‍🧑 الخدام</button>
+      <button class="tab-btn" data-tab="attendance" onclick="switchTab('attendance')">📅 سجل الحضور</button>
+    </div>
+    <div class="tab-panel active" id="panel-students"></div>
+    <div class="tab-panel" id="panel-servants"></div>
+    <div class="tab-panel" id="panel-attendance"></div>
+  </div>
+</div>
+
+<!-- ===== بروفايل الطفل ===== -->
+<div id="studentOverlay">
+  <div class="student-modal">
+    <div class="detail-head">
+      <div>
+        <h2 id="stuTitle">—</h2>
+        <div class="meta" id="stuMeta">—</div>
+      </div>
+      <button class="close-btn" onclick="closeStudentModal()">✕</button>
+    </div>
+    <div id="stuBody"></div>
+  </div>
+</div>
+
+<script>
+  // ================== إعدادات الاتصال بالسحابة ==================
+  const SUPABASE_URL      = 'https://gpkaynmmuwxgobvdapev.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_QuDLqNgWULtWNDEqPfN2dw_Te9hLUEq';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let allClasses = [];
+  let currentDetailClass = null;
+
+  // ================== تسجيل الدخول ==================
+  async function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const btn = document.getElementById('loginBtn');
+    const errBox = document.getElementById('loginError');
+    errBox.style.display = 'none';
+
+    if (!email || !password) {
+      errBox.textContent = 'من فضلك أدخل البريد الإلكتروني وكلمة المرور.';
+      errBox.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spin"></span> جاري الدخول...';
+
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+    btn.disabled = false;
+    btn.textContent = 'دخول';
+
+    if (error) {
+      errBox.textContent = 'فشل الدخول: البريد أو كلمة المرور غير صحيحة.';
+      errBox.style.display = 'block';
+      return;
+    }
+
+    showDashboard(data.user);
+  }
+
+  async function doLogout() {
+    await sb.auth.signOut();
+    document.getElementById('dashScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+  }
+
+  function showDashboard(user) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashScreen').style.display = 'block';
+    document.getElementById('userEmailLabel').textContent = 'مسجل الدخول: ' + (user.email || '');
+    showView('classes');
+    loadAllClasses();
+  }
+
+  // عند فتح الصفحة، تحقق هل يوجد جلسة دخول محفوظة
+  (async () => {
+    const { data } = await sb.auth.getSession();
+    if (data && data.session && data.session.user) {
+      showDashboard(data.session.user);
+    }
+  })();
+
+  document.getElementById('loginPassword').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  // ================== تحميل بيانات كل الفصول ==================
+  async function loadAllClasses() {
+    document.getElementById('classGridWrap').innerHTML =
+      '<div class="empty-state"><div class="ic">⏳</div>جاري تحميل الفصول من السحابة...</div>';
+
+    const { data, error } = await sb
+      .from('class_records')
+      .select('class_id, class_name, data, updated_at')
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      document.getElementById('classGridWrap').innerHTML =
+        '<div class="empty-state"><div class="ic">⚠️</div>تعذر تحميل البيانات: ' + error.message + '</div>';
+      return;
+    }
+
+    allClasses = data || [];
+    renderClassGrid();
+  }
+
+  function renderClassGrid() {
+    const q = (document.getElementById('searchBox').value || '').trim().toLowerCase();
+    const filtered = allClasses.filter(c => (c.class_name || '').toLowerCase().includes(q));
+
+    const totalStudents = allClasses.reduce((sum, c) => sum + ((c.data && c.data.students) || []).length, 0);
+    const totalServants = allClasses.reduce((sum, c) => sum + ((c.data && c.data.servants) || []).length, 0);
+    document.getElementById('summaryPill').textContent =
+      `📚 ${allClasses.length} فصل  •  👦 ${totalStudents} مخدوم  •  🧑‍🤝‍🧑 ${totalServants} خادم`;
+
+    const wrap = document.getElementById('classGridWrap');
+    if (!filtered.length) {
+      wrap.innerHTML = '<div class="empty-state"><div class="ic">📭</div>لا توجد فصول مطابقة بعد.</div>';
+      return;
+    }
+
+    wrap.innerHTML = '<div class="class-grid">' + filtered.map(c => {
+      const d = c.data || {};
+      const studentsCount = (d.students || []).length;
+      const servantsCount = (d.servants || []).length;
+      const updated = c.updated_at ? new Date(c.updated_at).toLocaleString('ar-EG') : '—';
+      return `
+        <div class="class-card" onclick="openDetail('${c.class_id}')">
+          <h3>${escapeHtml(c.class_name || 'بدون اسم')}</h3>
+          <div class="meta">آخر تحديث: ${updated}</div>
+          <div class="stats">
+            <span class="chip green">👦 ${studentsCount} مخدوم</span>
+            <span class="chip blue">🧑‍🤝‍🧑 ${servantsCount} خادم</span>
+          </div>
+        </div>`;
+    }).join('') + '</div>';
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  // ================== تفاصيل فصل معيّن ==================
+  function openDetail(classId) {
+    const cls = allClasses.find(c => c.class_id === classId);
+    if (!cls) return;
+    currentDetailClass = cls;
+
+    const d = cls.data || {};
+    document.getElementById('detailTitle').textContent = cls.class_name || 'بدون اسم';
+    document.getElementById('detailMeta').textContent =
+      'آخر تحديث: ' + (cls.updated_at ? new Date(cls.updated_at).toLocaleString('ar-EG') : '—') +
+      '  •  معرف الفصل: ' + cls.class_id;
+
+    renderStudentsPanel(d);
+    renderServantsPanel(d);
+    renderAttendancePanel(d);
+
+    switchTab('students');
+    document.getElementById('detailOverlay').style.display = 'flex';
+  }
+
+  function closeDetail() {
+    document.getElementById('detailOverlay').style.display = 'none';
+    currentDetailClass = null;
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+  }
+
+  function computeAttendancePct(studentId, attendance) {
+    let total = 0, present = 0;
+    Object.keys(attendance || {}).forEach(date => {
+      const st = attendance[date][studentId];
+      if (st) { total++; if (st === 'present') present++; }
+    });
+    if (!total) return null;
+    return Math.round((present / total) * 100);
+  }
+
+  function renderStudentsPanel(d) {
+    const students = d.students || [];
+    const confessions = d.confessions || {};
+    const attendance = d.attendance || {};
+    const panel = document.getElementById('panel-students');
+
+    if (!students.length) {
+      panel.innerHTML = '<div class="no-data">لا يوجد مخدومون مسجّلون في هذا الفصل.</div>';
+      return;
+    }
+
+    panel.innerHTML = `
+      <table class="data-table">
+        <thead><tr>
+          <th>#</th><th>الاسم</th><th>تاريخ الميلاد</th><th>أب الاعتراف</th>
+          <th>مرات الاعتراف</th><th>نسبة الحضور</th><th>هاتف</th>
+        </tr></thead>
+        <tbody>
+          ${students.map((s, i) => {
+            const pct = computeAttendancePct(s.id, attendance);
+            const pctHtml = pct === null ? '—' :
+              `${pct}% <span class="pct-bar"><span class="pct-fill" style="width:${pct}%"></span></span>`;
+            const phone = s.phone || s.phone2 || s.ownPhone || '—';
+            return `<tr class="row-clickable" onclick="openStudentModal('${s.id}')">
+              <td>${i+1}</td>
+              <td style="font-weight:700;">${escapeHtml(s.name || '')}</td>
+              <td>${escapeHtml(s.dob || '—')}</td>
+              <td>${escapeHtml(s.confessor || '—')}</td>
+              <td>${confessions[s.id] || 0}</td>
+              <td>${pctHtml}</td>
+              <td>${escapeHtml(phone)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div class="no-data" style="padding-top:10px;">👆 دوس على أي مخدوم لعرض بروفايله الكامل</div>`;
+  }
+
+  function renderServantsPanel(d) {
+    const servants = d.servants || [];
+    const panel = document.getElementById('panel-servants');
+    if (!servants.length) {
+      panel.innerHTML = '<div class="no-data">لا يوجد خدام مسجّلون في هذا الفصل.</div>';
+      return;
+    }
+    panel.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>#</th><th>الاسم</th><th>الدور</th><th>هاتف</th></tr></thead>
+        <tbody>
+          ${servants.map((s, i) => `
+            <tr>
+              <td>${i+1}</td>
+              <td style="font-weight:700;">${escapeHtml(s.name || '')}</td>
+              <td>${escapeHtml(s.role || s.job || '—')}</td>
+              <td>${escapeHtml(s.phone || '—')}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  function renderAttendancePanel(d) {
+    const attendance = d.attendance || {};
+    const students = d.students || [];
+    const dates = Object.keys(attendance).sort().reverse();
+    const panel = document.getElementById('panel-attendance');
+
+    if (!dates.length) {
+      panel.innerHTML = '<div class="no-data">لا يوجد سجل حضور بعد.</div>';
+      return;
+    }
+
+    panel.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>التاريخ</th><th>حاضر</th><th>غائب</th><th>متأخر</th><th>الإجمالي</th></tr></thead>
+        <tbody>
+          ${dates.map(date => {
+            const rec = attendance[date] || {};
+            let present=0, absent=0, late=0;
+            Object.values(rec).forEach(st => {
+              if (st === 'present') present++;
+              else if (st === 'absent') absent++;
+              else if (st === 'late') late++;
+            });
+            return `<tr>
+              <td style="font-weight:700;">${date}</td>
+              <td style="color:var(--green);font-weight:700;">${present}</td>
+              <td style="color:var(--accent);font-weight:700;">${absent}</td>
+              <td style="color:var(--gold);font-weight:700;">${late}</td>
+              <td>${present+absent+late}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  function exportCurrentClassJSON() {
+    if (!currentDetailClass) return;
+    const blob = new Blob([JSON.stringify(currentDetailClass.data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `بيانات_${(currentDetailClass.class_name || 'فصل').replace(/\s/g,'_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ================== حذف فصل ==================
+  async function deleteCurrentClass() {
+    if (!currentDetailClass) return;
+    const name = currentDetailClass.class_name || 'بدون اسم';
+    const typed = prompt(
+      `⚠️ هذا الإجراء نهائي ولا يمكن التراجع عنه.\n\nسيتم حذف كل بيانات فصل "${name}" (المخدومون، الخدام، الحضور) نهائيًا من السحابة.\n\nللتأكيد، اكتب اسم الفصل بالضبط:`
+    );
+    if (typed === null) return;
+    if (typed.trim() !== name.trim()) {
+      showToast('❌ الاسم المكتوب غير مطابق — لم يتم الحذف');
+      return;
+    }
+    const { error } = await sb.from('class_records').delete().eq('class_id', currentDetailClass.class_id);
+    if (error) {
+      showToast('⚠️ فشل الحذف: ' + error.message);
+      return;
+    }
+    allClasses = allClasses.filter(c => c.class_id !== currentDetailClass.class_id);
+    closeDetail();
+    renderClassGrid();
+    showToast('🗑️ تم حذف الفصل "' + name + '" نهائيًا');
+  }
+
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  }
+
+  // ================== التبديل بين الفصول / المتابعة الرعوية ==================
+  function showView(name) {
+    document.getElementById('classesView').style.display = name === 'classes' ? 'block' : 'none';
+    document.getElementById('pastoralView').style.display = name === 'pastoral' ? 'block' : 'none';
+    document.getElementById('navClasses').style.opacity = name === 'classes' ? '1' : '.65';
+    document.getElementById('navPastoral').style.opacity = name === 'pastoral' ? '1' : '.65';
+    if (name === 'pastoral') renderPastoralView();
+  }
+
+  // ================== المتابعة الرعوية: أعلى نسب الغياب في كل الفصول ==================
+  function renderPastoralView() {
+    const wrap = document.getElementById('pastoralView');
+    let list = [];
+    allClasses.forEach(c => {
+      const d = c.data || {};
+      (d.students || []).forEach(s => {
+        const pct = computeAttendancePct(s.id, d.attendance || {});
+        if (pct === null) return;
+        list.push({
+          name: s.name, className: c.class_name || 'بدون اسم', classId: c.class_id,
+          studentId: s.id, pct, phone: s.phone || s.phone2 || s.ownPhone || ''
+        });
+      });
+    });
+    list.sort((a, b) => a.pct - b.pct);
+    list = list.slice(0, 30);
+
+    if (!list.length) {
+      wrap.innerHTML = '<div class="empty-state"><div class="ic">💙</div>لا توجد بيانات حضور كافية بعد لعرض متابعة رعوية.</div>';
+      return;
+    }
+
+    wrap.innerHTML = `
+      <div class="no-data" style="text-align:right;padding:0 0 14px;">
+        أعلى 30 مخدوم من حيث نسبة الغياب في كل الفصول — للمتابعة الرعوية والاتصال بأولياء الأمور
+      </div>
+      ${list.map(item => `
+        <div class="pastoral-card" onclick="openDetail('${item.classId}'); setTimeout(()=>openStudentModal('${item.studentId}'), 150)">
+          <div>
+            <div class="name">${escapeHtml(item.name)}</div>
+            <div class="sub">${escapeHtml(item.className)}${item.phone ? ' • 📞 ' + escapeHtml(item.phone) : ''}</div>
+          </div>
+          <div class="pastoral-pct">${item.pct}%<span style="font-size:11px;color:#999;font-weight:400;"> حضور</span></div>
+        </div>`).join('')}`;
+  }
+
+  // ================== البحث الشامل عن مخدوم في كل الفصول ==================
+  function renderGlobalSearch() {
+    const q = (document.getElementById('globalSearchBox').value || '').trim().toLowerCase();
+    const resultsWrap = document.getElementById('globalSearchResults');
+    const classesView = document.getElementById('classesView');
+    const pastoralView = document.getElementById('pastoralView');
+
+    if (!q) {
+      resultsWrap.innerHTML = '';
+      resultsWrap.style.display = 'none';
+      classesView.style.display = document.getElementById('navClasses').style.opacity !== '.65' ? 'block' : 'none';
+      pastoralView.style.display = document.getElementById('navPastoral').style.opacity !== '.65' ? 'block' : 'none';
+      return;
+    }
+
+    classesView.style.display = 'none';
+    pastoralView.style.display = 'none';
+    resultsWrap.style.display = 'block';
+
+    let matches = [];
+    allClasses.forEach(c => {
+      const d = c.data || {};
+      (d.students || []).forEach(s => {
+        if ((s.name || '').toLowerCase().includes(q)) {
+          matches.push({ s, classId: c.class_id, className: c.class_name || 'بدون اسم' });
+        }
+      });
+    });
+
+    if (!matches.length) {
+      resultsWrap.innerHTML = '<div class="empty-state"><div class="ic">🔍</div>لا يوجد مخدوم بهذا الاسم.</div>';
+      return;
+    }
+
+    resultsWrap.innerHTML = matches.map(m => `
+      <div class="gsearch-result" onclick="openDetail('${m.classId}'); setTimeout(()=>openStudentModal('${m.s.id}'), 150)">
+        <div>
+          <div class="name">${escapeHtml(m.s.name || '')}</div>
+          <div class="cls">📚 ${escapeHtml(m.className)}${m.s.phone ? ' • 📞 ' + escapeHtml(m.s.phone) : ''}</div>
+        </div>
+        <span class="chip blue">عرض البروفايل ←</span>
+      </div>`).join('');
+  }
+
+  // ================== بروفايل الطفل الكامل ==================
+  function openStudentModal(studentId) {
+    if (!currentDetailClass) return;
+    const d = currentDetailClass.data || {};
+    const s = (d.students || []).find(x => x.id === studentId);
+    if (!s) return;
+
+    const confessions = d.confessions || {};
+    const massAttendance = d.massAttendance || {};
+    const attendance = d.attendance || {};
+    const pct = computeAttendancePct(s.id, attendance);
+
+    document.getElementById('stuTitle').textContent = s.name || 'بدون اسم';
+    document.getElementById('stuMeta').textContent = 'فصل: ' + (currentDetailClass.class_name || '—');
+
+    const photoHtml = s.photo
+      ? `<img class="stu-photo" src="${s.photo}" alt="${escapeHtml(s.name || '')}">`
+      : `<div class="stu-photo-placeholder">👤</div>`;
+
+    const fields = [
+      ['تاريخ الميلاد', s.dob], ['المدرسة', s.school], ['الصف الدراسي', s.class],
+      ['أب الاعتراف', s.confessor], ['هاتف الأب', s.phone], ['هاتف الأم', s.phone2],
+      ['هاتف شخصي', s.ownPhone], ['العنوان', s.address]
+    ];
+
+    const fieldsHtml = fields.map(([lbl, val]) => `
+      <div class="stu-field"><span class="lbl">${lbl}</span><span class="val">${escapeHtml(val || '—')}</span></div>
+    `).join('');
+
+    let body = `
+      <div class="stu-row">
+        ${photoHtml}
+        <div class="stu-info-grid">${fieldsHtml}</div>
+      </div>
+      <div class="stu-stats-row">
+        <div class="stu-stat-card"><div class="num">${pct === null ? '—' : pct + '%'}</div><div class="lbl">نسبة الحضور</div></div>
+        <div class="stu-stat-card"><div class="num">${confessions[s.id] || 0}</div><div class="lbl">مرات الاعتراف</div></div>
+        <div class="stu-stat-card"><div class="num">${massAttendance[s.id] || 0}</div><div class="lbl">حضور القداس</div></div>
+      </div>`;
+
+    if (s.extraNotes) {
+      body += `<div class="no-data" style="text-align:right;padding:0 24px 14px;">📝 ملاحظات: ${escapeHtml(s.extraNotes)}</div>`;
+    }
+
+    const dates = Object.keys(attendance).sort().reverse().filter(date => attendance[date][s.id]);
+    body += `<div class="stu-log-title">📅 سجل الحضور التفصيلي (${dates.length} يوم مسجّل)</div>`;
+    if (!dates.length) {
+      body += `<div class="no-data">لا يوجد سجل حضور لهذا المخدوم بعد.</div>`;
+    } else {
+      const statusLabel = { present: ['حاضر', 'var(--green)'], absent: ['غائب', 'var(--accent)'], late: ['متأخر', 'var(--gold)'] };
+      body += `<div class="stu-log-wrap"><table class="data-table"><tbody>
+        ${dates.map(date => {
+          const st = attendance[date][s.id];
+          const [label, color] = statusLabel[st] || [st, '#888'];
+          return `<tr><td style="font-weight:700;">${date}</td><td style="color:${color};font-weight:700;">${label}</td></tr>`;
+        }).join('')}
+      </tbody></table></div>`;
+    }
+
+    document.getElementById('stuBody').innerHTML = body;
+    document.getElementById('studentOverlay').style.display = 'flex';
+  }
+
+  function closeStudentModal() {
+    document.getElementById('studentOverlay').style.display = 'none';
+  }
+</script>
+</body>
+</html>
