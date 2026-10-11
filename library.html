@@ -174,6 +174,21 @@
     border-radius:10px; font-weight:700; font-size:14px; z-index:99999; box-shadow:0 6px 20px rgba(0,0,0,0.3);
   }
 
+  .gender-chooser { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:20px; max-width:640px; margin:40px auto; }
+  .gender-card {
+    display:flex; flex-direction:column; align-items:center; gap:10px; text-decoration:none; color:var(--ink);
+    background:#fff; border:2px solid var(--cream); border-radius:18px; padding:36px 20px;
+    box-shadow:0 6px 18px var(--shadow); transition:transform .15s, box-shadow .15s;
+  }
+  .gender-card:hover { transform:translateY(-4px); box-shadow:0 12px 26px var(--shadow); }
+  .gender-card .g-icon { font-size:56px; }
+  .gender-card .g-name { font-size:20px; font-weight:900; }
+  .gender-card .g-sub { font-size:12px; color:#888; }
+  .gender-card.boys  { border-color:var(--accent2); }
+  .gender-card.girls { border-color:#c2185b; }
+  body.girls .header-icon { background:#c2185b; }
+  body.girls .tab-btn.active { color:#c2185b; border-bottom-color:#c2185b; }
+
   @media (max-width:600px){
     .header h1 { font-size:15px; }
     .stage-grid { grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); }
@@ -188,12 +203,13 @@
   <div class="header-brand">
     <div class="header-icon">📚</div>
     <div>
-      <h1>المكتبة الروحية</h1>
-      <div class="header-subtitle">كاتدرائية رئيس الملائكة الجليل ميخائيل — طنطا</div>
+      <h1 id="libTitle">المكتبة الروحية</h1>
+      <div class="header-subtitle" id="libSubtitle">كاتدرائية رئيس الملائكة الجليل ميخائيل — طنطا</div>
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
     <span id="syncStatus" style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);padding:6px 12px;border-radius:20px;color:#fff;">⏳ جارٍ الاتصال بالسحابة...</span>
+    <a href="./library.html" class="back-link" id="switchGenderLink" style="display:none;">🔁 تغيير (بنين / بنات)</a>
     <a href="./index.html" class="back-link">↩️ الرجوع لنظام الغياب</a>
   </div>
 </div>
@@ -309,6 +325,15 @@
 const SUPABASE_URL = 'https://tnpokrdrhactzjrhlyjv.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRucG9rcmRyaGFjdHpqcmhseWp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMTg4MDYsImV4cCI6MjEwNjc5NDgwNn0.GAR0ckTxCGwHg4LeR1GAU5CTXnDLLpQkuY2lL6BycBw';
 const LIBRARY_BUCKET = 'library-files';
+
+/* ================= مكتبة البنين / مكتبة البنات (صفحتان منفصلتان) =================
+   library.html            ← شاشة اختيار (بنين / بنات)
+   library.html?g=boys     ← مكتبة البنين   (المعرّفات الأصلية كما هي، فتبقى الملفات وكلمات المرور القديمة هنا)
+   library.html?g=girls    ← مكتبة البنات   (كل معرّف قسم بادئته g_ فتكون ملفاتها وكلمات مرورها مستقلة تماماً) */
+const _gParam = new URLSearchParams(location.search).get('g');
+const GENDER = (_gParam === 'girls' || _gParam === 'boys') ? _gParam : null;
+const GIRLS_PREFIX = 'g_';
+const GENDER_LABEL = GENDER === 'girls' ? 'مكتبة البنات' : 'مكتبة البنين';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function checkSupabaseConnection() {
@@ -358,7 +383,11 @@ async function addCustomStage(stage) {
 }
 async function getAllStages() {
   const custom = await getCustomStages();
-  return [...DEFAULT_STAGES, ...custom];
+  if (GENDER === 'girls') {
+    const defs = DEFAULT_STAGES.map(s => ({ ...s, id: GIRLS_PREFIX + s.id }));
+    return [...defs, ...custom.filter(s => String(s.id).startsWith(GIRLS_PREFIX))];
+  }
+  return [...DEFAULT_STAGES, ...custom.filter(s => !String(s.id).startsWith(GIRLS_PREFIX))];
 }
 // أقسام لها كلمة مرور — لا تُرجَع الكلمات ولا الهاشات أبداً، فقط معرّفات الأقسام
 async function getLockedStageIds() {
@@ -621,7 +650,7 @@ async function submitNewStage() {
   const errEl = document.getElementById('addStageErr');
   errEl.style.display = 'none';
   if (!name) { errEl.textContent = 'اكتب اسم القسم أولاً.'; errEl.style.display = 'block'; return; }
-  const id = 'c_' + Date.now();
+  const id = (GENDER === 'girls' ? 'g_c_' : 'c_') + Date.now();
   try {
     await addCustomStage({ id, name, group:'أقسام إضافية', icon:'📚' });
     closeAddStageModal();
@@ -845,7 +874,25 @@ document.querySelectorAll('.overlay').forEach(ov => {
 });
 
 /* ================= بدء التشغيل ================= */
+function renderGenderChooser() {
+  document.getElementById('syncStatus').style.display = 'none';
+  document.getElementById('stagesContainer').innerHTML = `
+    <div class="gender-chooser">
+      <a class="gender-card boys" href="./library.html?g=boys">
+        <div class="g-icon">👦</div><div class="g-name">مكتبة البنين</div><div class="g-sub">كل الصفوف الدراسية للبنين</div>
+      </a>
+      <a class="gender-card girls" href="./library.html?g=girls">
+        <div class="g-icon">👧</div><div class="g-name">مكتبة البنات</div><div class="g-sub">كل الصفوف الدراسية للبنات</div>
+      </a>
+    </div>`;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  if (!GENDER) { renderGenderChooser(); return; }
+  document.body.classList.add(GENDER);
+  document.title = GENDER_LABEL + ' — كاتدرائية رئيس الملائكة الجليل ميخائيل - طنطا';
+  document.getElementById('libTitle').textContent = (GENDER === 'girls' ? '👧 ' : '👦 ') + GENDER_LABEL;
+  document.getElementById('switchGenderLink').style.display = 'inline-flex';
   checkSupabaseConnection();
   renderStages();
 });
