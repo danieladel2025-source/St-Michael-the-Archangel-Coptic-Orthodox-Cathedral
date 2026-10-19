@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./live-chat.js"></script>
+<script src="./push-client.js"></script>
 <style>
   :root {
     --ink: #0d1117;
@@ -1072,6 +1073,14 @@
       });
       return rooms;
     }
+  });
+</script>
+<script>
+  // ===== 🔔 إشعارات حقيقية للمشرفين (رسائل كل الغرف) والتطبيق مغلق =====
+  PushClient.init({
+    role: 'admin',
+    getClient: function () { return window._adminEmail ? sb : null; },
+    getName: function () { return 'مشرف'; }
   });
 </script>
 </body>

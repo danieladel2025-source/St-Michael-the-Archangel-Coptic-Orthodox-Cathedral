@@ -1,5 +1,5 @@
 // ===== Service Worker: نظام تسجيل غياب ومتابعة المخدومين — كاتدرائية رئيس الملائكة الجليل ميخائيل - طنطا =====
-const CACHE_VERSION = 'church-attendance-v6'; // رفع الإصدار يجبر الأجهزة على جلب الملفات المُحدّثة
+const CACHE_VERSION = 'church-attendance-v7'; // رفع الإصدار يجبر الأجهزة على جلب الملفات المُحدّثة
 const CACHE_NAME = CACHE_VERSION;
 
 // الملفات الأساسية التي يتم تخزينها مسبقًا (App Shell)
@@ -12,6 +12,7 @@ const PRECACHE_URLS = [
   './qr-map.css',
   './lesson-reminder.js',
   './live-chat.js',
+  './push-client.js',
   './manifest.json',
   './icons/icon-72.png',
   './icons/icon-96.png',
@@ -130,8 +131,9 @@ function scheduleLessonNotifications(triggers) {
   (triggers || []).forEach((t) => {
     const delay = t.ts - now;
     if (delay > 0 && delay < 8 * 24 * 60 * 60 * 1000) {
-      lessonTimers[t.tag] = setTimeout(() => {
+      lessonTimers[t.tag] = setTimeout(async () => {
         delete lessonTimers[t.tag];
+        if (await hasPushSubscription()) return; // السيرفر سيرسله (Web Push)
         self.registration.showNotification(t.title, {
           body: t.body,
           icon: './icons/icon-192.png',
@@ -156,7 +158,8 @@ function scheduleBirthdayNotifications(people) {
       const delay = trigger.ts - now;
       if (delay > 0 && delay < 8 * 24 * 60 * 60 * 1000) {
         // setTimeout تعمل طالما الـ SW نشط (المتصفح قد يوقفه، فالصفحة تعيد الجدولة عند كل فتح)
-        setTimeout(() => {
+        setTimeout(async () => {
+          if (await hasPushSubscription()) return; // السيرفر سيرسله (Web Push)
           self.registration.showNotification(trigger.title, {
             body: trigger.body,
             icon: trigger.icon || './icons/icon-192.png',
@@ -172,13 +175,70 @@ function scheduleBirthdayNotifications(people) {
   });
 }
 
-// فتح التطبيق عند الضغط على الإشعار
+// =====================================================================
+//  🔔 Web Push — يصل الإشعار من السيرفر حتى لو التطبيق/المتصفح مغلق
+// =====================================================================
+async function hasPushSubscription() {
+  try { return !!(await self.registration.pushManager.getSubscription()); } catch (e) { return false; }
+}
+
+// سفاري/آيفون يُلزم بإظهار إشعار مع كل push، فلا نتخطّاه هناك أبداً
+function isAppleWebKit() {
+  const ua = (self.navigator && self.navigator.userAgent) || '';
+  return /iPhone|iPad|iPod|Macintosh/.test(ua) && !/Chrome|Chromium|Edg|Firefox/.test(ua);
+}
+
+async function showPushNotification(d) {
+  // رسالة شات والتطبيق مفتوح أمام المستخدم: يكفيه التنبيه داخل الصفحة
+  if (d.kind === 'chat' && !isAppleWebKit()) {
+    const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    if (wins.some((w) => w.visibilityState === 'visible' && w.focused)) return;
+  }
+  const opts = {
+    body: d.body || '',
+    icon: d.icon || './icons/icon-192.png',     // صورة التطبيق تظهر في لوحة الإشعارات
+    badge: d.badge || './icons/icon-192.png',
+    dir: 'rtl',
+    lang: 'ar',
+    vibrate: d.kind === 'chat' ? [200, 100, 200] : [200, 100, 200, 100, 200],
+    requireInteraction: !!d.requireInteraction,
+    data: { url: d.url || './index.html', kind: d.kind || '' }
+  };
+  if (d.tag) { opts.tag = d.tag; if (d.renotify) opts.renotify = true; }
+  return self.registration.showNotification(d.title || 'كشف غياب الكنيسة', opts);
+}
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+  event.waitUntil(showPushNotification(data));
+});
+
+// لو انتهى اشتراك الجهاز يجدّده المتصفح؛ والصفحة تُسجّله في السحابة عند فتح التطبيق
+self.addEventListener('pushsubscriptionchange', (event) => {
+  const old = event.oldSubscription;
+  const key = old && old.options && old.options.applicationServerKey;
+  if (!key) return;
+  event.waitUntil(
+    self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }).catch(() => {})
+  );
+});
+
+// فتح التطبيق (أو الصفحة المطلوبة) عند الضغط على الإشعار
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const d = event.notification.data || {};
+  const target = new URL(d.url || './index.html', self.registration.scope).href;
+  const path = (u) => u.split('#')[0].split('?')[0];
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cls) => {
-      if (cls.length > 0) return cls[0].focus();
-      return clients.openWindow(self.registration.scope);
+      const same = cls.find((c) => path(c.url) === path(target));
+      if (same) return same.focus();
+      return clients.openWindow(target);
     })
   );
 });

@@ -4233,6 +4233,10 @@
           <button onclick="testNotif_delayed()" style="background:#0369a1;color:white;border:none;border-radius:10px;padding:13px 18px;font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
             ⏱️ <span>إشعار مؤجل 5 ثوانٍ — اختبار التوقيت</span>
           </button>
+
+          <button onclick="PushClient.testFromPanel()" style="background:#0f766e;color:white;border:none;border-radius:10px;padding:13px 18px;font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+            📡 <span>اختبار حقيقي — أغلق التطبيق وانتظر 15 ثانية</span>
+          </button>
         </div>
 
         <!-- نتيجة الاختبار -->
@@ -9302,6 +9306,7 @@
 </script>
 <script src="./lesson-reminder.js"></script>
 <script src="./live-chat.js"></script>
+<script src="./push-client.js"></script>
 <script>
   // ===== 💬 الشات المباشر (للخدام) — غرفة الفصل + الغرفة العامة =====
   LiveChat.init({
@@ -9324,6 +9329,14 @@
       var sv = (typeof servants !== 'undefined' ? servants : []).find(function (x) { return String(x.name || '').trim() === n; });
       return (sv && String(sv.role || '').trim()) || 'خادم';
     }
+  });
+</script>
+<script>
+  // ===== 🔔 إشعارات حقيقية (Web Push) — تصل حتى والتطبيق مغلق =====
+  PushClient.init({
+    role: 'servant',
+    getClient: function () { return (typeof ACTIVE_CHAPTER_ID !== 'undefined' && ACTIVE_CHAPTER_ID) ? _supabaseClient : null; },
+    getChapterId: function () { return (typeof ACTIVE_CHAPTER_ID !== 'undefined' && ACTIVE_CHAPTER_ID) ? ACTIVE_CHAPTER_ID : ''; }
   });
 </script>
 </body></html>
