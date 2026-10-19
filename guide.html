@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d1117">
+<title>شرح النظام — نظام تسجيل غياب ومتابعة المخدومين والخدام</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#0d1117;--paper:#f5f0e8;--cream:#ede8dc;--accent:#c8392b;--accent2:#2980b9;--gold:#d4a017;--green:#1a7a4a;--line:#b5a98a;--shadow:rgba(13,17,23,.12);--purple:#7c3aed}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{font-family:'Cairo',sans-serif;background:var(--paper);color:var(--ink);line-height:1.8;
+    background-image:repeating-linear-gradient(0deg,transparent,transparent 38px,var(--line) 38px,var(--line) 39px),repeating-linear-gradient(90deg,transparent,transparent 38px,rgba(181,169,138,.15) 38px,rgba(181,169,138,.15) 39px)}
+  .top{background:var(--ink);color:var(--paper);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:50;box-shadow:0 4px 20px var(--shadow)}
+  .top h1{font-size:17px;font-weight:900}
+  .back{background:var(--gold);color:var(--ink);text-decoration:none;font-weight:800;font-size:13px;padding:8px 16px;border-radius:6px;white-space:nowrap}
+  .wrap{max-width:900px;margin:0 auto;padding:22px 16px 60px}
+  .hero{background:#fff;border:1px solid var(--cream);border-top:5px solid var(--gold);border-radius:16px;padding:24px;text-align:center;box-shadow:0 8px 24px var(--shadow);margin-bottom:20px}
+  .hero .ic{font-size:44px}
+  .hero h2{font-size:22px;font-weight:900;margin:4px 0}
+  .hero p{color:#666;font-size:14px}
+  .toc{background:#fff;border:1px solid var(--cream);border-radius:14px;padding:16px 18px;margin-bottom:24px}
+  .toc h3{font-size:15px;font-weight:900;margin-bottom:8px}
+  .toc ol{padding-right:22px;columns:2;column-gap:24px;font-size:14px;font-weight:600}
+  .toc a{color:var(--accent2);text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  @media(max-width:560px){.toc ol{columns:1}}
+  section{background:#fff;border:1px solid var(--cream);border-radius:16px;padding:22px 20px;margin-bottom:20px;box-shadow:0 4px 14px var(--shadow);scroll-margin-top:76px}
+  section>h2{font-size:19px;font-weight:900;display:flex;align-items:center;gap:10px;border-bottom:3px solid var(--accent2);padding-bottom:8px;margin-bottom:12px}
+  section>h2 .n{background:var(--ink);color:var(--gold);min-width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:15px}
+  p{font-size:14.5px;margin-bottom:10px}
+  ul,ol.steps{padding-right:22px;margin-bottom:10px;font-size:14.5px}
+  li{margin-bottom:4px}
+  .tip,.warn{border-radius:10px;padding:10px 14px;font-size:13.5px;margin:12px 0;font-weight:600}
+  .tip{background:#eaf6ee;border-right:4px solid var(--green);color:#14532d}
+  .warn{background:#fdecea;border-right:4px solid var(--accent);color:#7f1d1d}
+  b.k{background:var(--cream);border-radius:5px;padding:0 6px;font-weight:800}
+
+  /* ===== الصور التوضيحية (واجهات مرسومة) ===== */
+  figure{margin:14px 0}
+  figcaption{font-size:12.5px;color:#777;text-align:center;margin-top:6px;font-weight:600}
+  .shot{border:2px solid var(--ink);border-radius:12px;overflow:hidden;background:var(--paper);box-shadow:0 6px 18px var(--shadow);position:relative}
+  .shot-bar{background:var(--ink);color:var(--paper);font-size:11px;padding:6px 12px;display:flex;gap:6px;align-items:center}
+  .shot-bar i{width:9px;height:9px;border-radius:50%;background:#555;display:inline-block}
+  .shot-bar i:nth-child(1){background:#e74c3c}.shot-bar i:nth-child(2){background:#f1c40f}.shot-bar i:nth-child(3){background:#2ecc71}
+  .shot-body{padding:14px;font-size:12px}
+  .m-card{background:#fff;border:1px solid var(--cream);border-radius:12px;padding:12px;text-align:center}
+  .m-input{background:#fff;border:2px solid var(--cream);border-radius:10px;padding:8px 12px;text-align:right;color:#999;font-weight:700;margin-bottom:8px}
+  .m-tabs{display:flex;gap:8px;margin-bottom:8px}
+  .m-tab{flex:1;padding:8px;border:2px solid var(--line);border-radius:10px;background:#fff;font-weight:900;text-align:center}
+  .m-tab.on{background:var(--accent2);border-color:var(--accent2);color:#fff}
+  .m-tab.pink.on{background:#c2185b;border-color:#c2185b}
+  .m-chips{display:flex;gap:6px;margin-bottom:8px;overflow:hidden}
+  .m-chip{padding:4px 11px;border-radius:20px;border:1.5px solid var(--cream);background:#fff;font-weight:800;white-space:nowrap;font-size:11px}
+  .m-chip.on{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+  .m-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
+  .m-ch{background:var(--paper);border:2px solid var(--cream);border-radius:12px;padding:10px 4px;font-weight:800;font-size:11px;text-align:center}
+  .m-ch .e{font-size:22px;display:block}
+  .m-ch.hl{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(41,128,185,.2)}
+  .m-btn{padding:9px;border-radius:8px;font-weight:800;text-align:center;font-size:12px}
+  .m-btn.add{border:2px dashed var(--accent2);color:var(--accent2);background:rgba(41,128,185,.06);border-radius:10px}
+  .m-btn.guide{background:var(--ink);color:var(--paper);border:2px solid var(--gold);border-radius:6px;margin-top:8px}
+  .m-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+  .m-stat{background:#fff;border-radius:9px;padding:6px 2px;text-align:center;border-top:4px solid}
+  .m-stat b{display:block;font-size:19px;line-height:1.2}
+  .m-stat span{font-size:10px;color:#666;font-weight:700}
+  .m-toolbar{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+  .m-tb{padding:5px 9px;border-radius:7px;font-weight:800;font-size:10.5px;color:#fff}
+  .bg-ink{background:var(--ink)}.bg-green{background:var(--green)}.bg-red{background:var(--accent)}.bg-blue{background:var(--accent2)}.bg-gold{background:var(--gold);color:var(--ink)}.bg-purple{background:var(--purple)}.bg-wa{background:#25d366}
+  table.m-tbl{width:100%;border-collapse:collapse;background:#fff;font-size:11px}
+  .m-tbl th{background:var(--ink);color:var(--paper);padding:6px 4px;font-weight:700}
+  .m-tbl td{border-bottom:1px solid var(--cream);padding:6px 4px;text-align:center}
+  .st{display:inline-block;padding:1px 8px;border-radius:10px;font-weight:800;font-size:10.5px}
+  .st.p{background:#d1fae5;color:#065f46}.st.a{background:#fee2e2;color:#991b1b}.st.l{background:#fef3c7;color:#92400e}
+  .m-modal{background:#fff;border-radius:14px;padding:14px;max-width:340px;margin:0 auto;box-shadow:0 8px 24px var(--shadow);border:1px solid var(--cream)}
+  .m-modal h4{font-size:13px;font-weight:900;margin-bottom:8px}
+  .m-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+  .m-row .m-input{flex:1;margin:0;padding:6px 10px}
+  .m-qr{width:90px;height:90px;margin:0 auto;background:
+    conic-gradient(from 90deg at 50% 50%,var(--ink) 25%,#fff 0 50%,var(--ink) 0 75%,#fff 0) 0 0/18px 18px;border:6px solid #fff;outline:2px solid var(--ink)}
+  .m-cam{background:#1b222c;border-radius:12px;height:150px;display:flex;align-items:center;justify-content:center;position:relative}
+  .m-cam .frame{width:100px;height:100px;border:3px solid var(--gold);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:30px}
+  .m-cam .scanline{position:absolute;left:30%;right:30%;top:50%;height:2px;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+  .m-toast{margin-top:8px;background:#d1fae5;color:#065f46;border-radius:9px;padding:8px;font-weight:800;text-align:center}
+  .m-bar{height:8px;background:#e5e7eb;border-radius:8px;overflow:hidden;width:90px;display:inline-block;vertical-align:middle}
+  .m-bar i{display:block;height:100%;background:var(--green)}
+  .m-box{background:#fdfdfd;border:1px solid #eee;border-radius:8px;padding:8px}
+  .m-box h5{font-size:11.5px;border-bottom:2px solid #f1f1f1;padding-bottom:4px;margin-bottom:6px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .num{position:absolute;background:var(--accent);color:#fff;width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.35);border:2px solid #fff}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;font-weight:600;margin-top:8px;justify-content:center}
+  .legend span b{background:var(--accent);color:#fff;border-radius:50%;width:19px;height:19px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;margin-left:5px}
+  footer{text-align:center;font-size:12px;color:#888;margin-top:10px}
+  .bottom-back{display:block;width:100%;max-width:420px;margin:20px auto 0;text-align:center;padding:14px;background:var(--ink);color:var(--paper);border:2px solid var(--gold);border-radius:6px;text-decoration:none;font-weight:800}
+  .bottom-back:hover{background:var(--gold);color:var(--ink)}
+  @media(max-width:560px){.two{grid-template-columns:1fr}.top h1{font-size:14px}}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>📖 شرح النظام</h1>
+  <a class="back" href="./index.html">↩️ العودة للنظام</a>
+</div>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="ic">⛪</div>
+    <h2>دليل استخدام نظام تسجيل الغياب والمتابعة</h2>
+    <p>كاتدرائية رئيس الملائكة الجليل ميخائيل — طنطا<br>شرح مبسّط خطوة بخطوة مع صور توضيحية لكل شاشة</p>
+  </div>
+
+  <nav class="toc">
+    <h3>📑 محتويات الدليل</h3>
+    <ol>
+      <li><a href="#s1">فكرة النظام باختصار</a></li>
+      <li><a href="#s2">اختيار الفصل والدخول</a></li>
+      <li><a href="#s3">الشاشة الرئيسية للفصل</a></li>
+      <li><a href="#s4">إضافة المخدومين</a></li>
+      <li><a href="#s5">تسجيل الحضور والغياب</a></li>
+      <li><a href="#s6">تسجيل الحضور بالـ QR</a></li>
+      <li><a href="#s7">كشف الخدام</a></li>
+      <li><a href="#s8">المتابعة الراعوية والاعتراف</a></li>
+      <li><a href="#s9">الافتقاد</a></li>
+      <li><a href="#s10">أعياد الميلاد والإشعارات</a></li>
+      <li><a href="#s11">واتساب والتقارير</a></li>
+      <li><a href="#s12">النسخ الاحتياطي والاستيراد</a></li>
+      <li><a href="#s13">المكتبة الروحية</a></li>
+      <li><a href="#s14">لوحة المشرفين</a></li>
+      <li><a href="#s15">الشات وتذكير الدرس</a></li>
+      <li><a href="#s16">نصائح مهمة</a></li>
+    </ol>
+  </nav>
+
+  <!-- 1 -->
+  <section id="s1">
+    <h2><span class="n">1</span> فكرة النظام باختصار</h2>
+    <p>النظام يساعد الخدام على <b>تسجيل حضور وغياب المخدومين والخدام</b> أسبوعيًا، ومتابعة الاعتراف والقداس والتسميع، وافتقاد الغائبين، وتهنئة أعياد الميلاد — كل ذلك لكل فصل على حدة، وببيانات محفوظة على السحابة.</p>
+    <ul>
+      <li>لكل فصل <b>كلمة سر</b> خاصة به، فلا يرى خدام فصل بيانات فصل آخر.</li>
+      <li>يعمل على الهاتف والكمبيوتر، ويمكن تثبيته على الشاشة الرئيسية كتطبيق.</li>
+      <li>الحالات الثلاث: 🟢 حاضر — 🔴 غائب — 🟡 متأخر.</li>
+    </ul>
+  </section>
+
+  <!-- 2 -->
+  <section id="s2">
+    <h2><span class="n">2</span> اختيار الفصل والدخول</h2>
+    <p>أول شاشة تظهر عند فتح النظام هي <b>اختر الفصل</b>.</p>
+    <figure>
+      <div class="shot">
+        <div class="shot-bar"><i></i><i></i><i></i> شاشة اختيار الفصل</div>
+        <div class="shot-body">
+          <div class="m-card" style="position:relative">
+            <div style="font-size:30px">⛪</div>
+            <div style="font-weight:900;font-size:15px;margin-bottom:8px">اختر الفصل</div>
+            <div class="m-input" style="position:relative">🔍 ابحث باسم الفصل أو المرحلة الدراسية...<span class="num" style="top:-8px;left:-8px">1</span></div>
+            <div class="m-tabs" style="position:relative"><div class="m-tab on">بنين</div><div class="m-tab pink">بنات</div><span class="num" style="top:-8px;left:-8px">2</span></div>
+            <div class="m-chips" style="position:relative"><div class="m-chip on">الكل</div><div class="m-chip">ابتدائي</div><div class="m-chip">إعدادي</div><div class="m-chip">ثانوي</div><div class="m-chip">جامعة</div><span class="num" style="top:-8px;left:-8px">3</span></div>
+            <div class="m-grid" style="position:relative">
+              <div class="m-ch hl"><span class="e">📂</span>فصل الأنبا ونس</div>
+              <div class="m-ch"><span class="e">📂</span>فصل مارجرجس</div>
+              <div class="m-ch"><span class="e">📂</span>فصل الأنبا أنطونيوس</div>
+              <span class="num" style="top:-8px;left:-8px">4</span>
+            </div>
+            <div class="m-btn add" style="position:relative">➕ إضافة فصل جديد<span class="num" style="top:-8px;left:-8px">5</span></div>
+            <div class="m-btn guide" style="position:relative">📖 طريقة شرح النظام<span class="num" style="top:-8px;left:-8px">6</span></div>
+          </div>
+        </div>
+      </div>
+      <figcaption>الصورة 1: شاشة اختيار الفصل (الأسماء للتوضيح فقط)</figcaption>
+      <div class="legend">
+        <span><b>1</b>بحث بالاسم</span><span><b>2</b>بنين / بنات</span><span><b>3</b>المرحلة الدراسية</span><span><b>4</b>بطاقات الفصول</span><span><b>5</b>فصل جديد</span><span><b>6</b>هذا الشرح</span>
+      </div>
+    </figure>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> إدخال كلمة السر</div>
+        <div class="shot-body"><div class="m-modal"><h4>🔒 كلمة سر الفصل</h4><div class="m-input">••••••••</div><div class="m-row"><div class="m-btn bg-green" style="flex:1;color:#fff">دخول</div><div class="m-btn" style="flex:1;border:2px solid var(--line)">إلغاء</div></div></div></div>
+      </div>
+      <figcaption>الصورة 2: بعد الضغط على بطاقة الفصل تظهر نافذة كلمة السر</figcaption>
+    </figure>
+    <ol class="steps">
+      <li>استخدم البحث أو اختر <b class="k">بنين / بنات</b> ثم المرحلة لتصل لفصلك سريعًا.</li>
+      <li>اضغط على بطاقة فصلك، واكتب <b>كلمة السر</b>، ثم اضغط <b class="k">دخول</b>.</li>
+      <li>لإنشاء فصل جديد اضغط <b class="k">➕ إضافة فصل جديد</b> واملأ الاسم والمرحلة وكلمة السر.</li>
+      <li>لتغيير الفصل لاحقًا اضغط <b class="k">📂 تبديل الفصل</b> أعلى الصفحة.</li>
+    </ol>
+  </section>
+
+  <!-- 3 -->
+  <section id="s3">
+    <h2><span class="n">3</span> الشاشة الرئيسية للفصل</h2>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> الشاشة الرئيسية</div>
+        <div class="shot-body">
+          <div class="m-card" style="text-align:right;margin-bottom:8px;position:relative">
+            <div style="font-weight:800">🏫 اسم الفصل / المجموعة:</div>
+            <div class="m-input" style="margin:4px 0">شفيع الفصل القديس الأنبا ونس</div>
+            <div style="font-weight:800">📅 يوم أخذ الغياب: <span style="border:2px solid var(--gold);border-radius:7px;padding:1px 10px">الجمعة ▾</span></div>
+            <span class="num" style="top:-8px;left:-8px">1</span>
+          </div>
+          <div class="m-stats" style="position:relative">
+            <div class="m-stat" style="border-color:var(--accent2)"><b style="color:var(--accent2)">24</b><span>الإجمالي</span></div>
+            <div class="m-stat" style="border-color:var(--green)"><b style="color:var(--green)">18</b><span>🟢 حضور</span></div>
+            <div class="m-stat" style="border-color:var(--accent)"><b style="color:var(--accent)">4</b><span>🔴 غياب</span></div>
+            <div class="m-stat" style="border-color:var(--gold)"><b style="color:var(--gold)">2</b><span>🟡 تأخير</span></div>
+            <span class="num" style="top:-10px;left:-8px">2</span>
+          </div>
+          <div class="m-toolbar" style="position:relative">
+            <span class="m-tb bg-ink">↩️ تراجع</span><span class="m-tb bg-ink">↪️ إعادة</span><span class="m-tb bg-blue">📁 نسخة احتياطية</span><span class="m-tb bg-green">📊 تصدير Excel</span><span class="m-tb bg-red">📄 حفظ PDF</span><span class="m-tb bg-wa">💬 واتساب</span><span class="m-tb bg-purple">📷 مسح QR</span>
+            <span class="num" style="top:-12px;left:-8px">3</span>
+          </div>
+          <div style="display:flex;gap:6px;position:relative"><div class="m-tab on" style="flex:none;padding:6px 16px">🎓 المخدومين</div><div class="m-tab" style="flex:none;padding:6px 16px">⛪ الخدام</div><span class="num" style="top:-10px;left:-8px">4</span></div>
+        </div>
+      </div>
+      <figcaption>الصورة 3: مكونات الشاشة الرئيسية</figcaption>
+      <div class="legend"><span><b>1</b>اسم الفصل ويوم الغياب</span><span><b>2</b>عدادات اليوم</span><span><b>3</b>شريط الأدوات</span><span><b>4</b>كشف المخدومين / الخدام</span></div>
+    </figure>
+    <ul>
+      <li><b>اسم الفصل:</b> يظهر في ملفات PDF والإكسل المُصدَّرة، ويمكنك رفع <b>صورة للفصل</b> من الأيقونة 🏫.</li>
+      <li><b>يوم أخذ الغياب:</b> اختر اليوم (الجمعة مثلًا) — لن تُحسب التواريخ الأخرى.</li>
+      <li><b>العدادات:</b> تتحدث تلقائيًا بعد كل تسجيل.</li>
+      <li><b>↩️ تراجع / ↪️ إعادة:</b> للرجوع عن آخر تعديل أو إعادته.</li>
+    </ul>
+  </section>
+
+  <!-- 4 -->
+  <section id="s4">
+    <h2><span class="n">4</span> إضافة المخدومين</h2>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> إضافة مخدوم جديد</div>
+        <div class="shot-body"><div class="m-modal">
+          <h4>👤 إضافة مخدوم جديد</h4>
+          <div class="m-row"><div style="width:44px;height:44px;border-radius:50%;background:var(--cream);display:flex;align-items:center;justify-content:center">📷</div><div class="m-input">اسم المخدوم</div></div>
+          <div class="m-row"><div class="m-input">تاريخ الميلاد</div><div class="m-input">المدرسة</div></div>
+          <div class="m-row"><div class="m-input">أب الاعتراف</div><div class="m-input">ملاحظات عامة</div></div>
+          <div class="m-btn bg-green" style="color:#fff">💾 حفظ</div>
+        </div></div>
+      </div>
+      <figcaption>الصورة 4: نموذج إضافة مخدوم</figcaption>
+    </figure>
+    <ol class="steps">
+      <li>من كشف المخدومين اضغط <b class="k">➕ إضافة مخدوم</b>.</li>
+      <li>اكتب الاسم وباقي البيانات (تاريخ الميلاد، المدرسة، أب الاعتراف، الملاحظات) وأضف صورة إن أردت.</li>
+      <li>اضغط حفظ؛ سيحصل المخدوم على <b>رقم مخدوم</b> تلقائي.</li>
+    </ol>
+    <div class="tip">💡 لإدخال عدد كبير دفعة واحدة استخدم <b>📥 استيراد من Excel</b> (انظر القسم 12). ويمكن فتح بطاقة أي مخدوم لعرض بياناته كاملة.</div>
+  </section>
+
+  <!-- 5 -->
+  <section id="s5">
+    <h2><span class="n">5</span> تسجيل الحضور والغياب</h2>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> كشف المخدومين</div>
+        <div class="shot-body">
+          <div class="m-toolbar" style="position:relative"><span class="m-tb bg-green">✅ تحضير الكل</span><span class="m-tb bg-red">❌ غياب الكل</span><span class="m-tb bg-blue">➕ إضافة مخدوم</span><span class="num" style="top:-12px;left:-8px">1</span></div>
+          <table class="m-tbl">
+            <tr><th>الاسم</th><th>الاعتراف</th><th>القداس</th><th>الخدمة</th><th>الحالة</th><th>ملاحظات اليوم</th></tr>
+            <tr><td>مينا سامي</td><td>٣</td><td>☑</td><td>☑</td><td><span class="st p">حاضر</span></td><td>—</td></tr>
+            <tr><td>بيشوي عادل</td><td>١</td><td>☐</td><td>☑</td><td><span class="st a">غائب</span></td><td>مريض</td></tr>
+            <tr><td>كيرلس مجدي</td><td>٢</td><td>☑</td><td>☑</td><td><span class="st l">متأخر</span></td><td>—</td></tr>
+          </table>
+          <span class="num" style="top:78px;left:34px">2</span>
+        </div>
+      </div>
+      <figcaption>الصورة 5: جدول المخدومين وأعمدة الحالة</figcaption>
+      <div class="legend"><span><b>1</b>تحضير / غياب للجميع بضغطة واحدة</span><span><b>2</b>اضغط على الحالة لتغييرها</span></div>
+    </figure>
+    <ol class="steps">
+      <li>تأكد أن تاريخ اليوم هو يوم الخدمة.</li>
+      <li>اضغط <b class="k">✅ تحضير الكل</b> ثم عدّل الغائبين والمتأخرين فقط — أسرع طريقة.</li>
+      <li>للمخدوم الواحد اضغط على خانة <b>الحالة</b> لتبديلها بين حاضر / غائب / متأخر.</li>
+      <li>سجّل <b>حضور القداس والخدمة</b> و<b>مرات الاعتراف</b> و<b>إنجاز التسميع</b> من أعمدتها، واكتب <b>ملاحظات اليوم</b> عند الحاجة.</li>
+    </ol>
+    <div class="warn">⏳ يمكن تعديل جلسة الحضور خلال <b>٧ أيام</b> فقط من تاريخها، وبعدها تُقفل للحفاظ على دقة السجلات.</div>
+  </section>
+
+  <!-- 6 -->
+  <section id="s6">
+    <h2><span class="n">6</span> تسجيل الحضور بالـ QR</h2>
+    <p>لكل مخدوم وخادم رمز QR خاص؛ يكفي مسحه بالكاميرا ليُسجَّل حضوره فورًا.</p>
+    <div class="two">
+      <figure style="margin:0">
+        <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> طباعة بطاقات QR</div>
+          <div class="shot-body" style="text-align:center"><div class="m-qr"></div><div style="font-weight:800;margin-top:8px">مينا سامي</div><div class="m-btn bg-ink" style="color:#fff;margin-top:8px">🔳 طباعة بطاقات QR</div></div></div>
+        <figcaption>الصورة 6: بطاقة QR للطباعة</figcaption>
+      </figure>
+      <figure style="margin:0">
+        <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> مسح QR للحضور</div>
+          <div class="shot-body"><div class="m-cam"><div class="frame">▦</div><div class="scanline"></div></div><div class="m-toast">✅ تم تسجيل الحضور</div></div></div>
+        <figcaption>الصورة 7: ماسح الكاميرا</figcaption>
+      </figure>
+    </div>
+    <ol class="steps">
+      <li>اضغط <b class="k">🔳 طباعة بطاقات QR</b> واطبع البطاقات وسلّمها للمخدومين.</li>
+      <li>عند الحضور اضغط <b class="k">📷 مسح QR للحضور</b> واسمح للمتصفح باستخدام الكاميرا.</li>
+      <li>وجّه الكاميرا نحو الرمز: يظهر صوت تأكيد وبطاقة بيانات الشخص مع زر <b class="k">↩️ تراجع</b>.</li>
+      <li>إن تعذّرت الكاميرا اكتب <b>الرقم أو الاسم</b> في خانة الإدخال اليدوي.</li>
+    </ol>
+    <div class="tip">💡 الكاميرا تحتاج فتح النظام عبر رابط <b>https</b>. والرمز يخص فصله فقط، فلن يُقبل في فصل آخر.</div>
+    <div class="warn">
+      ⚠️ <b>ملاحظة مهمة عند تعديل البيانات:</b><br>
+      رمز الـ QR مبني على <b>رقم المخدوم</b> فقط (وليس على الاسم أو الهاتف). لذلك:
+      <ul style="margin:6px 0 0">
+        <li>إذا غيّرت <b>رقم المخدوم</b> يتغير رمزه، ولن تعمل بطاقة QR القديمة في تسجيل غيابه — <b>اطبع له بطاقة جديدة</b> من 🔳 طباعة بطاقات QR وسلّمها له، وانتبه ألا تستخدم القديمة بعد ذلك. (سجلات غيابه السابقة تنتقل للرقم الجديد ولا تضيع.)</li>
+        <li>تعديل أي بيانات أخرى (الاسم، الهاتف، المدرسة، الملاحظات…) <b>لا يغيّر الرمز</b>، وتبقى البطاقة صالحة.</li>
+        <li>الخدام لهم رقم تعريف تلقائي لا يتغير عند التعديل، فتبقى بطاقتهم صالحة. وإذا <b>حُذف</b> الشخص من الكشف فلن يعمل رمزه.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="s7">
+    <h2><span class="n">7</span> كشف الخدام</h2>
+    <p>من تبويب <b class="k">⛪ الخدام</b> تُدار بيانات الخدام بنفس أسلوب المخدومين.</p>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> كشف الخدام</div>
+        <div class="shot-body">
+          <table class="m-tbl">
+            <tr><th>الاسم</th><th>الدور</th><th>الهاتف</th><th>مرات الغياب</th><th>حالة اليوم</th></tr>
+            <tr><td>أ. مرقس</td><td>أمين خدمة</td><td>01xxxxxxxxx</td><td>0</td><td><span class="st p">حاضر</span></td></tr>
+            <tr><td>أ. مريم</td><td>أمين مساعد</td><td>01xxxxxxxxx</td><td>2</td><td><span class="st a">غائب</span></td></tr>
+          </table>
+        </div>
+      </div>
+      <figcaption>الصورة 8: جدول الخدام</figcaption>
+    </figure>
+    <ul>
+      <li>اضغط <b class="k">➕ إضافة خادم</b> واكتب الاسم والدور (أمين خدمة، أمين مساعد، خادم…) والهاتفين والعنوان.</li>
+      <li>سجّل حضور الخدام بالأزرار نفسها (تحضير الكل / غياب الكل / QR).</li>
+      <li>اضغط على اسم الخادم لفتح <b>ملفه الشخصي</b>.</li>
+    </ul>
+  </section>
+
+  <!-- 8 -->
+  <section id="s8">
+    <h2><span class="n">8</span> المتابعة الراعوية والاعتراف</h2>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> لوحة التحليلات الراعوية</div>
+        <div class="shot-body">
+          <div class="m-card" style="text-align:right;border-top:4px solid var(--purple);margin-bottom:8px">
+            ✝️ <b>الحد الأدنى للاعتراف:</b> <span style="border:2px solid #d8b4fe;border-radius:7px;padding:1px 12px">2</span> مرة على الأقل
+          </div>
+          <div class="two">
+            <div class="m-box"><h5>📈 نسب الإنجاز العامة</h5>
+              <div>الحضور <span class="m-bar"><i style="width:75%"></i></span> ٧٥٪</div>
+              <div>الاعتراف <span class="m-bar"><i style="width:55%"></i></span> ٥٥٪</div>
+              <div>التسميع <span class="m-bar"><i style="width:68%"></i></span> ٦٨٪</div></div>
+            <div class="m-box"><h5>🚨 يحتاجون متابعة راعوية</h5>
+              <div>بيشوي عادل — <span class="st a">٤ غيابات</span></div>
+              <div>مارك سمير — <span class="st a">٣ غيابات</span></div></div>
+          </div>
+          <div class="m-card" style="text-align:right;border-top:4px solid var(--accent);margin-top:8px">🚫 <b>مخدومين لم يعترفوا بعد</b> <span class="st a">3</span></div>
+        </div>
+      </div>
+      <figcaption>الصورة 9: لوحة المتابعة الذكية</figcaption>
+    </figure>
+    <ul>
+      <li>حدّد <b>الحد الأدنى للاعتراف</b> خلال فترة الخدمة، فتظهر قائمة <b>مخدومين لم يعترفوا بعد</b> تلقائيًا ويمكن <b class="k">🖨️ طباعتها</b>.</li>
+      <li>لوحة <b>التحليلات</b> تعرض نسب الإنجاز والمخدومين ذوي الغياب المتكرر أو قلة الاعتراف.</li>
+      <li>زر <b class="k">🖨️ تقرير المتابعة الراعوية</b> يُخرج تقريرًا جاهزًا للطباعة.</li>
+    </ul>
+  </section>
+
+  <!-- 9 -->
+  <section id="s9">
+    <h2><span class="n">9</span> الافتقاد</h2>
+    <p>قائمة تجمع الغائبين لمتابعتهم بالهاتف أو الزيارة.</p>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> قائمة الافتقاد</div>
+        <div class="shot-body">
+          <div class="m-row" style="flex-wrap:wrap;position:relative">
+            <span style="font-weight:800">🔢 الغيابات من: <span class="m-input" style="display:inline-block;padding:2px 12px">2</span> فأكثر</span>
+            <span style="font-weight:800">📋 الفلتر: <span class="m-input" style="display:inline-block;padding:2px 12px">لم يتم بعد ▾</span></span>
+            <span style="font-weight:800">📱 النوع: <span class="m-input" style="display:inline-block;padding:2px 12px">هاتف ▾</span></span>
+            <span class="num" style="top:-12px;left:-6px">1</span>
+          </div>
+          <table class="m-tbl">
+            <tr><th>المخدوم</th><th>الغيابات</th><th>الأولوية</th><th>رسالة</th><th>ملاحظات</th><th>تم</th></tr>
+            <tr><td>بيشوي عادل</td><td>4</td><td><span class="st a">عالية</span></td><td><span class="m-tb bg-wa">💬</span></td><td>اتصلت ولم يرد</td><td>☐</td></tr>
+            <tr><td>مارك سمير</td><td>3</td><td><span class="st l">متوسطة</span></td><td><span class="m-tb bg-wa">💬</span></td><td>—</td><td>☑</td></tr>
+          </table>
+        </div>
+      </div>
+      <figcaption>الصورة 10: جدول الافتقاد وفلاتره</figcaption>
+    </figure>
+    <ol class="steps">
+      <li>حدّد <b>عدد الغيابات</b> الذي يدخل الشخص بعده القائمة، واختر الفلتر (الكل / لم يتم بعد / تم الافتقاد).</li>
+      <li>اضغط 💬 لإرسال <b>رسالة افتقاد</b> جاهزة على واتساب.</li>
+      <li>اختر <b>نوع الافتقاد</b> (هاتف / زيارة)، واكتب ملاحظاتك، وعلّم <b class="k">تم الافتقاد</b>.</li>
+      <li>زر <b class="k">🔁 إعادة ضبط "تم"</b> يبدأ دورة افتقاد جديدة.</li>
+    </ol>
+  </section>
+
+  <!-- 10 -->
+  <section id="s10">
+    <h2><span class="n">10</span> أعياد الميلاد والإشعارات</h2>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> تذكير أعياد الميلاد</div>
+        <div class="shot-body">
+          <div class="m-card" style="text-align:right;border-right:5px solid #e67e22">
+            <b style="color:#e67e22">🎂 تذكير بأعياد ميلاد المخدومين اليوم</b>
+            <div style="margin:6px 0">مينا سامي — يكمل ١٢ سنة</div>
+            <span class="m-tb bg-wa">📲 تهنئة واتساب</span>
+          </div>
+          <div class="m-toolbar" style="margin-top:8px"><span class="m-tb bg-blue">🔔 تفعيل الإشعارات</span><span class="m-tb bg-ink">🧪 لوحة الاختبار</span></div>
+        </div>
+      </div>
+      <figcaption>الصورة 11: تنبيه عيد ميلاد اليوم</figcaption>
+    </figure>
+    <ul>
+      <li>يعرض النظام أعياد ميلاد <b>اليوم</b> و<b>الأيام السبعة القادمة</b> للمخدومين والخدام.</li>
+      <li>اضغط <b class="k">📲 تهنئة واتساب</b> لإرسال تهنئة جاهزة، أو <b class="k">🎂 تهنئة أعياد الميلاد</b> من الشريط لإرسالها بالجملة.</li>
+      <li>اضغط <b class="k">🔔 تفعيل الإشعارات</b> ليصلك تنبيه بالأعياد. ولاختبارها استخدم <b>🧪 لوحة الاختبار</b>.</li>
+      <li>في موسم الميلاد المجيد تظهر بطاقة تهنئة 🎄 يمكن نسخها أو إرسالها.</li>
+    </ul>
+  </section>
+
+  <!-- 11 -->
+  <section id="s11">
+    <h2><span class="n">11</span> واتساب والتقارير</h2>
+    <ul>
+      <li><b class="k">💬 إرسال الغياب للواتساب:</b> يُنشئ كشف غياب اليوم كرسالة جاهزة تُرسل لأمين الخدمة أو مجموعة الخدام.</li>
+      <li><b class="k">📊 تصدير Excel:</b> ملف إكسل منسّق ببيانات الفصل وسجل الحضور.</li>
+      <li><b class="k">📄 حفظ PDF:</b> كشف جاهز للطباعة يحمل اسم الفصل.</li>
+      <li><b class="k">📅 سجل الحضور والغياب:</b> عرض الجلسات السابقة لأي تاريخ ومراجعتها.</li>
+    </ul>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> إرسال الغياب عبر واتساب</div>
+        <div class="shot-body"><div class="m-modal">
+          <h4>💬 إرسال كشف الغياب عبر واتساب</h4>
+          <div class="m-box" style="font-size:11px;line-height:1.6">كشف غياب فصل الأنبا ونس<br>🔴 بيشوي عادل<br>🔴 مارك سمير<br>🟡 كيرلس مجدي</div>
+          <div class="m-btn bg-wa" style="color:#fff;margin-top:8px">📲 إرسال</div>
+        </div></div>
+      </div>
+      <figcaption>الصورة 12: معاينة رسالة الغياب قبل الإرسال</figcaption>
+    </figure>
+  </section>
+
+  <!-- 12 -->
+  <section id="s12">
+    <h2><span class="n">12</span> النسخ الاحتياطي والاستيراد</h2>
+    <ul>
+      <li><b class="k">📁 نسخة احتياطية / أخذ نسخة الآن:</b> احفظ نسخة من بيانات الفصل على جهازك بانتظام.</li>
+      <li><b class="k">📂 استيراد:</b> استرجاع بيانات من نسخة محفوظة سابقًا.</li>
+      <li><b class="k">📥 استيراد من Excel:</b> اختر تبويب المخدومين أو الخدام وارفع ملف الإكسل.</li>
+      <li><b class="k">📦 أرشفة وبدء سنة جديدة:</b> يحفظ بيانات السنة الحالية ويبدأ سنة خدمية جديدة.</li>
+    </ul>
+    <div class="warn">⚠️ أزرار <b>🗑️ حذف جميع المخدومين والخدام</b> و<b>🗑️ حذف جميع سجلات الغياب</b> لا يمكن التراجع عنها بسهولة. خُذ <b>نسخة احتياطية</b> قبل استخدامها.</div>
+  </section>
+
+  <!-- 13 المكتبة الروحية -->
+  <section id="s13">
+    <h2><span class="n">13</span> المكتبة الروحية 📚</h2>
+    <p>مكتبة إلكترونية لكل مرحلة دراسية تضم <b>ملفات PDF</b> و<b>ملفات صوتية</b> و<b>ملفات فيديو</b> (دروس، ترانيم، عظات...) يستخدمها الخدام لتحضير الخدمة. تُفتح من زر <b class="k">📚 المكتبة الروحية</b> أعلى الصفحة أو من شاشة اختيار الفصل، ويمكنك العودة بزر <b class="k">↩️ الرجوع لنظام الغياب</b>.</p>
+
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">أ) اختيار مكتبة البنين أو البنات</h3>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> library.html</div>
+        <div class="shot-body">
+          <div class="two">
+            <div class="m-card" style="border-top:4px solid var(--accent2);padding:18px"><div style="font-size:32px">👦</div><b style="font-size:14px">مكتبة البنين</b><div style="color:#777">كل الصفوف الدراسية للبنين</div></div>
+            <div class="m-card" style="border-top:4px solid #c2185b;padding:18px"><div style="font-size:32px">👧</div><b style="font-size:14px">مكتبة البنات</b><div style="color:#777">كل الصفوف الدراسية للبنات</div></div>
+          </div>
+        </div>
+      </div>
+      <figcaption>الصورة 13: الشاشة الأولى للمكتبة</figcaption>
+    </figure>
+    <p>المكتبتان <b>منفصلتان تمامًا</b>: ملفات وكلمات مرور كل منهما مستقلة. ولتبديل المكتبة لاحقًا اضغط <b class="k">🔁 تغيير (بنين / بنات)</b> أعلى الصفحة. وتظهر بجانبه حالة الاتصال (☁️ متصل بالسحابة).</p>
+
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">ب) الأقسام وكلمة مرور كل قسم</h3>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> أقسام المكتبة</div>
+        <div class="shot-body">
+          <div style="font-weight:900;margin-bottom:6px;border-bottom:2px solid var(--cream)">المرحلة الابتدائية</div>
+          <div class="m-grid" style="position:relative">
+            <div class="m-ch hl"><span class="e">📗</span>سنة أولى ابتدائي 🔒</div>
+            <div class="m-ch"><span class="e">📗</span>سنة ثانية ابتدائي 🔒</div>
+            <div class="m-ch"><span class="e">📗</span>سنة ثالثة ابتدائي</div>
+            <span class="num" style="top:-8px;left:-8px">1</span>
+          </div>
+          <div style="font-weight:900;margin:4px 0 6px;border-bottom:2px solid var(--cream)">المرحلة الإعدادية • الثانوية • الخريجون • أقسام إضافية</div>
+          <div class="m-btn add" style="position:relative">➕ إضافة قسم جديد<span class="num" style="top:-8px;left:-8px">2</span></div>
+        </div>
+      </div>
+      <figcaption>الصورة 14: بطاقات الأقسام مجمّعة حسب المرحلة</figcaption>
+      <div class="legend"><span><b>1</b>اضغط على القسم للدخول</span><span><b>2</b>إنشاء قسم جديد</span></div>
+    </figure>
+    <ul>
+      <li>الأقسام الجاهزة: ست سنوات ابتدائي، ثلاث إعدادي، ثلاث ثانوي، ومرحلة الخريجين. ويمكنك إضافة أقسام أخرى (مثل: سنة أولى جامعة) فتظهر لكل المشرفين والخدام.</li>
+      <li>على كل بطاقة عدد ملفاته، وعلامة 🔒 تعني أن له كلمة مرور.</li>
+    </ul>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> كلمة مرور القسم</div>
+        <div class="shot-body">
+          <div class="two">
+            <div class="m-modal"><h4>🔒 سنة أولى ابتدائي</h4><div style="color:#777;margin-bottom:6px">أدخل كلمة مرور هذا القسم للدخول وعرض الملفات.</div><div class="m-input">••••••</div><div class="m-btn bg-ink" style="color:#fff">🔓 دخول</div></div>
+            <div class="m-modal"><h4>🔒 قسم جديد</h4><div style="color:#777;margin-bottom:6px">هذا القسم بلا كلمة مرور بعد. عيّن كلمة مرور لحماية ملفاته.</div><div class="m-input">••••••</div><div class="m-input">تأكيد كلمة المرور</div><div class="m-btn bg-green" style="color:#fff">حفظ ودخول</div></div>
+          </div>
+        </div>
+      </div>
+      <figcaption>الصورة 15: يسار الصورة قسم له كلمة مرور، ويمينها قسم لم تُعيَّن له كلمة بعد</figcaption>
+    </figure>
+    <div class="tip">💡 كلمة المرور <b>٤ أحرف على الأقل</b>. أول من يدخل قسمًا بلا كلمة مرور يعيّنها (مع التأكيد). ولتغييرها لاحقًا استخدم <b class="k">🔑 كلمة المرور</b> داخل القسم واكتب الحالية ثم الجديدة مرتين.</div>
+
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">ج) داخل القسم: رفع وعرض الملفات</h3>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> قسم: سنة أولى ابتدائي</div>
+        <div class="shot-body">
+          <div class="m-row" style="justify-content:space-between"><b style="font-size:13px">📗 سنة أولى ابتدائي</b><span><span class="m-tb bg-ink">🔑 كلمة المرور</span> <span class="m-tb bg-red">✕ إغلاق</span></span></div>
+          <div class="m-tabs" style="position:relative"><div class="m-tab on">📄 ملفات PDF</div><div class="m-tab">🎵 ملفات صوتية</div><div class="m-tab">🎬 ملفات فيديو</div><span class="num" style="top:-8px;left:-8px">1</span></div>
+          <div style="border:2px dashed var(--accent2);border-radius:10px;padding:12px;text-align:center;background:rgba(41,128,185,.06);margin-bottom:8px;position:relative"><div style="font-size:22px">📄</div><b>اضغط لإضافة ملف PDF</b><div style="color:#777">يمكن اختيار أكثر من ملف دفعة واحدة</div><span class="num" style="top:-8px;left:-8px">2</span></div>
+          <div class="m-card" style="text-align:right;display:flex;align-items:center;gap:10px;position:relative">
+            <span style="font-size:22px">📄</span><div style="flex:1"><b>درس الأسبوع الأول.pdf</b><div style="color:#888;font-size:10.5px">1.2 MB • أُضيف بتاريخ ...</div></div>
+            <span class="m-tb bg-blue">👁️ عرض</span><span class="m-tb bg-green">⬇️ تحميل</span><span class="m-tb bg-red">🗑️ حذف</span>
+            <span class="num" style="top:-8px;left:-8px">3</span>
+          </div>
+        </div>
+      </div>
+      <figcaption>الصورة 16: صفحة القسم بعد إدخال كلمة المرور</figcaption>
+      <div class="legend"><span><b>1</b>تبويبات PDF / صوت / فيديو</span><span><b>2</b>منطقة الرفع</span><span><b>3</b>أزرار كل ملف</span></div>
+    </figure>
+    <ol class="steps">
+      <li>اختر التبويب المناسب (PDF أو صوتي أو فيديو).</li>
+      <li>اضغط على منطقة الرفع واختر <b>ملفًا أو عدة ملفات</b> معًا؛ يظهر شريط تقدم أثناء الإضافة.</li>
+      <li><b class="k">👁️ عرض:</b> يفتح الـ PDF في تبويب جديد، ويشغّل الصوت والفيديو داخل الصفحة. <b class="k">⬇️ تحميل:</b> يحفظ الملف على جهازك.</li>
+      <li><b class="k">🗑️ حذف:</b> متاح فقط بعد إدخال كلمة مرور القسم.</li>
+    </ol>
+    <div class="warn">⚠️ الملفات مشتركة بين الجميع: أي ملف تضيفه يراه كل من يعرف كلمة مرور القسم، وأي ملف تحذفه <b>يُحذف نهائيًا لكل المستخدمين</b>. لا تشارك كلمة مرور القسم إلا مع من يحتاجها.</div>
+  </section>
+
+  <!-- 14 لوحة المشرفين -->
+  <section id="s14">
+    <h2><span class="n">14</span> لوحة المشرفين 🔒</h2>
+    <p>للمشرفين فقط: تعرض <b>كل الفصول في مكان واحد</b> للمتابعة والمقارنة، وتُفتح من زر <b class="k">🔒 لوحة المشرفين</b>. ومنها يمكنك العودة بزر <b class="k">📋 كشف الغياب</b>.</p>
+
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">أ) تسجيل الدخول</h3>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> admin.html</div>
+        <div class="shot-body"><div class="m-modal" style="text-align:center">
+          <div style="font-size:30px">🕊️</div><h4>لوحة المشرفين</h4>
+          <div class="m-input">البريد الإلكتروني</div><div class="m-input">كلمة المرور</div>
+          <div class="m-btn bg-ink" style="color:#fff">دخول</div>
+        </div></div>
+      </div>
+      <figcaption>الصورة 17: شاشة دخول المشرفين</figcaption>
+    </figure>
+    <ul>
+      <li>الدخول بـ <b>بريد إلكتروني وكلمة مرور</b> خاصين بالمشرف، وتُنشأ الحسابات يدويًا من لوحة Supabase (لا يمكن التسجيل من الصفحة).</li>
+      <li>عند أول دخول بكلمة المرور المؤقتة يطلب النظام <b>اختيار كلمة مرور جديدة (٨ أحرف على الأقل)</b> قبل المتابعة.</li>
+      <li>زر <b class="k">خروج</b> يُنهي الجلسة.</li>
+    </ul>
+
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">ب) الفصول والبحث</h3>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> لوحة المشرفين — متابعة الفصول</div>
+        <div class="shot-body">
+          <div class="m-toolbar" style="position:relative"><span class="m-tb bg-gold">📚 الفصول</span><span class="m-tb bg-blue">💙 متابعة رعوية</span><span class="m-tb bg-purple">🗂️ إدارة الفصول</span><span class="m-tb bg-ink">⟳ تحديث</span><span class="m-tb bg-ink">🧹 تنظيف الصور</span><span class="m-tb bg-red">🗑️ حذف كل الفصول</span><span class="num" style="top:-12px;left:-8px">1</span></div>
+          <div class="m-input" style="position:relative">🔍 ابحث عن مخدوم بالاسم في كل الفصول...<span class="num" style="top:-8px;left:-8px">2</span></div>
+          <div style="margin-bottom:8px"><span class="st l">📚 12 فصل • 👦 240 مخدوم • 🧑‍🤝‍🧑 36 خادم</span></div>
+          <div class="m-grid" style="position:relative">
+            <div class="m-card" style="border-top:4px solid var(--accent2);text-align:right"><b>فصل الأنبا ونس</b><div style="margin-top:4px"><span class="st p">👦 24</span> <span class="st l">🧑‍🤝‍🧑 3</span></div></div>
+            <div class="m-card" style="border-top:4px solid var(--accent2);text-align:right"><b>فصل مارجرجس</b><div style="margin-top:4px"><span class="st p">👦 19</span> <span class="st l">🧑‍🤝‍🧑 2</span></div></div>
+            <div class="m-card" style="border-top:4px solid var(--accent2);text-align:right"><b>فصل الأنبا أنطونيوس</b><div style="margin-top:4px"><span class="st p">👦 27</span> <span class="st l">🧑‍🤝‍🧑 4</span></div></div>
+            <span class="num" style="top:-8px;left:-8px">3</span>
+          </div>
+        </div>
+      </div>
+      <figcaption>الصورة 18: الصفحة الرئيسية للوحة (الأرقام للتوضيح)</figcaption>
+      <div class="legend"><span><b>1</b>أزرار التنقل والإدارة</span><span><b>2</b>بحث عن مخدوم في كل الفصول</span><span><b>3</b>بطاقات الفصول</span></div>
+    </figure>
+    <ul>
+      <li>الشريط العلوي يلخّص <b>عدد الفصول والمخدومين والخدام</b> في كل النظام.</li>
+      <li><b class="k">🔍 البحث العام:</b> اكتب اسم أي مخدوم فيظهر في أي فصل كان.</li>
+      <li>اضغط على <b>بطاقة الفصل</b> لفتح تفاصيله.</li>
+      <li><b class="k">⟳ تحديث</b> يعيد تحميل البيانات من السحابة.</li>
+    </ul>
+
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">ج) تفاصيل الفصل</h3>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> تفاصيل الفصل</div>
+        <div class="shot-body">
+          <div class="m-row" style="justify-content:space-between"><b style="font-size:13px">فصل الأنبا ونس</b><span><span class="m-tb bg-gold">⬇️ تصدير JSON</span> <span class="m-tb bg-red">🗑️ حذف الفصل</span></span></div>
+          <div class="m-tabs"><div class="m-tab on">👦 المخدومون</div><div class="m-tab">🧑‍🤝‍🧑 الخدام</div><div class="m-tab">📅 سجل الحضور</div></div>
+          <table class="m-tbl">
+            <tr><th>#</th><th>الاسم</th><th>تاريخ الميلاد</th><th>أب الاعتراف</th><th>مرات الاعتراف</th><th>نسبة الحضور</th><th>هاتف</th></tr>
+            <tr><td>1</td><td>مينا سامي</td><td>2014-05-10</td><td>أبونا ...</td><td>٣</td><td><span class="st p">92%</span></td><td>01xxxxxxxxx</td></tr>
+            <tr><td>2</td><td>بيشوي عادل</td><td>2013-11-02</td><td>أبونا ...</td><td>١</td><td><span class="st a">45%</span></td><td>01xxxxxxxxx</td></tr>
+          </table>
+        </div>
+      </div>
+      <figcaption>الصورة 19: ثلاث تبويبات داخل الفصل</figcaption>
+    </figure>
+    <ul>
+      <li><b>👦 المخدومون:</b> جدول بالاسم وتاريخ الميلاد وأب الاعتراف ومرات الاعتراف و<b>نسبة الحضور</b> والهاتف. اضغط على أي مخدوم لعرض <b>ملفه الكامل</b>.</li>
+      <li><b>🧑‍🤝‍🧑 الخدام:</b> الاسم والدور والهاتف.</li>
+      <li><b>📅 سجل الحضور:</b> لكل تاريخ أعداد الحاضر والغائب والمتأخر والإجمالي.</li>
+      <li><b class="k">⬇️ تصدير JSON:</b> يحفظ بيانات الفصل كاملة في ملف على جهازك (نسخة احتياطية).</li>
+      <li><b class="k">🗑️ حذف الفصل:</b> نهائي، ويطلب منك <b>كتابة اسم الفصل بالضبط</b> للتأكيد.</li>
+    </ul>
+
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">د) المتابعة الرعوية</h3>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> 💙 متابعة رعوية</div>
+        <div class="shot-body">
+          <div style="color:#777;margin-bottom:6px">أعلى 30 مخدوم من حيث نسبة الغياب في كل الفصول — للمتابعة والاتصال بأولياء الأمور</div>
+          <div class="m-card" style="display:flex;justify-content:space-between;text-align:right;margin-bottom:6px"><div><b>بيشوي عادل</b><div style="color:#888">فصل الأنبا ونس • 📞 01xxxxxxxxx</div></div><b style="color:var(--accent);font-size:15px">45% <small style="color:#999;font-weight:400">حضور</small></b></div>
+          <div class="m-card" style="display:flex;justify-content:space-between;text-align:right"><div><b>مارك سمير</b><div style="color:#888">فصل مارجرجس • 📞 01xxxxxxxxx</div></div><b style="color:var(--accent);font-size:15px">52% <small style="color:#999;font-weight:400">حضور</small></b></div>
+        </div>
+      </div>
+      <figcaption>الصورة 20: قائمة الأقل حضورًا في كل الفصول</figcaption>
+    </figure>
+    <p>تعرض هذه الشاشة أقل ٣٠ مخدومًا حضورًا على مستوى كل الفصول مع الفصل والهاتف. اضغط على أي بطاقة لفتح ملف المخدوم مباشرة.</p>
+
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">هـ) إدارة الفصول</h3>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> 🗂️ إدارة الفصول</div>
+        <div class="shot-body">
+          <table class="m-tbl">
+            <tr><th>الفصل</th><th>آخر تحديث</th><th>إجراءات</th></tr>
+            <tr><td>📂 فصل الأنبا ونس</td><td>اليوم</td><td><span class="m-tb bg-gold">✏️ تعديل</span> <span class="m-tb bg-red">🗑️ حذف</span></td></tr>
+          </table>
+          <div class="m-modal" style="margin-top:8px"><h4>تعديل الفصل</h4><div class="m-input">اسم الفصل</div><div class="m-input">الأيقونة (إيموجي)</div><div class="m-input">كلمة سر جديدة (اتركها فارغة إن لم ترد تغييرها)</div><div class="m-btn bg-gold">💾 حفظ</div></div>
+        </div>
+      </div>
+      <figcaption>الصورة 21: تعديل اسم الفصل وأيقونته وكلمة سره</figcaption>
+    </figure>
+    <p>من هنا يغيّر المشرف <b>اسم الفصل</b> و<b>أيقونته</b>، ويضع <b>كلمة سر جديدة</b> إذا نسيها الخدام (كلمة السر ٤ أحرف على الأقل، والفراغ يعني بدون تغيير).</p>
+
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">و) أدوات الصيانة</h3>
+    <ul>
+      <li><b class="k">🧹 تنظيف الصور غير المستخدمة:</b> يحذف الصور المرفوعة التي لم تعد مرتبطة بأي فصل لتوفير المساحة (يسأل قبل الحذف).</li>
+      <li><b class="k">🗑️ حذف كل الفصول:</b> أخطر أزرار اللوحة؛ يطلب بريد المشرف وكلمة مروره ثم تأكيدًا أخيرًا.</li>
+    </ul>
+    <div class="warn">⚠️ حذف الفصل أو حذف كل الفصول <b>لا رجعة فيه</b>. صدّر ملف JSON للفصول المهمة أولًا. ولا تُعطِ بيانات دخول المشرفين لغير المسؤولين.</div>
+  </section>
+
+  <!-- 15 الشات وتذكير الدرس -->
+  <section id="s15">
+    <h2><span class="n">15</span> الشات وتذكير الدرس</h2>
+    <ul>
+      <li><b>💬 الشات المباشر:</b> محادثة بين الخدام داخل غرفتين: <b>فصلي</b> (لخدام الفصل فقط) و<b>عام</b> (لكل الخدام). تظهر صفة كل خادم بجوار اسمه.</li>
+      <li><b>⏰ تذكير الدرس:</b> ينبّه الخدام بموعد الدرس.</li>
+    </ul>
+  </section>
+
+  <!-- 16 نصائح -->
+  <section id="s16">
+    <h2><span class="n">16</span> نصائح مهمة</h2>
+    <ul>
+      <li>سجّل الحضور في <b>نفس يوم الخدمة</b>؛ فالتعديل مسموح ٧ أيام فقط.</li>
+      <li>خُذ <b>نسخة احتياطية</b> أسبوعيًا.</li>
+      <li>لا تشارك <b>كلمة سر الفصل</b> إلا مع خدام الفصل، ولا <b>كلمة مرور قسم المكتبة</b> إلا مع من يحتاجها.</li>
+      <li>للتثبيت على الهاتف: من قائمة المتصفح اختر <b>"إضافة إلى الشاشة الرئيسية"</b>.</li>
+      <li>يحتاج النظام اتصالًا بالإنترنت لحفظ البيانات على السحابة وتحميل الفصول.</li>
+    </ul>
+    <a class="bottom-back" href="./index.html">↩️ العودة إلى النظام</a>
+  </section>
+
+  <footer>نظام تسجيل غياب ومتابعة المخدومين والخدام — كاتدرائية رئيس الملائكة الجليل ميخائيل، طنطا</footer>
+</div>
+</body>
+</html>
