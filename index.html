@@ -2541,6 +2541,35 @@
     </div>
   </div>
 
+  <!-- ===== سجل النشاط (من افتقد / من حذف) ===== -->
+  <style>
+    .activity-section{background:white;border:1px solid #e5e7eb;border-top:4px solid #475569;border-radius:12px;padding:16px 18px;margin-top:20px;box-shadow:0 4px 12px var(--shadow)}
+    .activity-header{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+    .activity-title{font-weight:900;font-size:15px;color:#334155;display:flex;align-items:center;gap:8px}
+    .activity-badge{background:#475569;color:#fff;border-radius:20px;padding:2px 12px;font-size:12px}
+    .activity-header select{font-family:Cairo,sans-serif;font-size:12px;font-weight:700;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+    .activity-list{max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+    .activity-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:#f8fafc;border:1px solid #e2e8f0;font-size:13px;line-height:1.6}
+    .activity-row.fu{background:#f0fdf4;border-color:#bbf7d0}
+    .activity-row.del{background:#fef2f2;border-color:#fecaca}
+    .activity-ic{font-size:16px;flex-shrink:0}
+    .activity-txt{flex:1}
+    .activity-time{font-size:11px;color:#94a3b8;white-space:nowrap}
+    .activity-empty{text-align:center;color:#aaa;font-size:13px;padding:18px}
+    .fu-by{font-size:11px;color:#166534;margin-top:6px;line-height:1.6;font-weight:600}
+  </style>
+  <div class="activity-section">
+    <div class="activity-header">
+      <div class="activity-title">🧾 سجل النشاط <span class="activity-badge" id="activityCount">0</span></div>
+      <select id="activityFilter" onchange="renderActivityLog()">
+        <option value="all">الكل</option>
+        <option value="followup">الافتقاد فقط</option>
+        <option value="delete">الحذف فقط</option>
+      </select>
+    </div>
+    <div class="activity-list" id="activityList"></div>
+  </div>
+
   </div><!-- نهاية قسم الإدارة -->
 
 <footer class="site-footer">
@@ -2879,6 +2908,7 @@
     if (!checkRecordsPassword()) return;
     if (!confirm('⚠️ سيتم حذف جميع المخدومين وجميع الخدام بشكل نهائي. هل أنت متأكد؟')) return;
      if (!confirm('⚠️ تذكر ان تمتلك نسخة احتياطي(Back up )للبيانات قبل الحذف')) return;
+    logActivity('delete_all', {});
     
 
     students = [];
@@ -3028,6 +3058,7 @@
   window.addEventListener('beforeunload', e => {
     if (typeof _cloudDirty !== 'undefined' && _cloudDirty) { e.preventDefault(); e.returnValue = ''; }
   });
+  let activityLog = [];        // سجل النشاط: من افتقد / من حذف (يُرفع مع نسخة الفصل)
   let followupStore = {};      // بيانات الافتقاد (في الذاكرة + تُرفع مع نسخة الفصل للسحابة)
   let _lastSnapRaw = null;     // آخر حالة في الذاكرة لاستخدامها في التراجع/الإعادة
 
@@ -3080,7 +3111,7 @@
   async function idbGet() { return null; }
 
   function makeSnapshot() {
-    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, sessionMeta, className: getClassName(), stage: (typeof ACTIVE_CHAPTER_STAGE !== 'undefined' ? ACTIVE_CHAPTER_STAGE : '') || '', gender: (typeof ACTIVE_CHAPTER_GENDER !== 'undefined' ? ACTIVE_CHAPTER_GENDER : '') || '', classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, savedAt: new Date().toISOString(), v: 2 };
+    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, sessionMeta, className: getClassName(), stage: (typeof ACTIVE_CHAPTER_STAGE !== 'undefined' ? ACTIVE_CHAPTER_STAGE : '') || '', gender: (typeof ACTIVE_CHAPTER_GENDER !== 'undefined' ? ACTIVE_CHAPTER_GENDER : '') || '', classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2 };
   }
 
   function applySnapshot(snap) {
@@ -3096,6 +3127,8 @@
     servants = snap.servants || [];
     servantsAttendance = snap.servantsAttendance || {};
     followupStore = snap.followup || {};
+    activityLog = Array.isArray(snap.activityLog) ? snap.activityLog : [];
+    if (typeof renderActivityLog === 'function') renderActivityLog();
     if (snap.stage && typeof ACTIVE_CHAPTER_STAGE !== 'undefined') ACTIVE_CHAPTER_STAGE = snap.stage;
     if ((snap.gender === 'boys' || snap.gender === 'girls') && typeof ACTIVE_CHAPTER_GENDER !== 'undefined') ACTIVE_CHAPTER_GENDER = snap.gender;
     // استعادة اسم الفصل
@@ -3356,7 +3389,11 @@
 
   function _genderOf(chapterId) { const m = _chapterMeta[chapterId]; return (m && (m.gender === 'boys' || m.gender === 'girls')) ? m.gender : ''; }
   function _genderKey(chapterId) { return _genderOf(chapterId) || 'none'; }
-  function _genderList() { return _chaptersCache.filter(c => _genderKey(String(c.chapter_id)) === _genderFilter); }
+  function _genderList() {
+    // الخادم (من صفحة الترحيب) يرى فصول مرحلته وفئته فقط — المشرف العام يرى الكل بحسب التبويبات
+    if (window.WelcomeGate && WelcomeGate.role() === 'servant') return _chaptersCache.filter(c => WelcomeGate.chapterAllowed(String(c.chapter_id)));
+    return _chaptersCache.filter(c => _genderKey(String(c.chapter_id)) === _genderFilter);
+  }
   function _libraryHref(g) { return (g === 'boys' || g === 'girls') ? './library.html?g=' + g : './library.html'; }
 
   function setGenderFilter(g) {
@@ -3459,7 +3496,11 @@
 
     const gList = _genderList();
     if (!gList.length) {
-      grid.innerHTML = '<div class="chapter-grid-empty">📭 ' + (_genderFilter === 'girls' ? 'لا توجد فصول بنات بعد' : (_genderFilter === 'boys' ? 'لا توجد فصول بنين بعد' : 'لا توجد فصول')) + ' — اضغط "إضافة فصل جديد"</div>';
+      if (window.WelcomeGate && WelcomeGate.role() === 'servant') {
+        grid.innerHTML = '<div class="chapter-grid-empty">' + (WelcomeGate.isLoading() ? '⏳ جاري البحث عن فصلك...' : '📭 لا يوجد فصل مطابق لبياناتك (' + _esc(WelcomeGate.summary()) + ') — يمكنك إضافة فصل جديد أو تغيير بياناتك من الأعلى') + '</div>';
+      } else {
+        grid.innerHTML = '<div class="chapter-grid-empty">📭 ' + (_genderFilter === 'girls' ? 'لا توجد فصول بنات بعد' : (_genderFilter === 'boys' ? 'لا توجد فصول بنين بعد' : 'لا توجد فصول')) + ' — اضغط "إضافة فصل جديد"</div>';
+      }
       if (infoEl) infoEl.textContent = '';
       return;
     }
@@ -5775,6 +5816,7 @@
     const s = students.find(x => x.id === id);
     if (!s) return;
     if (!confirm(`هل أنت متأكد من حذف المخدوم "${s.name}"؟`)) return;
+    logActivity('delete_student', { studentId: id, studentName: s.name });
     students = students.filter(x => x.id !== id);
     save();
     renderAll();
@@ -7605,6 +7647,53 @@
   // مفتاح التخزين: followupData = { studentId: { done: bool, type: 'phone'|'visit'|'', notes: '' } }
   const FOLLOWUP_KEY = 'followup_data_v1';
 
+  // ===== 🧾 سجل النشاط: اسم من قام بالافتقاد أو الحذف (الاسم يأتي من صفحة الترحيب) =====
+  function currentActorName() {
+    try { return (window.WelcomeGate && WelcomeGate.actor()) || 'غير معروف'; } catch (e) { return 'غير معروف'; }
+  }
+
+  function logActivity(type, extra) {
+    if (!Array.isArray(activityLog)) activityLog = [];
+    activityLog.push(Object.assign({ t: type, by: currentActorName(), at: new Date().toISOString() }, extra || {}));
+    if (activityLog.length > 300) activityLog = activityLog.slice(-300);   // نحتفظ بآخر 300 عملية
+    renderActivityLog();
+  }
+
+  function activityDescribe(x) {
+    const by  = '<b>' + _esc(x.by || 'غير معروف') + '</b>';
+    const who = '<b>' + _esc(x.studentName || 'مخدوم') + '</b>';
+    const m   = x.method === 'phone' ? ' — 📱 بالهاتف' : (x.method === 'visit' ? ' — 🏠 بالزيارة' : '');
+    switch (x.t) {
+      case 'followup_done': return { icon: '✅', cls: 'fu',  html: 'تم افتقاد المخدوم ' + who + ' بواسطة ' + by + m };
+      case 'followup_type': return { icon: x.method === 'visit' ? '🏠' : '📱', cls: 'fu', html: 'تم تسجيل افتقاد المخدوم ' + who + m + ' بواسطة ' + by };
+      case 'followup_undo': return { icon: '↩️', cls: 'fu',  html: 'تم إلغاء حالة "تم الافتقاد" للمخدوم ' + who + ' بواسطة ' + by };
+      case 'delete_student': return { icon: '🗑️', cls: 'del', html: 'تم حذف المخدوم ' + who + ' بواسطة ' + by };
+      case 'delete_all':     return { icon: '⚠️', cls: 'del', html: 'تم حذف جميع المخدومين والخدام بواسطة ' + by };
+      default:               return { icon: '•', cls: '', html: _esc(x.t || '') + ' — ' + by };
+    }
+  }
+
+  function renderActivityLog() {
+    const box = document.getElementById('activityList');
+    if (!box) return;
+    const filterEl = document.getElementById('activityFilter');
+    const f = filterEl ? filterEl.value : 'all';
+    const all = Array.isArray(activityLog) ? activityLog : [];
+    const badge = document.getElementById('activityCount');
+    if (badge) badge.textContent = all.length;
+    let items = all.slice().reverse();
+    if (f === 'followup') items = items.filter(x => String(x.t).indexOf('followup') === 0);
+    if (f === 'delete')   items = items.filter(x => String(x.t).indexOf('delete') === 0);
+    if (!items.length) { box.innerHTML = '<div class="activity-empty">لا توجد عمليات مسجلة بعد</div>'; return; }
+    box.innerHTML = items.slice(0, 100).map(x => {
+      const d = activityDescribe(x);
+      let when = '';
+      try { when = x.at ? new Date(x.at).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : ''; } catch (e) {}
+      return '<div class="activity-row ' + d.cls + '"><span class="activity-ic">' + d.icon + '</span>' +
+             '<div class="activity-txt">' + d.html + '</div><span class="activity-time">' + when + '</span></div>';
+    }).join('');
+  }
+
   function getFollowupData() {
     return followupStore;
   }
@@ -7632,6 +7721,7 @@
   }
 
   function renderFollowupTable() {
+    if (typeof renderActivityLog === 'function') renderActivityLog();
     const minAbsence = parseInt(document.getElementById('followupMinAbsence').value) || 2;
     const statusFilter = document.getElementById('followupStatusFilter').value;
     const typeFilter = document.getElementById('followupTypeFilter').value;
@@ -7777,9 +7867,15 @@
             onclick="toggleFollowupDone('${s.id}')">
             ${doneLabel}
           </button>
+          ${followupByLine(s.fu)}
         </td>
       </tr>`;
     }).join('');
+  }
+
+  function _fuStudentName(id) {
+    const st = students.find(x => String(x.id) === String(id));
+    return st ? st.name : '';
   }
 
   function setFollowupType(studentId, type) {
@@ -7787,6 +7883,13 @@
     if (!data[studentId]) data[studentId] = { done: false, type: '', notes: '' };
     // تبديل: إذا كان نفس النوع اضغط مرة ثانية يلغيه
     data[studentId].type = data[studentId].type === type ? '' : type;
+    if (data[studentId].type) {
+      data[studentId].by = currentActorName();
+      data[studentId].at = new Date().toISOString();
+      logActivity('followup_type', { studentId: studentId, studentName: _fuStudentName(studentId), method: data[studentId].type });
+    } else if (!data[studentId].done) {
+      delete data[studentId].by; delete data[studentId].at;
+    }
     saveFollowupData(data);
     renderFollowupTable();
   }
@@ -7802,8 +7905,26 @@
     const data = getFollowupData();
     if (!data[studentId]) data[studentId] = { done: false, type: '', notes: '' };
     data[studentId].done = !data[studentId].done;
+    if (data[studentId].done) {
+      data[studentId].by = currentActorName();
+      data[studentId].at = new Date().toISOString();
+      logActivity('followup_done', { studentId: studentId, studentName: _fuStudentName(studentId), method: data[studentId].type || '' });
+    } else {
+      if (!data[studentId].type) { delete data[studentId].by; delete data[studentId].at; }
+      logActivity('followup_undo', { studentId: studentId, studentName: _fuStudentName(studentId) });
+    }
     saveFollowupData(data);
     renderFollowupTable();
+  }
+
+  // سطر "تم افتقاده بواسطة ..." يظهر تحت زر "تم الافتقاد"
+  function followupByLine(fu) {
+    if (!fu || !fu.by) return '';
+    const m = fu.type === 'phone' ? '📱 بالهاتف' : (fu.type === 'visit' ? '🏠 بالزيارة' : '');
+    let when = '';
+    try { when = fu.at ? new Date(fu.at).toLocaleDateString('ar-EG', { day: 'numeric', month: 'numeric', year: 'numeric' }) : ''; } catch (e) {}
+    const head = fu.done ? 'تم افتقاده بواسطة' : 'سُجّل نوع الافتقاد بواسطة';
+    return `<div class="fu-by">${head} <b>${_esc(fu.by)}</b>${m ? ' — ' + m : ''}${when ? ' — ' + when : ''}</div>`;
   }
 
   function resetAllFollowupDone() {
@@ -9328,6 +9449,7 @@
   update();
 })();
 </script>
+<script src="./welcome.js"></script>
 <script src="./lesson-reminder.js"></script>
 <script src="./live-chat.js"></script>
 <script src="./push-client.js"></script>

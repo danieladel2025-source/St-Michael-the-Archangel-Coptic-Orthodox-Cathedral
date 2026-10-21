@@ -1,5 +1,5 @@
 // ===== Service Worker: نظام تسجيل غياب ومتابعة المخدومين — كاتدرائية رئيس الملائكة الجليل ميخائيل - طنطا =====
-const CACHE_VERSION = 'church-attendance-v7'; // رفع الإصدار يجبر الأجهزة على جلب الملفات المُحدّثة
+const CACHE_VERSION = 'church-attendance-v8'; // رفع الإصدار يجبر الأجهزة على جلب الملفات المُحدّثة
 const CACHE_NAME = CACHE_VERSION;
 
 // الملفات الأساسية التي يتم تخزينها مسبقًا (App Shell)
@@ -12,6 +12,7 @@ const PRECACHE_URLS = [
   './qr-map.css',
   './lesson-reminder.js',
   './live-chat.js',
+  './welcome.js',
   './push-client.js',
   './manifest.json',
   './icons/icon-72.png',
