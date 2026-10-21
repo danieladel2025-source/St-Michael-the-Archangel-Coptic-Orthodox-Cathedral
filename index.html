@@ -1641,18 +1641,41 @@
   @supports (zoom: 1) { .main { zoom: 1.08; } }
   .site-footer .fb-text b { font-size: 15px; }
 
-  /* زر التنقل السريع لأسفل/أعلى الصفحة */
+  /* زر التنقل السريع لأسفل/أعلى الصفحة — ثابت في أعلى الصفحة (يظهر فقط بعد موافقة المستخدم) */
   #scrollNavBtn {
-    position: fixed; left: 16px; bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-    z-index: 999999; width: 56px; height: 56px; border-radius: 50%;
+    position: fixed; left: 12px; top: calc(12px + env(safe-area-inset-top, 0px));
+    z-index: 999999; width: 46px; height: 46px; border-radius: 50%;
     background: var(--ink); color: var(--gold); border: 2px solid var(--gold);
-    font-size: 24px; font-weight: 900; line-height: 1; cursor: pointer;
+    font-size: 21px; font-weight: 900; line-height: 1; cursor: pointer;
     box-shadow: 0 6px 18px rgba(0,0,0,.35);
     display: none; align-items: center; justify-content: center;
     -webkit-tap-highlight-color: transparent;
   }
   #scrollNavBtn.show { display: flex; }
   #scrollNavBtn:active { transform: scale(.94); }
+
+  /* رسالة اقتراح تفعيل الزر (تظهر مرة واحدة لأول مستخدم) */
+  #scrollNavAsk {
+    position: fixed; left: 50%; top: calc(12px + env(safe-area-inset-top, 0px));
+    transform: translate(-50%, -24px); opacity: 0; visibility: hidden; pointer-events: none;
+    width: min(92vw, 380px); z-index: 1000001; box-sizing: border-box;
+    background: var(--ink); color: #fff; border: 2px solid var(--gold); border-radius: 16px;
+    padding: 14px 16px; box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    font-family: inherit; direction: rtl; text-align: right;
+    transition: opacity .3s ease, transform .3s ease, visibility .3s ease;
+  }
+  #scrollNavAsk.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; pointer-events: auto; }
+  #scrollNavAsk .sn-title { font-size: 15px; font-weight: 800; color: var(--gold); margin-bottom: 4px; }
+  #scrollNavAsk .sn-text { font-size: 13px; line-height: 1.7; opacity: .9; margin-bottom: 12px; }
+  #scrollNavAsk .sn-actions { display: flex; gap: 8px; }
+  #scrollNavAsk button {
+    flex: 1; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
+    padding: 10px 8px; border-radius: 10px; border: 2px solid var(--gold);
+    -webkit-tap-highlight-color: transparent;
+  }
+  #scrollNavAsk .sn-yes { background: var(--gold); color: var(--ink); }
+  #scrollNavAsk .sn-no  { background: transparent; color: #fff; border-color: rgba(255,255,255,.35); }
+  #scrollNavAsk button:active { transform: scale(.96); }
 </style>
 </head>
 <body>
@@ -9424,13 +9447,36 @@
   window.addEventListener('pagehide', stopQrCamera);
 </script>
 
+<div id="scrollNavAsk" role="dialog" aria-live="polite" aria-label="اقتراح زر النزول السريع">
+  <div class="sn-title">⬇ تفعيل زر النزول السريع؟</div>
+  <div class="sn-text">يظهر زر ثابت في أعلى الصفحة تنزل به إلى نهاية الصفحة بضغطة واحدة وترجع منه إلى أعلاها.</div>
+  <div class="sn-actions">
+    <button type="button" class="sn-yes" id="scrollNavYes">تفعيل</button>
+    <button type="button" class="sn-no" id="scrollNavNo">لا، شكرًا</button>
+  </div>
+</div>
 <button type="button" id="scrollNavBtn" aria-label="التنقل السريع" title="التنقل السريع">⬇</button>
 <script>
 (function () {
   var btn = document.getElementById('scrollNavBtn');
-  if (!btn) return;
+  var ask = document.getElementById('scrollNavAsk');
+  if (!btn || !ask) return;
+
+  // اختيار المستخدم: null (لم يُسأل بعد) | 'yes' | 'no'
+  var PREF_KEY = 'scrollNavPref_v1';
+  var pref = null;
+  try { pref = localStorage.getItem(PREF_KEY); } catch (e) {}
+  if (pref !== 'yes' && pref !== 'no') pref = null;
+  function savePref(v) { pref = v; try { localStorage.setItem(PREF_KEY, v); } catch (e) {} }
+
+  // رفض سابق: لا نعرض أي شيء ولا نُشغّل أي مؤقتات
+  if (pref === 'no') { btn.remove(); ask.remove(); return; }
+
   var gate = document.getElementById('chapterGate');
+  var splash = document.getElementById('splashScreen');
   var goDown = true;
+  var timer = null;
+  function splashVisible() { return splash && !splash.classList.contains('splash-hide'); }
   function gateVisible() { return gate && !gate.classList.contains('gate-hide'); }
   function metrics() {
     if (gateVisible()) return { top: gate.scrollTop, max: gate.scrollHeight - gate.clientHeight };
@@ -9438,14 +9484,38 @@
     return { top: window.pageYOffset || de.scrollTop, max: de.scrollHeight - window.innerHeight };
   }
   function update() {
+    // الاقتراح: يظهر أول مرة فقط، بعد إغلاق شاشة البداية
+    if (pref === null) {
+      btn.classList.remove('show');
+      if (!splashVisible()) ask.classList.add('show');
+      return;
+    }
+    // موافقة: الزر ثابت في الأعلى (ويختفي فقط خلف شاشة البداية أو إن كانت الصفحة قصيرة)
     var m = metrics();
-    if (m.max < 300) { btn.classList.remove('show'); return; }
+    if (splashVisible() || m.max < 300) { btn.classList.remove('show'); return; }
     // سهم لأسفل في النصف الأول من الصفحة، ولأعلى عند الاقتراب من النهاية
     goDown = (m.max - m.top) > m.max * 0.5 || m.top < 150;
     btn.textContent = goDown ? '⬇' : '⬆';
     btn.title = goDown ? 'الانتقال إلى نهاية الصفحة' : 'الرجوع إلى أعلى الصفحة';
     btn.classList.add('show');
   }
+
+  document.getElementById('scrollNavYes').addEventListener('click', function () {
+    savePref('yes');
+    ask.classList.remove('show');
+    update();
+  });
+  document.getElementById('scrollNavNo').addEventListener('click', function () {
+    savePref('no');
+    ask.classList.remove('show');
+    if (timer) clearInterval(timer);
+    window.removeEventListener('scroll', onScroll);
+    window.removeEventListener('resize', onScroll);
+    if (gate) gate.removeEventListener('scroll', onScroll);
+    btn.remove();
+    setTimeout(function () { ask.remove(); }, 400);
+  });
+
   btn.addEventListener('click', function () {
     var m = metrics();
     var y = goDown ? m.max : 0;
@@ -9457,7 +9527,7 @@
   if (gate) gate.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll);
-  setInterval(update, 1500); // يلتقط تحميل الفصول وتغيّر الارتفاع
+  timer = setInterval(update, 1500); // يلتقط إغلاق شاشة البداية وتحميل الفصول وتغيّر الارتفاع
   update();
 })();
 </script>
