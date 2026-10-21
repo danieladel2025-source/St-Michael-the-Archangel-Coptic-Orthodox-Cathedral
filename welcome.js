@@ -109,6 +109,10 @@
       '#welcomeGate .wg-go{width:100%;margin-top:18px;padding:14px;border:none;border-radius:12px;background:var(--green,#1a7a4a);',
       ' color:#fff;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer}',
       '#welcomeGate .wg-go:disabled{opacity:.6;cursor:wait}',
+      '#welcomeGate .wg-guide{display:block;width:100%;margin-top:12px;padding:12px 14px;box-sizing:border-box;background:var(--ink,#0d1117);',
+      ' color:var(--paper,#f5f0e8);border:2px solid var(--gold,#d4a017);border-radius:10px;font-family:inherit;font-size:15px;font-weight:800;',
+      ' text-align:center;text-decoration:none;cursor:pointer;transition:background .2s,color .2s}',
+      '#welcomeGate .wg-guide:hover{background:var(--gold,#d4a017);color:var(--ink,#0d1117)}',
       '#wgUserBar{display:flex;align-items:center;gap:12px;position:relative;overflow:hidden;',
       ' background:linear-gradient(135deg,#ffffff 0%,#eaf3fb 100%);border:1px solid rgba(41,128,185,.28);',
       ' border-right:5px solid var(--accent2,#2980b9);border-radius:14px;padding:12px 14px;margin-bottom:16px;',
@@ -207,6 +211,7 @@
 
         '<div id="wgError" class="wg-error" hidden></div>' +
         '<button type="button" id="wgSubmit" class="wg-go">متابعة ←</button>' +
+        '<a href="./guide.html" class="wg-guide" title="شرح كامل لطريقة استخدام النظام">📖 طريقة شرح النظام</a>' +
       '</div>';
     document.body.insertBefore(el, document.body.firstChild);
     wire();
