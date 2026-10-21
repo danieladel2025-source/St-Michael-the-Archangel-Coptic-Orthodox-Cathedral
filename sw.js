@@ -1,5 +1,5 @@
 // ===== Service Worker: نظام تسجيل غياب ومتابعة المخدومين — كاتدرائية رئيس الملائكة الجليل ميخائيل - طنطا =====
-const CACHE_VERSION = 'church-attendance-v8'; // رفع الإصدار يجبر الأجهزة على جلب الملفات المُحدّثة
+const CACHE_VERSION = 'church-attendance-v9'; // رفع الإصدار يجبر الأجهزة على جلب الملفات المُحدّثة
 const CACHE_NAME = CACHE_VERSION;
 
 // الملفات الأساسية التي يتم تخزينها مسبقًا (App Shell)
@@ -66,6 +66,26 @@ self.addEventListener('fetch', (event) => {
   if (url.hostname.endsWith('supabase.co') || url.hostname.endsWith('supabase.in')) return;
   // خرائط جوجل المضمّنة تذهب للشبكة مباشرة
   if (url.hostname === 'google.com' || url.hostname.endsWith('.google.com')) return;
+
+  // ملفات الموقع نفسه (html/js/css/json): الشبكة أولاً ثم الكاش، لتظهر التحديثات من أول فتح بدل إعادة التحميل عدة مرات
+  const isAppFile = url.origin === self.location.origin &&
+    (req.mode === 'navigate' || /\.(html|js|css|json)$/i.test(url.pathname));
+  if (isAppFile) {
+    event.respondWith(
+      fetch(req)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() =>
+          caches.match(req).then((c) => c || (req.mode === 'navigate' ? caches.match('./index.html') : Response.error()))
+        )
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(req).then((cachedResponse) => {

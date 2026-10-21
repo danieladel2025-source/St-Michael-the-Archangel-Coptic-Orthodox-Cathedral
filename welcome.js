@@ -362,6 +362,7 @@
   }
 
   function renderBars() {
+    injectCss();
     var r = role();
     var isGirls = r === 'servant' && profile && profile.gender === 'girls';
     var nm = r === 'admin' ? adminName() : (profile ? profile.name : '');
