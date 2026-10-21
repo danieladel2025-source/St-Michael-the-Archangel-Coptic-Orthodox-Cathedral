@@ -64,18 +64,8 @@
     align-items: center;
     justify-content: space-between;
     box-shadow: 0 4px 20px var(--shadow);
-    position: sticky;
-    top: 0;
+    position: relative; /* الشريط في أول الصفحة فقط ويختفي مع التمرير للأسفل */
     z-index: 1000;
-    transition: padding 0.3s ease, box-shadow 0.3s ease, background 0.3s ease, transform 0.35s ease, opacity 0.35s ease;
-    will-change: padding, box-shadow;
-  }
-
-  /* الشريط العلوي ثابت دائمًا ولا يختفي عند التمرير */
-  .header.header-hidden {
-    transform: none !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
   }
 
   .header-brand {
