@@ -2334,7 +2334,7 @@
 
   <div class="toolbar">
     <input type="search" class="search-box" placeholder="🔍  ابحث باسم المخدوم أو رقمه..." oninput="filterStudents(this.value)" />
-    <input type="date" class="date-display" id="attendanceDate" value="2026-06-11" onchange="onAttendanceDateChange()" />
+    <input type="date" class="date-display" id="attendanceDate" value="" onchange="onAttendanceDateChange()" />
     <button class="btn btn-gold" onclick="exportExcel()" style="font-size:15px;padding:12px 22px;min-width:150px;">
       📊 تصدير Excel
     </button>
@@ -2947,13 +2947,8 @@
     if (hint) {
       hint.textContent = `سيتم أخذ الغياب أيام ${DAY_NAMES_AR[day]} فقط — التواريخ الأخرى لا تُحسب`;
     }
-    // تحديث تاريخ الحضور ليكون أقرب يوم مختار
-    const el = document.getElementById('attendanceDate');
-    if (el && el.value) {
-      if (!isSelectedDayDate(el.value)) {
-        el.value = nearestSelectedDayStr(el.value);
-      }
-    }
+    // تحديث تاريخ الحضور ليوافق اليوم الحالي ويوم أخذ الغياب
+    syncAttendanceDate(true);
     save();
     renderAll();
   }
@@ -2971,14 +2966,42 @@
   }
 
   // إرجاع أقرب يوم مختار (نفس اليوم إذا كان مطابقاً، وإلا آخر يوم مطابق سابق)
+  // تنسيق التاريخ بالتوقيت المحلي (toISOString يحوّل إلى UTC فيُرجع اليوم السابق في مصر)
+  function localDateStr(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function localTodayStr() { return localDateStr(new Date()); }
+
   function nearestFridayStr(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
     const targetDay = getAbsenceDayOfWeek();
-    const day = d.getDay();
-    const diff = (day - targetDay + 7) % 7;
+    const diff = (d.getDay() - targetDay + 7) % 7;
     d.setDate(d.getDate() - diff);
-    return d.toISOString().split('T')[0];
+    return localDateStr(d);
   }
+
+  // مزامنة تاريخ الحضور مع تاريخ اليوم ويوم أخذ الغياب:
+  // اليوم نفسه إن كان يوم الغياب، وإلا آخر يوم غياب مضى
+  let _attLastSyncDay = '';
+  let _attManualPick = false;
+  function syncAttendanceDate(force) {
+    const el = document.getElementById('attendanceDate');
+    if (!el) return;
+    const today = localTodayStr();
+    if (!force && _attManualPick && _attLastSyncDay === today) return;
+    const target = nearestFridayStr(today);
+    _attLastSyncDay = today;
+    _attManualPick = false;
+    if (el.value !== target) el.value = target;
+  }
+  // عند عودة المستخدم للتطبيق في يوم جديد يتحدّث التاريخ تلقائياً
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') return;
+    if (_attLastSyncDay && _attLastSyncDay !== localTodayStr()) {
+      syncAttendanceDate(true);
+      try { renderAll(); } catch (e) {}
+    }
+  });
 
   function nearestSelectedDayStr(dateStr) {
     return nearestFridayStr(dateStr);
@@ -2987,6 +3010,7 @@
   // معالج تغيير تاريخ الحضور: يسمح فقط بأيام اليوم المختار
   function onAttendanceDateChange() {
     const el = document.getElementById('attendanceDate');
+    _attManualPick = true;
     if (el && el.value && !isFridayDate(el.value)) {
       const fixed = nearestFridayStr(el.value);
       const dayName = DAY_NAMES_AR[getAbsenceDayOfWeek()];
@@ -4420,7 +4444,7 @@
 
     // حفظ آخر وقت جدولة لتجنب التكرار
     const lastScheduled = localStorage.getItem('_bdayNotifLastScheduled') || '';
-    const today = new Date().toISOString().split('T')[0];
+    const today = localTodayStr();
     if (lastScheduled === today && _swRegistration) {
       // تم الجدولة اليوم مسبقاً — نُعيد فقط إذا تغيرت البيانات
     }
@@ -4548,7 +4572,7 @@
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     const className = getClassName();
-    const dateStr = new Date().toISOString().split("T")[0];
+    const dateStr = localTodayStr();
     const fileName = (className ? className + "_" : "") + "backup_" + dateStr + ".json";
     a.download = fileName;
     a.click();
@@ -4564,7 +4588,7 @@
     }
 
     showToast('⏳ جاري إنشاء ملف الفصل...');
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = localTodayStr();
     const snap = makeSnapshot();
     const jsonContent = JSON.stringify(snap, null, 2);
 
@@ -5032,7 +5056,7 @@
 
   function buildChristmasWaMessage() {
     const className = getClassName();
-    const dateStr = getToday() || new Date().toISOString().split('T')[0];
+    const dateStr = getToday() || localTodayStr();
     const parts = dateStr.split('-');
     const month = parseInt(parts[1], 10);
     const day   = parseInt(parts[2], 10);
@@ -5088,9 +5112,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", function() {
-    const d = document.getElementById('attendanceDate');
-    const today = new Date().toISOString().split('T')[0];
-    if(d && !d.value) d.value = nearestFridayStr(today);
+    syncAttendanceDate(true);
 
     // تهيئة نص التلميح بناءً على اليوم المحفوظ
     const hint = document.getElementById('absenceDayHint');
@@ -6810,7 +6832,7 @@
   }
 
   function buildWaMessage() {
-    const date = getToday() || new Date().toISOString().split('T')[0];
+    const date = getToday() || localTodayStr();
     const className = getClassName();
     const tpl = getWaTemplate();
 
@@ -8592,7 +8614,7 @@
       const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a'); a.href = url;
-      a.download = `أرشيف_${label.replace(/\s/g,'_')}_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `أرشيف_${label.replace(/\s/g,'_')}_${localTodayStr()}.json`;
       a.click(); URL.revokeObjectURL(url);
     } catch(e) { console.error('خطأ في التصدير:', e); }
 
