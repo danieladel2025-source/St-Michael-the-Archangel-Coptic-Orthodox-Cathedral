@@ -109,12 +109,43 @@
       '#welcomeGate .wg-go{width:100%;margin-top:18px;padding:14px;border:none;border-radius:12px;background:var(--green,#1a7a4a);',
       ' color:#fff;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer}',
       '#welcomeGate .wg-go:disabled{opacity:.6;cursor:wait}',
-      '#wgUserBar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;',
-      ' background:rgba(41,128,185,.08);border:1px solid rgba(41,128,185,.3);border-radius:12px;',
-      ' padding:9px 12px;margin-bottom:14px;font-size:13px;font-weight:700;color:var(--ink,#0d1117)}',
-      '#wgUserBar.admin{background:rgba(200,57,43,.08);border-color:rgba(200,57,43,.35)}',
-      '#wgUserBar button{font-family:inherit;font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;',
-      ' border:1px solid var(--line,#b5a98a);background:#fff;cursor:pointer}',
+      '#wgUserBar{display:flex;align-items:center;gap:12px;position:relative;overflow:hidden;',
+      ' background:linear-gradient(135deg,#ffffff 0%,#eaf3fb 100%);border:1px solid rgba(41,128,185,.28);',
+      ' border-right:5px solid var(--accent2,#2980b9);border-radius:14px;padding:12px 14px;margin-bottom:16px;',
+      ' box-shadow:0 4px 14px rgba(41,128,185,.14);color:var(--ink,#0d1117);font-family:inherit}',
+      '#wgUserBar.admin{background:linear-gradient(135deg,#ffffff 0%,#fdeeec 100%);border-color:rgba(200,57,43,.3);',
+      ' border-right-color:var(--accent,#c8392b);box-shadow:0 4px 14px rgba(200,57,43,.14)}',
+      '#wgUserBar.girls{background:linear-gradient(135deg,#ffffff 0%,#fdeaf2 100%);border-color:rgba(194,24,91,.28);',
+      ' border-right-color:#c2185b;box-shadow:0 4px 14px rgba(194,24,91,.12)}',
+      '#wgUserBar .wg-av{flex:0 0 auto;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;',
+      ' font-size:21px;font-weight:900;color:#fff;background:linear-gradient(135deg,#3498db,#1f6fa5);',
+      ' box-shadow:0 3px 10px rgba(41,128,185,.4);border:2px solid #fff}',
+      '#wgUserBar.admin .wg-av{background:linear-gradient(135deg,#e74c3c,#a82a1e);box-shadow:0 3px 10px rgba(200,57,43,.4)}',
+      '#wgUserBar.girls .wg-av{background:linear-gradient(135deg,#e91e8c,#a3134f);box-shadow:0 3px 10px rgba(194,24,91,.4)}',
+      '#wgUserBar .wg-info{flex:1 1 auto;min-width:0;text-align:right}',
+      '#wgUserBar .wg-hi{font-size:11px;font-weight:700;color:#7a7a7a;line-height:1.3}',
+      '#wgUserBar .wg-name{font-size:16px;font-weight:900;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '#wgUserBar .wg-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}',
+      '#wgUserBar .wg-chip{font-size:11px;font-weight:800;padding:2px 9px;border-radius:20px;background:#fff;',
+      ' border:1px solid rgba(0,0,0,.1);color:#444;white-space:nowrap}',
+      '#wgUserBar .wg-chip.boys{background:#e3f1fb;color:#1f6fa5;border-color:#b9dcf3}',
+      '#wgUserBar .wg-chip.girls{background:#fde4ef;color:#a3134f;border-color:#f6b8d2}',
+      '#wgUserBar .wg-chip.admin{background:#fde4e1;color:#a82a1e;border-color:#f3b3ac}',
+      '#wgUserBar .wg-btn{flex:0 0 auto;font-family:inherit;font-size:12.5px;font-weight:800;padding:9px 13px;border-radius:10px;',
+      ' border:none;cursor:pointer;color:#fff;background:var(--ink,#0d1117);box-shadow:0 3px 8px rgba(0,0,0,.2);',
+      ' display:inline-flex;align-items:center;gap:5px;transition:transform .15s,background .15s}',
+      '#wgUserBar .wg-btn:hover{background:var(--gold,#d4a017);color:var(--ink,#0d1117);transform:translateY(-1px)}',
+      '#wgUserBar.admin .wg-btn{background:var(--accent,#c8392b)}',
+      '#wgUserBar.admin .wg-btn:hover{background:#a82a1e;color:#fff}',
+      '@media(max-width:420px){#wgUserBar{flex-wrap:wrap}#wgUserBar .wg-btn{width:100%;justify-content:center}}',
+      '#wgHeaderUser{display:inline-flex !important;align-items:center;gap:7px;max-width:190px;padding:4px 12px 4px 6px !important;',
+      ' border-radius:30px !important;background:rgba(255,255,255,.14) !important;border:1px solid rgba(255,255,255,.35) !important}',
+      '#wgHeaderUser .wg-hav{flex:0 0 auto;width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;',
+      ' justify-content:center;font-size:13px;font-weight:900;background:#3498db;color:#fff;border:1.5px solid #fff}',
+      '#wgHeaderUser.admin .wg-hav{background:#e74c3c}',
+      '#wgHeaderUser.girls .wg-hav{background:#e91e8c}',
+      '#wgHeaderUser .wg-hname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800;font-size:12.5px}',
+      '#wgHeaderUser .wg-hedit{font-size:11px;opacity:.8}',
       'body.role-servant #genderTabs,body.role-servant #stageChips{display:none !important}'
     ].join('');
     document.head.appendChild(st);
@@ -325,8 +356,16 @@
     location.reload();
   }
 
+  function initialOf(name) {
+    var t = String(name || '').trim();
+    return t ? Array.from(t)[0] : '👤';
+  }
+
   function renderBars() {
     var r = role();
+    var isGirls = r === 'servant' && profile && profile.gender === 'girls';
+    var nm = r === 'admin' ? adminName() : (profile ? profile.name : '');
+
     var card = document.querySelector('#chapterGate .gate-card');
     if (card) {
       var bar = $('wgUserBar');
@@ -335,11 +374,24 @@
         bar.id = 'wgUserBar';
         card.insertBefore(bar, card.firstChild);
       }
-      bar.className = r === 'admin' ? 'admin' : '';
+      bar.className = r === 'admin' ? 'admin' : (isGirls ? 'girls' : '');
       bar.style.display = r ? 'flex' : 'none';
-      bar.innerHTML = '<span>' + (r === 'admin' ? '🛡️' : '👤') + ' ' + esc(label()) + '</span>' +
-        '<button type="button" id="wgChangeBtn">' + (r === 'admin' ? 'خروج' : 'تغيير بياناتي') + '</button>';
-      $('wgChangeBtn').addEventListener('click', changeUser);
+      if (r) {
+        var chips = r === 'admin'
+          ? '<span class="wg-chip admin">🛡️ مشرف عام</span><span class="wg-chip">📚 كل الفصول</span>'
+          : '<span class="wg-chip">📚 ' + esc(stageName()) + '</span>' +
+            '<span class="wg-chip ' + (isGirls ? 'girls' : 'boys') + '">' + (isGirls ? '👧 ' : '👦 ') + esc(genderName()) + '</span>';
+        bar.innerHTML =
+          '<div class="wg-av">' + (r === 'admin' ? '🛡️' : esc(initialOf(nm))) + '</div>' +
+          '<div class="wg-info">' +
+            '<div class="wg-hi">' + (r === 'admin' ? 'مسجّل الدخول كـ' : 'أهلاً بك 👋') + '</div>' +
+            '<div class="wg-name">' + esc(nm) + '</div>' +
+            '<div class="wg-chips">' + chips + '</div>' +
+          '</div>' +
+          '<button type="button" class="wg-btn" id="wgChangeBtn">' +
+            (r === 'admin' ? '🚪 تسجيل الخروج' : '✏️ تغيير بياناتي') + '</button>';
+        $('wgChangeBtn').addEventListener('click', changeUser);
+      }
     }
     var hdr = document.querySelector('.header > div:last-child');
     if (hdr) {
@@ -353,8 +405,10 @@
         hdr.insertBefore(hb, hdr.firstChild);
       }
       hb.style.display = r ? '' : 'none';
-      hb.title = 'تغيير بياناتي';
-      hb.textContent = (r === 'admin' ? '🛡️ ' : '👤 ') + (r === 'admin' ? adminName() : (profile ? profile.name : ''));
+      hb.className = 'switch-chapter-btn ' + (r === 'admin' ? 'admin' : (isGirls ? 'girls' : ''));
+      hb.title = r === 'admin' ? 'تسجيل الخروج من المشرف العام' : 'تغيير بياناتي';
+      hb.innerHTML = '<span class="wg-hav">' + (r === 'admin' ? '🛡️' : esc(initialOf(nm))) + '</span>' +
+        '<span class="wg-hname">' + esc(nm) + '</span><span class="wg-hedit">✏️</span>';
     }
   }
 

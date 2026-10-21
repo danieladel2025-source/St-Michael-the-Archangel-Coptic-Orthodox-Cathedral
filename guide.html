@@ -94,6 +94,33 @@
   footer{text-align:center;font-size:12px;color:#888;margin-top:10px}
   .bottom-back{display:block;width:100%;max-width:420px;margin:20px auto 0;text-align:center;padding:14px;background:var(--ink);color:var(--paper);border:2px solid var(--gold);border-radius:6px;text-decoration:none;font-weight:800}
   .bottom-back:hover{background:var(--gold);color:var(--ink)}
+
+  /* ===== إضافات الميزات الجديدة ===== */
+  .new-badge{background:linear-gradient(135deg,#e74c3c,#c8392b);color:#fff;font-size:11px;font-weight:900;padding:1px 9px;border-radius:20px;margin-right:6px;vertical-align:middle}
+  .m-user{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#fff,#eaf3fb);border:1px solid rgba(41,128,185,.28);border-right:5px solid var(--accent2);border-radius:14px;padding:10px 12px;box-shadow:0 4px 12px rgba(41,128,185,.14);text-align:right;position:relative}
+  .m-user.adm{background:linear-gradient(135deg,#fff,#fdeeec);border-color:rgba(200,57,43,.3);border-right-color:var(--accent)}
+  .m-user.gr{background:linear-gradient(135deg,#fff,#fdeaf2);border-color:rgba(194,24,91,.28);border-right-color:#c2185b}
+  .m-av{flex:0 0 auto;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900;color:#fff;background:linear-gradient(135deg,#3498db,#1f6fa5);border:2px solid #fff;box-shadow:0 3px 8px rgba(41,128,185,.4)}
+  .m-user.adm .m-av{background:linear-gradient(135deg,#e74c3c,#a82a1e)}
+  .m-user.gr .m-av{background:linear-gradient(135deg,#e91e8c,#a3134f)}
+  .m-user .inf{flex:1;min-width:0}.m-user .hi{font-size:10px;color:#888;font-weight:700}.m-user .nm{font-size:14px;font-weight:900}
+  .m-chip2{display:inline-block;font-size:10px;font-weight:800;padding:1px 8px;border-radius:20px;background:#fff;border:1px solid #ddd;margin:2px 0 0 4px}
+  .m-chip2.b{background:#e3f1fb;color:#1f6fa5;border-color:#b9dcf3}.m-chip2.g{background:#fde4ef;color:#a3134f;border-color:#f6b8d2}.m-chip2.r{background:#fde4e1;color:#a82a1e;border-color:#f3b3ac}
+  .m-chbtn{flex:0 0 auto;background:var(--ink);color:#fff;font-weight:800;font-size:11px;padding:8px 10px;border-radius:9px;box-shadow:0 3px 8px rgba(0,0,0,.2)}
+  .m-user.adm .m-chbtn{background:var(--accent)}
+  .m-hpill{display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:30px;padding:3px 10px 3px 5px;font-size:11px;font-weight:800}
+  .m-hpill i{width:22px;height:22px;border-radius:50%;background:#3498db;border:1.5px solid #fff;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:11px}
+  .m-seg{display:flex;gap:8px;margin-bottom:8px}.m-seg div{flex:1;padding:8px 4px;border:2px solid var(--line);border-radius:10px;background:#fff;font-weight:800;text-align:center;font-size:11px}
+  .m-seg div.on{background:var(--ink);color:#fff;border-color:var(--ink)}.m-seg div.on.red{background:var(--accent);border-color:var(--accent)}
+  .m-notif{background:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 6px 18px var(--shadow);border:1px solid var(--cream);display:flex;gap:10px;align-items:flex-start;text-align:right;margin-bottom:8px}
+  .m-notif .ic{width:34px;height:34px;border-radius:9px;background:var(--ink);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto}
+  .m-notif b{display:block;font-size:12px}.m-notif span{font-size:11px;color:#666}
+  .m-log{display:flex;gap:8px;align-items:flex-start;border-right:4px solid #475569;background:#fff;border-radius:8px;padding:7px 10px;margin-bottom:6px;text-align:right;font-size:11.5px}
+  .m-log.fu{border-right-color:var(--green)}.m-log.del{border-right-color:var(--accent)}.m-log small{display:block;color:#888;font-size:10px}
+  .m-lp{background:linear-gradient(135deg,#fff,#fff7e0);border:1px solid #f0d98a;border-right:5px solid var(--gold);border-radius:12px;padding:10px 12px;text-align:right}
+  .m-map{height:90px;border-radius:10px;background:linear-gradient(135deg,#dbeafe,#e7f3df);position:relative;overflow:hidden;border:1px solid #cbd5e1;margin-bottom:8px}
+  .m-map:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent 0 18px,rgba(255,255,255,.55) 18px 20px)}
+  .m-map b{position:absolute;top:22px;right:50%;font-size:28px;transform:translateX(50%)}
   @media(max-width:560px){.two{grid-template-columns:1fr}.top h1{font-size:14px}}
 </style>
 </head>
@@ -130,7 +157,12 @@
       <li><a href="#s13">المكتبة الروحية</a></li>
       <li><a href="#s14">لوحة المشرفين</a></li>
       <li><a href="#s15">الشات وتذكير الدرس</a></li>
-      <li><a href="#s16">نصائح مهمة</a></li>
+      <li><a href="#s16">صفحة الترحيب وهوية المستخدم <span class="new-badge">جديد</span></a></li>
+      <li><a href="#s17">سجل النشاط <span class="new-badge">جديد</span></a></li>
+      <li><a href="#s18">الإشعارات الحقيقية والتطبيق مغلق <span class="new-badge">جديد</span></a></li>
+      <li><a href="#s19">تنبيه تحضير الدرس <span class="new-badge">جديد</span></a></li>
+      <li><a href="#s20">موقع المخدوم على الخرائط <span class="new-badge">جديد</span></a></li>
+      <li><a href="#s21">نصائح مهمة</a></li>
     </ol>
   </nav>
 
@@ -642,13 +674,172 @@
     <h2><span class="n">15</span> الشات وتذكير الدرس</h2>
     <ul>
       <li><b>💬 الشات المباشر:</b> محادثة بين الخدام داخل غرفتين: <b>فصلي</b> (لخدام الفصل فقط) و<b>عام</b> (لكل الخدام). تظهر صفة كل خادم بجوار اسمه.</li>
-      <li><b>⏰ تذكير الدرس:</b> ينبّه الخدام بموعد الدرس.</li>
+      <li><b>⏰ تذكير الدرس:</b> ينبّه الخدام بموعد الدرس (التفاصيل في القسم 19).</li>
+    </ul>
+  </section>
+
+  <!-- 16 صفحة الترحيب -->
+  <section id="s16">
+    <h2><span class="n">16</span> صفحة الترحيب وهوية المستخدم <span class="new-badge">جديد</span></h2>
+    <p>أول ما تفتح النظام تظهر <b>صفحة ترحيب</b> تسألك: هل أنت <b>خادم</b> أم <b>مشرف عام</b>؟ وبناءً على إجابتك لا يظهر لك إلا ما يخصّك.</p>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> صفحة الترحيب</div>
+        <div class="shot-body"><div class="m-modal" style="position:relative">
+          <div style="text-align:center;font-size:30px">⛪</div><h4 style="text-align:center">مرحباً بك 👋</h4>
+          <div style="font-weight:900;margin-bottom:6px">هل أنت مشرف عام؟<span class="num" style="top:30px;left:-10px">1</span></div>
+          <div class="m-seg"><div class="on">لا، أنا خادم / خادمة</div><div>نعم، مشرف عام</div></div>
+          <div class="m-input" style="position:relative">اكتب اسمك<span class="num" style="top:-8px;left:-10px">2</span></div>
+          <div class="m-input" style="position:relative">— اختر السنة التي ستخدم فيها —<span class="num" style="top:-8px;left:-10px">3</span></div>
+          <div class="m-seg" style="position:relative"><div class="on" style="background:var(--accent2);border-color:var(--accent2)">👦 بنين</div><div>👧 بنات</div><span class="num" style="top:-8px;left:-10px">4</span></div>
+          <div class="m-btn bg-green" style="color:#fff">متابعة ←</div>
+        </div></div>
+      </div>
+      <figcaption>الصورة 22: صفحة الترحيب للخادم</figcaption>
+      <div class="legend"><span><b>1</b>خادم أم مشرف عام</span><span><b>2</b>الاسم</span><span><b>3</b>السنة الدراسية</span><span><b>4</b>بنين / بنات</span></div>
+    </figure>
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">أ) للخادم</h3>
+    <ol class="steps">
+      <li>اختر <b class="k">لا، أنا خادم / خادمة</b>.</li>
+      <li>اكتب <b>اسمك</b>، واختر <b>السنة التي ستخدم فيها</b>، ثم <b>بنين أو بنات</b>.</li>
+      <li>اضغط <b class="k">متابعة ←</b>، فتظهر لك <b>الفصول المطابقة لسنتك وفئتك فقط</b>، وتُحفظ بياناتك على جهازك فلا تُسأل مرة أخرى.</li>
+      <li>عند إضافة فصل جديد تُملأ المرحلة والفئة تلقائيًا من بياناتك.</li>
+    </ol>
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">ب) للمشرف العام</h3>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> دخول المشرف العام</div>
+        <div class="shot-body"><div class="m-modal">
+          <div class="m-seg"><div>لا، أنا خادم / خادمة</div><div class="on red">نعم، مشرف عام</div></div>
+          <div class="m-input">البريد الإلكتروني</div><div class="m-input">كلمة المرور</div>
+          <div class="m-input">اسمك (اختياري — يظهر في سجل النشاط)</div>
+          <div class="m-btn bg-green" style="color:#fff">متابعة ←</div>
+        </div></div>
+      </div>
+      <figcaption>الصورة 23: دخول المشرف العام بنفس بيانات لوحة المشرفين</figcaption>
+    </figure>
+    <ul>
+      <li>اختر <b class="k">نعم، مشرف عام</b> وأدخل <b>نفس البريد وكلمة المرور</b> المستخدمين في لوحة المشرفين.</li>
+      <li>يرى المشرف العام <b>كل الفصول</b> ويدخلها <b>دون كلمة سر الفصل</b>.</li>
+      <li>الاسم الاختياري هو الذي يظهر في <b>سجل النشاط</b> بدل البريد.</li>
+      <li>جلسة المشرف العام تنتهي بإغلاق المتصفح، ولا تُحفظ كلمة المرور على الجهاز.</li>
+    </ul>
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">ج) تغيير بياناتي (تصميم جديد)</h3>
+    <p>أصبحت بيانات الخادم أو المشرف العام تظهر في <b>بطاقة واضحة وجميلة</b> أعلى شاشة اختيار الفصل، وفي <b>زر مصغّر</b> بالشريط العلوي داخل الفصل.</p>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> بطاقة بيانات المستخدم</div>
+        <div class="shot-body">
+          <div class="m-user" style="margin-bottom:8px"><div class="m-av">م</div><div class="inf"><div class="hi">أهلاً بك 👋</div><div class="nm">مينا سامي</div><span class="m-chip2">📚 الصف الرابع الابتدائي</span><span class="m-chip2 b">👦 بنين</span></div><div class="m-chbtn">✏️ تغيير بياناتي</div></div>
+          <div class="m-user gr" style="margin-bottom:8px"><div class="m-av">م</div><div class="inf"><div class="hi">أهلاً بك 👋</div><div class="nm">مريم جرجس</div><span class="m-chip2">📚 الصف الخامس الابتدائي</span><span class="m-chip2 g">👧 بنات</span></div><div class="m-chbtn">✏️ تغيير بياناتي</div></div>
+          <div class="m-user adm" style="margin-bottom:8px"><div class="m-av">🛡️</div><div class="inf"><div class="hi">مسجّل الدخول كـ</div><div class="nm">أبونا / أ. مينا</div><span class="m-chip2 r">🛡️ مشرف عام</span><span class="m-chip2">📚 كل الفصول</span></div><div class="m-chbtn">🚪 تسجيل الخروج</div></div>
+          <div style="text-align:center;background:var(--ink);border-radius:8px;padding:8px"><span class="m-hpill"><i>م</i>مينا سامي ✏️</span></div>
+        </div>
+      </div>
+      <figcaption>الصورة 24: بطاقة الخادم (بنين) وبطاقة الخادمة (بنات) وبطاقة المشرف العام وزر الشريط العلوي</figcaption>
+    </figure>
+    <ul>
+      <li>تعرض البطاقة <b>الاسم والسنة الدراسية والفئة</b> بألوان مختلفة: <b>أزرق للبنين</b> و<b>وردي للبنات</b> و<b>أحمر للمشرف العام</b>.</li>
+      <li>اضغط <b class="k">✏️ تغيير بياناتي</b> (أو الزر الدائري بالشريط العلوي) لتعديل اسمك أو سنتك أو فئتك، وللمشرف العام <b class="k">🚪 تسجيل الخروج</b>.</li>
+      <li>يطلب النظام <b>تأكيدًا</b> قبل التغيير، ثم تُفتح صفحة الترحيب من جديد.</li>
+    </ul>
+  </section>
+
+  <!-- 17 سجل النشاط -->
+  <section id="s17">
+    <h2><span class="n">17</span> سجل النشاط <span class="new-badge">جديد</span></h2>
+    <p>يسجّل النظام <b>اسم من قام بالافتقاد</b> و<b>اسم من حذف</b> مخدومًا، ليعرف أمين الخدمة من فعل ماذا ومتى. الاسم يؤخذ من <b>صفحة الترحيب</b>، لذلك اكتب اسمك الحقيقي.</p>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> 🧾 سجل النشاط</div>
+        <div class="shot-body">
+          <div class="m-row" style="justify-content:space-between;margin-bottom:8px"><b>🧾 سجل النشاط <span class="st l">12</span></b><span class="m-chip">الكل ▾</span></div>
+          <div class="m-log fu"><div>✅</div><div><b>مينا سامي</b> افتقد بيشوي عادل (اتصال)<small>اليوم 7:40 م</small></div></div>
+          <div class="m-log del"><div>🗑️</div><div><b>مريم جرجس</b> حذفت مخدومًا<small>أمس 5:10 م</small></div></div>
+        </div>
+      </div>
+      <figcaption>الصورة 25: سجل النشاط أسفل شاشة الافتقاد</figcaption>
+    </figure>
+    <ul>
+      <li>يظهر في أسفل شاشة <b>الافتقاد</b> وبجواره عدد السجلات.</li>
+      <li>القائمة المنسدلة تفلتر: <b class="k">الكل</b> / <b class="k">الافتقاد فقط</b> / <b class="k">الحذف فقط</b>.</li>
+      <li>يُحفظ السجل مع نسخة الفصل على السحابة فيظهر لكل خدام الفصل.</li>
+    </ul>
+  </section>
+
+  <!-- 18 الإشعارات الحقيقية -->
+  <section id="s18">
+    <h2><span class="n">18</span> الإشعارات الحقيقية والتطبيق مغلق <span class="new-badge">جديد</span></h2>
+    <p>كانت الإشعارات قديمًا تعمل فقط والتطبيق مفتوح. الآن يعتمد النظام على <b>Web Push</b>: السيرفر نفسه يرسل الإشعار لجهازك فيصلك حتى لو <b>أغلقت التطبيق تمامًا</b>.</p>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> إشعارات الجهاز</div>
+        <div class="shot-body">
+          <div class="m-notif"><div class="ic">🎂</div><div><b>عيد ميلاد اليوم</b><span>مينا سامي يكمل ١٢ سنة — لا تنسَ التهنئة</span></div></div>
+          <div class="m-notif"><div class="ic">📖</div><div><b>تنبيه تحضير الدرس</b><span>درس الجمعة بعد ٣ أيام — حضّر الدرس الآن</span></div></div>
+          <div class="m-notif"><div class="ic">💬</div><div><b>رسالة جديدة في شات الفصل</b><span>أمين الخدمة: تذكير باجتماع الخدام</span></div></div>
+        </div>
+      </div>
+      <figcaption>الصورة 26: ثلاثة أنواع من الإشعارات تصل والتطبيق مغلق</figcaption>
+    </figure>
+    <ul>
+      <li>🎂 <b>أعياد الميلاد:</b> إشعار يوم العيد (٨ صباحًا) وتنبيه مبكر قبله بأسبوع (٩ صباحًا).</li>
+      <li>📖 <b>تحضير الدرس:</b> حسب الأيام والساعة التي اخترتها، ولا يصلك إذا ضغطت <b>تم التحضير</b>.</li>
+      <li>💬 <b>رسائل الشات:</b> الخدام يصلهم شات فصلهم والعام، والمشرفون يصلهم كل الغرف.</li>
+    </ul>
+    <ol class="steps">
+      <li>افتح التطبيق على الهاتف ووافق على <b>إذن الإشعارات</b> ثم افتح فصلك مرة واحدة ليُسجَّل جهازك.</li>
+      <li>افتح <b class="k">🧪 لوحة اختبار الإشعارات</b> واضغط <b class="k">📡 اختبار حقيقي</b>.</li>
+      <li>أغلق التطبيق تمامًا وانتظر نحو ١٥ ثانية، فيصلك إشعار تجريبي.</li>
+    </ol>
+    <div class="tip">💡 <b>للآيفون:</b> يلزم iOS 16.4 أو أحدث، و<b>إضافة التطبيق للشاشة الرئيسية</b> وفتحه من هناك.</div>
+    <div class="warn">⚠️ فحص السيرفر يتم كل ١٥ دقيقة، فقد يتأخر الإشعار حتى ١٥ دقيقة عن وقته. ويحتاج المسؤول التقني لتفعيل الخدمة مرة واحدة (راجع ملف README-الإشعارات).</div>
+  </section>
+
+  <!-- 19 تحضير الدرس -->
+  <section id="s19">
+    <h2><span class="n">19</span> تنبيه تحضير الدرس <span class="new-badge">جديد</span></h2>
+    <p>يظهر في شاشة الفصل بطاقة تذكّر الخادم بتحضير الدرس قبل الميعاد. <b>ميعاد الدرس هو يوم أخذ الغياب</b> المختار أعلى الصفحة (الجمعة افتراضيًا).</p>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> بطاقة تحضير الدرس</div>
+        <div class="shot-body"><div class="m-lp">
+          <b style="color:#92400e">📖 تنبيه تحضير الدرس</b>
+          <div style="margin:4px 0 8px;font-size:11.5px">الدرس يوم الجمعة — بقي ٣ أيام على الميعاد</div>
+          <div class="m-row" style="gap:6px;margin-bottom:6px"><div class="m-input" style="flex:1;margin:0">التنبيه قبل: ٣ أيام</div><div class="m-input" style="flex:1;margin:0">الساعة: ٩ ص</div></div>
+          <div class="m-input">موضوع الدرس القادم (اختياري)</div>
+          <div class="m-toolbar"><span class="m-tb bg-green">✅ تم التحضير</span><span class="m-tb bg-blue">🔔 تفعيل الإشعارات</span><span class="m-tb bg-ink">🧪 تجربة التنبيه</span></div>
+        </div></div>
+      </div>
+      <figcaption>الصورة 27: ضبط التنبيه وتسجيل "تم التحضير"</figcaption>
+    </figure>
+    <ul>
+      <li><b>التنبيه قبل (أيام):</b> من يوم إلى ٦ أيام قبل الدرس (الافتراضي ٣).</li>
+      <li><b>الساعة:</b> وقت وصول التنبيه (الافتراضي ٩ صباحًا).</li>
+      <li><b>موضوع الدرس القادم:</b> تكتبه ليظهر في التنبيه (اختياري).</li>
+      <li><b class="k">✅ تم التحضير:</b> يوقف التنبيه لهذا الأسبوع.</li>
+      <li><b class="k">🧪 تجربة التنبيه:</b> تجربة سريعة لشكل الإشعار.</li>
+      <li>الإعدادات <b>مستقلة لكل فصل</b>.</li>
+    </ul>
+  </section>
+
+  <!-- 20 الخرائط -->
+  <section id="s20">
+    <h2><span class="n">20</span> موقع المخدوم على الخرائط <span class="new-badge">جديد</span></h2>
+    <p>يمكن حفظ <b>موقع منزل المخدوم أو الخادم</b> وفتحه على خرائط جوجل مباشرة، وهو مفيد جدًا في <b>الافتقاد</b> وزيارات البيوت.</p>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> 📍 الموقع</div>
+        <div class="shot-body"><div class="m-modal" style="max-width:380px">
+          <div class="m-map"><b>📍</b></div>
+          <div class="m-input">رابط خرائط جوجل أو إحداثيات أو عنوان</div>
+          <div class="m-btn bg-blue" style="color:#fff">🗺️ فتح في خرائط جوجل</div>
+        </div></div>
+      </div>
+      <figcaption>الصورة 28: حفظ الموقع وفتحه على الخريطة</figcaption>
+    </figure>
+    <ul>
+      <li>يقبل النظام <b>رابط خرائط جوجل</b> (طويلًا أو مختصرًا) أو <b>إحداثيات</b> مثل <b>30.78,31.00</b> أو <b>نص عنوان</b>.</li>
+      <li>اضغط <b class="k">🗺️ فتح في خرائط جوجل</b> لعرض الموقع أو تتبّع الطريق إليه.</li>
     </ul>
   </section>
 
   <!-- 16 نصائح -->
-  <section id="s16">
-    <h2><span class="n">16</span> نصائح مهمة</h2>
+  <section id="s21">
+    <h2><span class="n">21</span> نصائح مهمة</h2>
     <ul>
       <li>سجّل الحضور في <b>نفس يوم الخدمة</b>؛ فالتعديل مسموح ٧ أيام فقط.</li>
       <li>خُذ <b>نسخة احتياطية</b> أسبوعيًا.</li>
