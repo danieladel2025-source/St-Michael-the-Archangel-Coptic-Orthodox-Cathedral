@@ -71,10 +71,11 @@
     will-change: padding, box-shadow;
   }
 
+  /* الشريط العلوي ثابت دائمًا ولا يختفي عند التمرير */
   .header.header-hidden {
-    transform: translateY(-100%);
-    opacity: 0;
-    pointer-events: none;
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
 
   .header-brand {
@@ -339,9 +340,10 @@
     color: white;
     border: none;
     border-radius: 50%;
-    width: 18px;
-    height: 18px;
-    font-size: 10px;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    pointer-events: auto;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -484,6 +486,22 @@
   }
   .photo-upload .upload-icon { font-size: 32px; margin-bottom: 8px; }
   .photo-upload .upload-text { font-size: 13px; color: #777; }
+  .remove-photo-btn {
+    display: none;
+    width: 100%;
+    margin-top: 8px;
+    padding: 9px 12px;
+    border: 2px solid #c8392b;
+    border-radius: 9px;
+    background: #fff;
+    color: #c8392b;
+    font-family: 'Cairo', sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .remove-photo-btn:hover { background: #c8392b; color: #fff; }
 
   .modal-actions {
     display: flex;
@@ -2549,6 +2567,7 @@
           <div class="upload-text">اضغط لرفع صورة للمخدوم</div>
         </div>
       </div>
+      <button type="button" id="removeStudentPhotoBtn" class="remove-photo-btn" onclick="removeStudentPhoto()">🗑️ حذف الصورة</button>
     </div>
 
     <div class="field-group">
@@ -2651,6 +2670,7 @@
           <div class="upload-text">اضغط لرفع صورة الخادم</div>
         </div>
       </div>
+      <button type="button" id="removeServantPhotoBtn" class="remove-photo-btn" onclick="removeServantPhoto()">🗑️ حذف الصورة</button>
     </div>
     <div class="field-group">
       <label>اسم الخادم *</label>
@@ -5392,6 +5412,7 @@
   function removeClassPhoto(e) {
     e.stopPropagation();
     e.preventDefault();
+    if (!confirm('هل تريد حذف صورة الفصل؟')) return;
     currentClassPhoto = null;
     updateClassPhotoUI(null);
     const inp = document.getElementById('classPhotoInput');
@@ -5536,7 +5557,7 @@
     document.getElementById('studentExtraNotes').value = '';
     document.getElementById('studentConfessor').value = '';
     document.getElementById('studentMapUrl').value = '';
-    document.getElementById('photoPreviewWrap').innerHTML = `<div class="upload-icon">📷</div><div class="upload-text">اضغط لرفع صورة المخدوم</div>`;
+    updatePhotoPreview(null);
     document.getElementById('addOverlay').classList.add('active');
   }
 
@@ -5563,8 +5584,17 @@
     document.getElementById('addOverlay').classList.add('active');
   }
 
+  function removeStudentPhoto() {
+    currentPhoto = null;
+    updatePhotoPreview(null);
+    const inp = document.querySelector('#photoUploadArea input[type="file"]');
+    if (inp) inp.value = '';
+  }
+
   function updatePhotoPreview(src) {
     const wrap = document.getElementById('photoPreviewWrap');
+    const rmBtn = document.getElementById('removeStudentPhotoBtn');
+    if (rmBtn) rmBtn.style.display = src ? 'block' : 'none';
     if (src) {
       wrap.innerHTML = `<img src="${src}" class="preview"><div class="upload-text">اضغط لتغيير الصورة</div>`;
     } else {
@@ -6407,8 +6437,17 @@
     });
   }
 
+  function removeServantPhoto() {
+    currentServantPhoto = null;
+    updateServantPhotoPreview(null);
+    const inp = document.querySelector('#servantPhotoUploadArea input[type="file"]');
+    if (inp) inp.value = '';
+  }
+
   function updateServantPhotoPreview(src) {
     const wrap = document.getElementById('servantPhotoPreviewWrap');
+    const rmBtn = document.getElementById('removeServantPhotoBtn');
+    if (rmBtn) rmBtn.style.display = src ? 'block' : 'none';
     if (!wrap) return;
     if (src) {
       wrap.innerHTML = '<img src="' + src + '" class="preview"><div class="upload-text">اضغط لتغيير الصورة</div>';
@@ -7558,22 +7597,7 @@
   });
 </script>
 
-<script>
-  (function() {
-    const header = document.querySelector('.header');
-    if (!header) return;
-    let lastY = window.scrollY;
-    window.addEventListener('scroll', function() {
-      const currentY = window.scrollY;
-      if (currentY > lastY && currentY > 80) {
-        header.classList.add('header-hidden');
-      } else if (lastY - currentY >= 50 || currentY <= 80) {
-        header.classList.remove('header-hidden');
-      }
-      lastY = currentY;
-    }, { passive: true });
-  })();
-</script>
+<!-- تم إلغاء إخفاء الشريط العلوي عند التمرير: الشريط ثابت في رأس الصفحة -->
 
 <!-- ===== نظام الافتقاد ===== -->
 <script>
@@ -9338,5 +9362,67 @@
     getClient: function () { return (typeof ACTIVE_CHAPTER_ID !== 'undefined' && ACTIVE_CHAPTER_ID) ? _supabaseClient : null; },
     getChapterId: function () { return (typeof ACTIVE_CHAPTER_ID !== 'undefined' && ACTIVE_CHAPTER_ID) ? ACTIVE_CHAPTER_ID : ''; }
   });
+</script>
+
+<style>
+  .pw-wrap { position: relative; display: block; width: 100%; }
+  .pw-wrap > input { width: 100%; box-sizing: border-box; padding-inline-end: 44px !important; }
+  .pw-eye-btn {
+    position: absolute; inset-inline-end: 6px; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 34px; padding: 0; border: none; border-radius: 8px;
+    background: transparent; color: #666; cursor: pointer; z-index: 3;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pw-eye-btn:hover { background: rgba(0,0,0,0.06); color: #111; }
+  .pw-eye-btn svg { width: 20px; height: 20px; display: block; pointer-events: none; }
+</style>
+<script>
+(function () {
+  var EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+  function enhance(input) {
+    if (!input || input.dataset.pwEye) return;
+    input.dataset.pwEye = '1';
+    var wrap = document.createElement('div');
+    wrap.className = 'pw-wrap';
+    if (input.style.flex) wrap.style.flex = input.style.flex;
+    if (input.style.minWidth) wrap.style.minWidth = input.style.minWidth;
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pw-eye-btn';
+    btn.title = 'إظهار كلمة المرور';
+    btn.setAttribute('aria-label', 'إظهار كلمة المرور');
+    btn.innerHTML = EYE;
+    btn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    btn.addEventListener('click', function () {
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.innerHTML = show ? EYE_OFF : EYE;
+      btn.title = show ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور';
+      btn.setAttribute('aria-label', btn.title);
+      input.focus();
+    });
+    wrap.appendChild(btn);
+  }
+
+  function scan(root) {
+    (root || document).querySelectorAll('input[type="password"]').forEach(enhance);
+  }
+
+  scan();
+  new MutationObserver(function (muts) {
+    muts.forEach(function (m) {
+      m.addedNodes.forEach(function (n) {
+        if (n.nodeType !== 1) return;
+        if (n.matches && n.matches('input[type="password"]')) enhance(n);
+        else if (n.querySelectorAll) scan(n);
+      });
+    });
+  }).observe(document.body, { childList: true, subtree: true });
+})();
 </script>
 </body></html>
