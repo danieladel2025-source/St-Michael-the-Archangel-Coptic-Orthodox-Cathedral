@@ -145,6 +145,11 @@
   .chip.green { background:#dcfce7; color:#166534; }
   .chip.blue { background:#dbeafe; color:#1d4ed8; }
 
+  .sv-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .sv-wrap { overflow-x:auto; background:#fff; border-radius:12px; border:1px solid var(--cream); }
+  .sv-wrap table.data-table { min-width:560px; }
+  .sv-phone { direction:ltr; unicode-bidi:plaintext; font-weight:700; color:var(--accent2); text-decoration:none; white-space:nowrap; }
+  .sv-edit { border:none; background:var(--cream); border-radius:8px; padding:3px 8px; cursor:pointer; font-size:12px; }
   .empty-state { text-align:center; padding:70px 20px; color:#999; }
   .empty-state .ic { font-size:44px; margin-bottom:12px; }
 
@@ -351,6 +356,7 @@
       <button class="btn btn-outline" id="navClasses" onclick="showView('classes')">📚 الفصول</button>
       <button class="btn btn-outline" id="navPastoral" onclick="showView('pastoral')">💙 متابعة رعوية</button>
       <button class="btn btn-outline" id="navChapters" onclick="showView('chapters')">🗂️ إدارة الفصول</button>
+      <button class="btn btn-outline" id="navServants" onclick="showView('servants')">🧑‍🤝‍🧑 قائمة الخدام</button>
       <button class="btn btn-outline" onclick="loadAllClasses()">⟳ تحديث</button>
       <button class="btn btn-red" onclick="deleteAllClasses()">🗑️ حذف كل الفصول</button>
       <button class="btn btn-red" onclick="doLogout()">خروج</button>
@@ -375,6 +381,7 @@
 
     <div id="pastoralView" style="display:none;"></div>
     <div id="chaptersView" style="display:none;"></div>
+    <div id="servantsView" style="display:none;"></div>
   </div>
 </div>
 
@@ -903,11 +910,85 @@
     document.getElementById('classesView').style.display = name === 'classes' ? 'block' : 'none';
     document.getElementById('pastoralView').style.display = name === 'pastoral' ? 'block' : 'none';
     document.getElementById('chaptersView').style.display = name === 'chapters' ? 'block' : 'none';
+    document.getElementById('servantsView').style.display = name === 'servants' ? 'block' : 'none';
+    document.getElementById('navServants').style.opacity = name === 'servants' ? '1' : '.65';
     document.getElementById('navClasses').style.opacity = name === 'classes' ? '1' : '.65';
     document.getElementById('navPastoral').style.opacity = name === 'pastoral' ? '1' : '.65';
     document.getElementById('navChapters').style.opacity = name === 'chapters' ? '1' : '.65';
     if (name === 'pastoral') renderPastoralView();
     if (name === 'chapters') loadChaptersAdmin();
+    if (name === 'servants') loadServantsAdmin();
+  }
+
+  // ================== قائمة الخدام المسجّلين (الاسم + الفصل + الهاتف) ==================
+  const STAGE_NAMES = {
+    nursery:'حضانة', kg1:'KG1 (روضة أولى)', kg2:'KG2 (روضة ثانية)',
+    p1:'الأول الابتدائي', p2:'الثاني الابتدائي', p3:'الثالث الابتدائي', p4:'الرابع الابتدائي', p5:'الخامس الابتدائي', p6:'السادس الابتدائي',
+    e1:'الأول الإعدادي', e2:'الثاني الإعدادي', e3:'الثالث الإعدادي',
+    s1:'الأول الثانوي', s2:'الثاني الثانوي', s3:'الثالث الثانوي',
+    u1:'الفرقة الأولى (جامعة)', u2:'الفرقة الثانية (جامعة)', u3:'الفرقة الثالثة (جامعة)', u4:'الفرقة الرابعة (جامعة)', u5:'الفرقة الخامسة فأعلى (جامعة)',
+    grad:'اجتماع شباب(بيك هنقدر)', youth:'خريجين'
+  };
+  let allServants = [];
+
+  async function loadServantsAdmin() {
+    const wrap = document.getElementById('servantsView');
+    wrap.innerHTML = '<div class="empty-state"><div class="ic">⏳</div>جاري تحميل الخدام...</div>';
+    const { data, error } = await sb.rpc('admin_list_servants_phone');
+    if (error) {
+      const missing = error.code === 'PGRST202' || error.code === '42883' || /could not find|does not exist|schema cache/i.test(error.message || '');
+      wrap.innerHTML = '<div class="empty-state"><div class="ic">⚠️</div>' +
+        (missing ? 'شغّل ملف servant_phone.sql على Supabase أولاً.' : 'تعذر تحميل الخدام: ' + escapeHtml(error.message || '')) + '</div>';
+      return;
+    }
+    allServants = data || [];
+    renderServantsAdmin();
+  }
+
+  function renderServantsAdmin() {
+    const wrap = document.getElementById('servantsView');
+    const prev = document.getElementById('svSearch');
+    const q = ((prev && prev.value) || '').trim().toLowerCase();
+    const stageOf = id => STAGE_NAMES[id] || id || '—';
+    const genderOf = g => g === 'girls' ? '👧 بنات' : '👦 بنين';
+
+    const rows = allServants
+      .map((s, i) => ({ s, i }))
+      .filter(({ s }) => !q || (s.name + ' ' + stageOf(s.stage) + ' ' + genderOf(s.gender) + ' ' + (s.phone || '')).toLowerCase().includes(q));
+    const noPhone = allServants.filter(s => !s.phone).length;
+
+    let html = `<div class="sv-bar">
+      <input type="text" class="search-box" id="svSearch" placeholder="🔍 ابحث بالاسم أو الفصل أو الهاتف..." value="${escapeHtml(prev ? prev.value : '')}" oninput="renderServantsAdmin(); const e=document.getElementById('svSearch'); e.focus(); e.setSelectionRange(e.value.length,e.value.length);">
+      <span class="summary-pill">🧑‍🤝‍🧑 ${allServants.length} خادم${noPhone ? ' • 📵 ' + noPhone + ' بدون رقم' : ''}</span>
+    </div>`;
+
+    if (!rows.length) {
+      html += '<div class="empty-state"><div class="ic">📭</div>' + (allServants.length ? 'لا توجد نتائج مطابقة.' : 'لا يوجد خدام مسجّلون بعد.') + '</div>';
+    } else {
+      html += `<div class="sv-wrap"><table class="data-table"><thead><tr>
+        <th>#</th><th>الاسم</th><th>الفصل</th><th>رقم الهاتف</th></tr></thead><tbody>
+        ${rows.map(({ s, i }, n) => `<tr>
+          <td>${n + 1}</td>
+          <td style="font-weight:700;">${escapeHtml(s.name || '')}</td>
+          <td>${escapeHtml(stageOf(s.stage))} <span class="chip ${s.gender === 'girls' ? '' : 'blue'}">${genderOf(s.gender)}</span></td>
+          <td>${s.phone ? `<a class="sv-phone" href="tel:${escapeHtml(s.phone)}">📞 ${escapeHtml(s.phone)}</a>` : '<span style="color:#aaa;">— لم يُسجَّل —</span>'}
+              <button class="sv-edit" title="تعديل الرقم" onclick="editServantPhone(${i})">✏️</button></td>
+        </tr>`).join('')}
+      </tbody></table></div>`;
+    }
+    wrap.innerHTML = html;
+  }
+
+  async function editServantPhone(i) {
+    const s = allServants[i];
+    if (!s) return;
+    const v = prompt('رقم هاتف ' + (s.name || '') + ':', s.phone || '');
+    if (v === null) return;
+    const { error } = await sb.rpc('admin_set_servant_phone', { p_device: s.device_id, p_phone: v });
+    if (error) { showToast('⚠️ تعذر الحفظ: ' + (error.message || '')); return; }
+    s.phone = v.replace(/[^0-9+]/g, '');
+    renderServantsAdmin();
+    showToast('✅ تم حفظ الرقم');
   }
 
   // ================== المتابعة الرعوية: أعلى نسب الغياب في كل الفصول ==================
@@ -953,17 +1034,20 @@
     const resultsWrap = document.getElementById('globalSearchResults');
     const classesView = document.getElementById('classesView');
     const pastoralView = document.getElementById('pastoralView');
+    const servantsView = document.getElementById('servantsView');
 
     if (!q) {
       resultsWrap.innerHTML = '';
       resultsWrap.style.display = 'none';
       classesView.style.display = document.getElementById('navClasses').style.opacity !== '.65' ? 'block' : 'none';
       pastoralView.style.display = document.getElementById('navPastoral').style.opacity !== '.65' ? 'block' : 'none';
+      servantsView.style.display = document.getElementById('navServants').style.opacity !== '.65' && document.getElementById('navServants').style.opacity !== '' ? 'block' : 'none';
       return;
     }
 
     classesView.style.display = 'none';
     pastoralView.style.display = 'none';
+    servantsView.style.display = 'none';
     resultsWrap.style.display = 'block';
 
     let matches = [];

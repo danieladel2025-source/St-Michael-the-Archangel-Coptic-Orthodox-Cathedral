@@ -91,6 +91,23 @@
     if (admin) return adminName() + ' (مشرف عام)';
     return profile ? profile.name : '';
   }
+  // ---- رقم الهاتف ----
+  function normPhone(t) {
+    var map = { '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9' };
+    return String(t || '').replace(/[٠-٩]/g, function (d) { return map[d]; }).replace(/[^0-9+]/g, '');
+  }
+  function phoneValid(t) {
+    var d = normPhone(t).replace(/\D/g, '');
+    return d.length >= 8 && d.length <= 15;
+  }
+  // خادم مسجّل قبل إضافة الهاتف ولم يكتب رقمه بعد
+  function needsPhone() { return !!profile && !profile.phone && !unlocked && !admin; }
+  async function savePhoneRemote(phone) {
+    var c = anonClient();
+    if (!c) return;
+    try { await c.rpc('set_servant_phone', { p_device: deviceId(), p_phone: phone }); } catch (e) {}
+  }
+
   function stageName() { return profile && stageValid(profile.stage) ? STAGE_INDEX[profile.stage].stage.name : ''; }
   function genderName() { return profile ? (profile.gender === 'girls' ? 'بنات' : 'بنين') : ''; }
   function summary() { return profile ? (stageName() + ' - ' + genderName()) : ''; }
@@ -261,6 +278,8 @@
         '<div id="wgServant">' +
           '<label for="wgName">اسمك</label>' +
           '<input id="wgName" type="text" autocomplete="name" placeholder="اكتب اسمك">' +
+          '<label for="wgPhone">أدخل رقم هاتفك</label>' +
+          '<input id="wgPhone" type="tel" dir="ltr" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="مثال: 01012345678">' +
           '<label for="wgStage">السنة التي ستخدم فيها</label>' +
           '<select id="wgStage">' + stageOptionsHtml() + '</select>' +
           '<label>الفئة</label>' +
@@ -316,7 +335,7 @@
   function busy(on, label) {
     var b = $('wgSubmit');
     b.disabled = !!on;
-    b.textContent = on ? (label || '...') : (locked() && mode === 'servant' ? 'رجوع ←' : 'متابعة ←');
+    b.textContent = on ? (label || '...') : (needsPhone() ? 'حفظ الرقم ←' : (locked() && mode === 'servant' ? 'رجوع ←' : 'متابعة ←'));
   }
 
   // يضبط حالة النموذج: مقفل / قابل للتعديل (بإذن المشرف) / تسجيل أول مرة
@@ -324,8 +343,12 @@
     var lk = locked(), note = $('wgNote');
     $('wgName').disabled = lk;
     $('wgStage').disabled = lk;
+    $('wgPhone').disabled = !!(profile && profile.phone);
     Array.prototype.forEach.call($('wgGender').querySelectorAll('button'), function (b) { b.disabled = lk; });
-    if (lk) {
+    if (needsPhone()) {
+      note.className = 'wg-warn';
+      note.innerHTML = '📞 من فضلك أدخل <b>رقم هاتفك</b> ليتمكن المشرفون من التواصل معك. بقية بياناتك مسجّلة ولا تتغيّر.';
+    } else if (lk) {
       note.className = 'wg-warn lock';
       note.innerHTML = '🔒 بياناتك مسجّلة ولا يمكن تغييرها من هنا.<br>لتغييرها اتجه إلى <b>المشرف العام</b> وسجّل دخوله من زر «نعم، مشرف عام» بالأعلى.';
     } else if (unlocked) {
@@ -337,13 +360,15 @@
     }
     $('wgCancel').hidden = !(profile && !unlocked ? true : unlocked);
     if (!role()) $('wgCancel').hidden = true;
-    $('wgSubmit').textContent = lk ? 'رجوع ←' : 'متابعة ←';
+    $('wgSubmit').textContent = needsPhone() ? 'حفظ الرقم ←' : (lk ? 'رجوع ←' : 'متابعة ←');
+    $('wgCancel').textContent = needsPhone() ? 'لاحقاً' : 'إلغاء والعودة';
   }
 
   function prefill() {
     if (profile) {
       $('wgName').value = profile.name;
       $('wgStage').value = profile.stage;
+      $('wgPhone').value = profile.phone || '';
       setGender(profile.gender);
     }
     applyLock();
@@ -387,14 +412,28 @@
   async function submit() {
     showError('');
     if (mode === 'servant') {
+      if (needsPhone()) {                 // خادم قديم: يضيف رقم هاتفه فقط
+        var ph0 = normPhone($('wgPhone').value);
+        if (!phoneValid(ph0)) return showError('من فضلك اكتب رقم هاتف صحيح');
+        busy(true, 'جاري الحفظ...');
+        await savePhoneRemote(ph0);
+        busy(false);
+        profile.phone = ph0;
+        writeJSON(localStorage, PROFILE_KEY, profile);
+        applyLock();
+        finish('✅ تم حفظ رقم هاتفك');
+        return;
+      }
       if (locked()) { hide(); return; }   // مقفل: لا تغيير
       var name = $('wgName').value.trim().replace(/\s+/g, ' ');
       var stage = $('wgStage').value;
       if (name.length < 2) return showError('من فضلك اكتب اسمك');
+      var phone = normPhone($('wgPhone').value);
+      if (!phoneValid(phone)) return showError('من فضلك اكتب رقم هاتف صحيح');
       if (!stage) return showError('من فضلك اختر السنة التي ستخدم فيها');
       if (!gender) return showError('من فضلك اختر بنين أم بنات');
       var stName = (STAGE_INDEX[stage] && STAGE_INDEX[stage].stage.name) || '';
-      if (!confirm('⚠️ تأكيد البيانات\n\nالاسم: ' + name + '\nالسنة: ' + stName + '\nالفئة: ' + (gender === 'girls' ? 'بنات' : 'بنين') +
+      if (!confirm('⚠️ تأكيد البيانات\n\nالاسم: ' + name + '\nالسنة: ' + stName + '\nالفئة: ' + (gender === 'girls' ? 'بنات' : 'بنين') + '\nالهاتف: ' + phone +
         '\n\nلن تستطيع تغيير هذه البيانات بعد التأكيد إلا عن طريق المشرف العام.\nهل البيانات صحيحة؟')) return;
       var saved = { name: name, stage: stage, gender: gender, at: new Date().toISOString() };
       var c = anonClient();
@@ -411,6 +450,8 @@
         } catch (e) {}
         busy(false);
       }
+      if (c) await savePhoneRemote(phone);
+      saved.phone = phone;
       profile = saved;
       name = profile.name;
       writeJSON(localStorage, PROFILE_KEY, profile);
@@ -451,7 +492,7 @@
   function show() {
     build();
     applyLock();
-    if (locked() && !admin) setMode('admin');
+    if (locked() && !admin && !needsPhone()) setMode('admin');
     else if (mode === 'admin' && !admin && !locked()) setMode('servant');
     el.classList.remove('wg-hide');
     document.body.style.overflow = 'hidden';
@@ -622,7 +663,7 @@
     }
     it.name = name; it.stage = stage; it.gender = gender;
     if (it.device_id === deviceId()) {      // الجهاز الحالي نفسه
-      profile = { name: name, stage: stage, gender: gender, at: it.created_at };
+      profile = { name: name, stage: stage, gender: gender, phone: (profile && profile.phone) || '', at: it.created_at };
       writeJSON(localStorage, PROFILE_KEY, profile);
     }
     servEdit = -1;
@@ -756,7 +797,9 @@
       var srv = g.data;
       if (srv && profileValid(srv)) {
         var diff = !profile || profile.name !== srv.name || profile.stage !== srv.stage || profile.gender !== srv.gender;
+        var localPhone = (profile && profile.phone) || '';
         profile = srv;
+        if (!profile.phone && localPhone) { profile.phone = localPhone; savePhoneRemote(localPhone); }
         writeJSON(localStorage, PROFILE_KEY, profile);
         if (diff && !admin) {
           applyRole();
@@ -771,6 +814,6 @@
   }
 
   applyRole();
-  if (!role() || forceOpen) show();
+  if (!role() || forceOpen || needsPhone()) show();
   syncProfile();
 })();
