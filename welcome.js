@@ -269,9 +269,14 @@
     el.className = 'wg-hide';
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-modal', 'true');
+    // صورة الكاتدرائية كخلفية للوحة الترحيب (مع طبقة داكنة لوضوح الكتابة)
+    el.style.backgroundImage = 'linear-gradient(rgba(13,17,23,.45),rgba(13,17,23,.72)),url(' + WELCOME_IMG + ')';
+    el.style.backgroundSize = 'cover';
+    el.style.backgroundPosition = 'center';
+    el.style.backgroundRepeat = 'no-repeat';
+    el.setAttribute('aria-label', 'كاتدرائية رئيس الملائكة الجليل ميخائيل بطنطا');
     el.innerHTML =
       '<div class="wg-card">' +
-        '<div class="wg-icon"><img src="' + WELCOME_IMG + '" alt="كاتدرائية رئيس الملائكة الجليل ميخائيل بطنطا"></div>' +
         '<h1>مرحباً بك 👋</h1>' +
         '<div class="wg-sub">من فضلك أدخل بياناتك ليظهر لك الفصل المناسب</div>' +
 
