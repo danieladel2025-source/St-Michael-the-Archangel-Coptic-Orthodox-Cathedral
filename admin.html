@@ -678,7 +678,7 @@
     }
     panel.innerHTML = `
       <table class="data-table">
-        <thead><tr><th>#</th><th>الاسم</th><th>الدور</th><th>هاتف</th></tr></thead>
+        <thead><tr><th>#</th><th>الاسم</th><th>الدور</th><th>هاتف</th><th></th></tr></thead>
         <tbody>
           ${servants.map((s, i) => `
             <tr>
@@ -686,6 +686,7 @@
               <td style="font-weight:700;">${escapeHtml(s.name || '')}</td>
               <td>${escapeHtml(s.role || s.job || '—')}</td>
               <td>${escapeHtml(s.phone || '—')}</td>
+              <td><button class="sv-edit" title="حذف الخادم" style="color:var(--accent);" onclick="deleteServantAdmin('${escapeHtml(String(s.sid))}')">🗑️</button></td>
             </tr>`).join('')}
         </tbody>
       </table>`;
@@ -1189,6 +1190,51 @@
     renderAttendancePanel(d);
     renderClassGrid();
     showToast('🗑️ تم حذف المخدوم «' + nm + '»');
+  }
+
+  // ================== حذف خادم من كشف خدام الفصل (من لوحة المشرفين) ==================
+  async function deleteServantAdmin(sid) {
+    const cls = currentDetailClass;
+    if (!cls) return;
+    const sv0 = ((cls.data || {}).servants || []).find(x => String(x.sid) === String(sid));
+    if (!sv0) return;
+    const nm = sv0.name || 'بدون اسم';
+    if (!confirm('🗑️ حذف الخادم «' + nm + '» من فصل «' + (cls.class_name || '—') + '»؟\n\nسيُحذف معه سجل حضوره نهائيًا.')) return;
+    if (!confirm('⚠️ تأكيد أخير: لا يمكن التراجع عن حذف «' + nm + '». هل أنت متأكد؟')) return;
+
+    // أحدث نسخة من السحابة أولًا حتى لا نكتب فوق تعديلات الخدام
+    const { data: fresh, error: e1 } = await sb.from('class_records').select('data').eq('class_id', cls.class_id).single();
+    if (e1 || !fresh) { showToast('⚠️ تعذر قراءة بيانات الفصل: ' + ((e1 && e1.message) || '')); return; }
+    const d = fresh.data || {};
+    if (!(d.servants || []).some(x => String(x.sid) === String(sid))) {
+      showToast('هذا الخادم محذوف بالفعل'); await loadAllClasses(); closeDetail(); return;
+    }
+
+    d.servants = (d.servants || []).filter(x => String(x.sid) !== String(sid));
+    const att = d.servantsAttendance;
+    if (att && typeof att === 'object') {
+      delete att[sid];
+      Object.keys(att).forEach(date => {
+        const v = att[date];
+        if (v && typeof v === 'object' && !Array.isArray(v)) delete v[sid];
+      });
+    }
+    if (!Array.isArray(d.activityLog)) d.activityLog = [];
+    d.activityLog.push({ t: 'delete_servant', by: (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف') + ' (مشرف عام)', at: new Date().toISOString(), studentName: nm });
+    if (d.activityLog.length > 300) d.activityLog = d.activityLog.slice(-300);
+
+    const { data: upd, error: e2 } = await sb.from('class_records')
+      .update({ data: d, updated_at: new Date().toISOString() })
+      .eq('class_id', cls.class_id).select('class_id');
+    if (e2 || !upd || !upd.length) {
+      alert('تعذر الحذف: ' + (e2 ? e2.message : 'الحساب لا يملك صلاحية تعديل بيانات الفصل (شغّل ملف delete_student_policy.sql على Supabase).'));
+      return;
+    }
+    cls.data = d;
+    cls.updated_at = new Date().toISOString();
+    renderServantsPanel(d);
+    renderClassGrid();
+    showToast('🗑️ تم حذف الخادم «' + nm + '»');
   }
 
   function closeStudentModal() {

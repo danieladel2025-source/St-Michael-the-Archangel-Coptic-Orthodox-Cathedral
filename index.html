@@ -7703,6 +7703,7 @@
       case 'followup_type': return { icon: x.method === 'visit' ? '🏠' : '📱', cls: 'fu', html: 'تم تسجيل افتقاد المخدوم ' + who + m + ' بواسطة ' + by };
       case 'followup_undo': return { icon: '↩️', cls: 'fu',  html: 'تم إلغاء حالة "تم الافتقاد" للمخدوم ' + who + ' بواسطة ' + by };
       case 'delete_student': return { icon: '🗑️', cls: 'del', html: 'تم حذف المخدوم ' + who + ' بواسطة ' + by };
+      case 'delete_servant': return { icon: '🗑️', cls: 'del', html: 'تم حذف الخادم ' + who + ' بواسطة ' + by };
       case 'delete_all':     return { icon: '⚠️', cls: 'del', html: 'تم حذف جميع المخدومين والخدام بواسطة ' + by };
       default:               return { icon: '•', cls: '', html: _esc(x.t || '') + ' — ' + by };
     }
