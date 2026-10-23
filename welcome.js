@@ -148,7 +148,7 @@
       ' background:radial-gradient(circle at 30% 10%,#1f2a3a 0%,#0d1117 60%);transition:opacity .3s,visibility .3s}',
       '#welcomeGate.wg-hide{opacity:0;visibility:hidden;pointer-events:none}',
       '#welcomeGate [hidden]{display:none !important}',
-      '#welcomeGate .wg-card{background:linear-gradient(rgba(245,240,232,.58),rgba(245,240,232,.58)) 0 0/100% 100% no-repeat,var(--wg-img,none) 0 0/100% 100% no-repeat,var(--paper,#f5f0e8);width:100%;max-width:460px;margin:auto;border-radius:18px;',
+      '#welcomeGate .wg-card{background:var(--paper,#f5f0e8);width:100%;max-width:460px;margin:auto;border-radius:18px;',
       ' padding:26px 20px 24px;box-shadow:0 20px 60px rgba(0,0,0,.5);border-top:5px solid var(--gold,#d4a017)}',
       '#welcomeGate .wg-icon{text-align:center;line-height:0;margin:-6px -6px 6px}',
       '#welcomeGate .wg-icon img{display:block;width:100%;max-height:215px;object-fit:cover;object-position:top center;',
@@ -269,11 +269,9 @@
     el.className = 'wg-hide';
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-modal', 'true');
-    // صورة الكاتدرائية تُمدَّد لتملأ كارت الترحيب، وحقول الإدخال فوقها
-    el.style.setProperty('--wg-img', 'url("' + WELCOME_IMG + '")');
-    el.setAttribute('aria-label', 'كاتدرائية رئيس الملائكة الجليل ميخائيل بطنطا');
     el.innerHTML =
       '<div class="wg-card">' +
+        '<div class="wg-icon"><img src="' + WELCOME_IMG + '" alt="كاتدرائية رئيس الملائكة الجليل ميخائيل بطنطا"></div>' +
         '<h1>مرحباً بك 👋</h1>' +
         '<div class="wg-sub">من فضلك أدخل بياناتك ليظهر لك الفصل المناسب</div>' +
 
