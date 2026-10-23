@@ -433,7 +433,10 @@
         <h2 id="stuTitle">—</h2>
         <div class="meta" id="stuMeta">—</div>
       </div>
-      <button class="close-btn" onclick="closeStudentModal()">✕</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-red" id="stuDeleteBtn">🗑️ حذف المخدوم</button>
+        <button class="close-btn" onclick="closeStudentModal()">✕</button>
+      </div>
     </div>
     <div id="stuBody"></div>
   </div>
@@ -642,7 +645,7 @@
       <table class="data-table">
         <thead><tr>
           <th>#</th><th>الاسم</th><th>تاريخ الميلاد</th><th>أب الاعتراف</th>
-          <th>مرات الاعتراف</th><th>نسبة الحضور</th><th>هاتف</th>
+          <th>مرات الاعتراف</th><th>نسبة الحضور</th><th>هاتف</th><th></th>
         </tr></thead>
         <tbody>
           ${students.map((s, i) => {
@@ -658,6 +661,7 @@
               <td>${confessions[s.id] || 0}</td>
               <td>${pctHtml}</td>
               <td>${escapeHtml(phone)}</td>
+              <td><button class="sv-edit" title="حذف المخدوم" style="color:var(--accent);" onclick="event.stopPropagation(); deleteStudentAdmin('${s.id}')">🗑️</button></td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -1088,6 +1092,7 @@
     const pct = computeAttendancePct(s.id, attendance);
 
     document.getElementById('stuTitle').textContent = s.name || 'بدون اسم';
+    document.getElementById('stuDeleteBtn').onclick = () => deleteStudentAdmin(s.id);
     document.getElementById('stuMeta').textContent = 'فصل: ' + (currentDetailClass.class_name || '—');
 
     const photoHtml = s.photo
@@ -1136,6 +1141,54 @@
 
     document.getElementById('stuBody').innerHTML = body;
     document.getElementById('studentOverlay').style.display = 'flex';
+  }
+
+  // ================== حذف مخدوم غير مرغوب فيه (من لوحة المشرفين) ==================
+  async function deleteStudentAdmin(studentId) {
+    const cls = currentDetailClass;
+    if (!cls) return;
+    const s0 = ((cls.data || {}).students || []).find(x => x.id === studentId);
+    if (!s0) return;
+    const nm = s0.name || 'بدون اسم';
+    if (!confirm('🗑️ حذف المخدوم «' + nm + '» من فصل «' + (cls.class_name || '—') + '»؟\n\nسيُحذف معه سجل حضوره واعترافه وملاحظاته ومتابعته نهائيًا.')) return;
+    if (!confirm('⚠️ تأكيد أخير: لا يمكن التراجع عن حذف «' + nm + '». هل أنت متأكد؟')) return;
+
+    // نقرأ أحدث نسخة من السحابة أولًا حتى لا نكتب فوق تعديلات الخدام
+    const { data: fresh, error: e1 } = await sb.from('class_records').select('data').eq('class_id', cls.class_id).single();
+    if (e1 || !fresh) { showToast('⚠️ تعذر قراءة بيانات الفصل: ' + ((e1 && e1.message) || '')); return; }
+    const d = fresh.data || {};
+    const st = (d.students || []).find(x => x.id === studentId);
+    if (!st) { showToast('هذا المخدوم محذوف بالفعل'); await loadAllClasses(); closeStudentModal(); closeDetail(); return; }
+
+    d.students = (d.students || []).filter(x => x.id !== studentId);
+    // حذف كل ما يخص المخدوم (سواء كان مفتاحه مباشرًا أو داخل تاريخ/يوم)
+    ['attendance', 'notes', 'recitations', 'recitationDone', 'confessions', 'massAttendance', 'followup'].forEach(k => {
+      const o = d[k];
+      if (!o || typeof o !== 'object') return;
+      delete o[studentId];
+      Object.keys(o).forEach(key => {
+        const v = o[key];
+        if (v && typeof v === 'object' && !Array.isArray(v)) delete v[studentId];
+      });
+    });
+    if (!Array.isArray(d.activityLog)) d.activityLog = [];
+    d.activityLog.push({ t: 'delete_student', by: (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف') + ' (مشرف عام)', at: new Date().toISOString(), studentId, studentName: nm });
+    if (d.activityLog.length > 300) d.activityLog = d.activityLog.slice(-300);
+
+    const { data: upd, error: e2 } = await sb.from('class_records')
+      .update({ data: d, updated_at: new Date().toISOString() })
+      .eq('class_id', cls.class_id).select('class_id');
+    if (e2 || !upd || !upd.length) {
+      alert('تعذر الحذف: ' + (e2 ? e2.message : 'الحساب لا يملك صلاحية تعديل بيانات الفصل (شغّل ملف delete_student_policy.sql على Supabase).'));
+      return;
+    }
+    cls.data = d;
+    cls.updated_at = new Date().toISOString();
+    closeStudentModal();
+    renderStudentsPanel(d);
+    renderAttendancePanel(d);
+    renderClassGrid();
+    showToast('🗑️ تم حذف المخدوم «' + nm + '»');
   }
 
   function closeStudentModal() {
