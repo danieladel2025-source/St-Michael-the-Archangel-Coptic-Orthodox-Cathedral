@@ -270,10 +270,11 @@
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-modal', 'true');
     // صورة الكاتدرائية كخلفية للوحة الترحيب (مع طبقة داكنة لوضوح الكتابة)
-    el.style.backgroundImage = 'linear-gradient(rgba(13,17,23,.45),rgba(13,17,23,.72)),url(' + WELCOME_IMG + ')';
-    el.style.backgroundSize = 'cover';
-    el.style.backgroundPosition = 'center';
-    el.style.backgroundRepeat = 'no-repeat';
+    el.style.backgroundImage = 'linear-gradient(rgba(13,17,23,.5),rgba(13,17,23,.62)),url(' + WELCOME_IMG + ')';
+    el.style.backgroundColor = '#0d1117';
+    el.style.backgroundSize = 'cover, contain';            // الطبقة الداكنة تملأ الشاشة، والصورة بأبعادها الأصلية بدون قص أو تمطيط
+    el.style.backgroundPosition = 'center, center';
+    el.style.backgroundRepeat = 'no-repeat, no-repeat';
     el.setAttribute('aria-label', 'كاتدرائية رئيس الملائكة الجليل ميخائيل بطنطا');
     el.innerHTML =
       '<div class="wg-card">' +
