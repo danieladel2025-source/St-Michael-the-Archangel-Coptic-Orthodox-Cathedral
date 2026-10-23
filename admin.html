@@ -971,17 +971,35 @@
       html += '<div class="empty-state"><div class="ic">📭</div>' + (allServants.length ? 'لا توجد نتائج مطابقة.' : 'لا يوجد خدام مسجّلون بعد.') + '</div>';
     } else {
       html += `<div class="sv-wrap"><table class="data-table"><thead><tr>
-        <th>#</th><th>الاسم</th><th>الفصل</th><th>رقم الهاتف</th></tr></thead><tbody>
+        <th>#</th><th>الاسم</th><th>الفصل</th><th>رقم الهاتف</th><th></th></tr></thead><tbody>
         ${rows.map(({ s, i }, n) => `<tr>
           <td>${n + 1}</td>
           <td style="font-weight:700;">${escapeHtml(s.name || '')}</td>
           <td>${escapeHtml(stageOf(s.stage))} <span class="chip ${s.gender === 'girls' ? '' : 'blue'}">${genderOf(s.gender)}</span></td>
           <td>${s.phone ? `<a class="sv-phone" href="tel:${escapeHtml(s.phone)}">📞 ${escapeHtml(s.phone)}</a>` : '<span style="color:#aaa;">— لم يُسجَّل —</span>'}
               <button class="sv-edit" title="تعديل الرقم" onclick="editServantPhone(${i})">✏️</button></td>
+          <td><button class="sv-edit" title="حذف الخادم" style="color:var(--accent);" onclick="deleteRegisteredServant(${i})">🗑️</button></td>
         </tr>`).join('')}
       </tbody></table></div>`;
     }
     wrap.innerHTML = html;
+  }
+
+  async function deleteRegisteredServant(i) {
+    const s = allServants[i];
+    if (!s) return;
+    const nm = s.name || 'بدون اسم';
+    if (!confirm('🗑️ حذف الخادم «' + nm + '» من قائمة الخدام المسجّلين؟\n\nسيُمسح تسجيله، ويُطلب منه إدخال بياناته من جديد عند فتح التطبيق على جهازه.')) return;
+    const { data, error } = await sb.rpc('admin_delete_servant', { p_device: s.device_id });
+    if (error) {
+      const missing = error.code === 'PGRST202' || error.code === '42883' || /could not find|does not exist|schema cache/i.test(error.message || '');
+      alert(missing ? 'شغّل ملف servant_phone.sql المحدّث على Supabase أولًا.' : 'تعذر الحذف: ' + (error.message || ''));
+      return;
+    }
+    if (data === false) { showToast('هذا الخادم محذوف بالفعل'); }
+    else { showToast('🗑️ تم حذف الخادم «' + nm + '»'); }
+    allServants.splice(i, 1);
+    renderServantsAdmin();
   }
 
   async function editServantPhone(i) {

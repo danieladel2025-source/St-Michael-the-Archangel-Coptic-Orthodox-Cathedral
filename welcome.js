@@ -102,6 +102,12 @@
   }
   // خادم مسجّل قبل إضافة الهاتف ولم يكتب رقمه بعد
   function needsPhone() { return !!profile && !profile.phone && !unlocked && !admin; }
+  async function removedByAdmin() {
+    var c = anonClient();
+    if (!c) return false;
+    try { var r = await c.rpc('servant_removed', { p_device: deviceId() }); return !r.error && r.data === true; }
+    catch (e) { return false; }
+  }
   async function savePhoneRemote(phone) {
     var c = anonClient();
     if (!c) return;
@@ -806,6 +812,9 @@
           if (el) { applyLock(); prefill(); }
           if (!forceOpen) hide();
         }
+      } else if (profile && await removedByAdmin()) {   // حذفه المشرف العام → يبدأ من جديد
+        try { localStorage.removeItem(PROFILE_KEY); sessionStorage.removeItem(CHAPTER_SESSION); } catch (e) {}
+        location.reload();
       } else if (profile) {                       // مسجّل محلياً فقط (خادم قديم) → نرفعه للسيرفر
         var r = await c.rpc('register_servant', { p_device: deviceId(), p_name: profile.name, p_stage: profile.stage, p_gender: profile.gender });
         if (!r.error && r.data && profileValid(r.data)) { profile = r.data; writeJSON(localStorage, PROFILE_KEY, profile); }
