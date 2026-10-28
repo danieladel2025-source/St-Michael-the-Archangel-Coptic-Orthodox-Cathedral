@@ -1828,7 +1828,7 @@
     </div>
     <div id="chapterPasswordError" style="color:#c8392b;font-size:13px;font-weight:700;margin-bottom:10px;display:none;"></div>
     <div style="display:flex;gap:10px;">
-      <button type="button" onclick="submitChapterPassword()" style="flex:1;padding:12px;border:none;border-radius:9px;background:var(--accent2);color:#fff;font-family:'Cairo',sans-serif;font-weight:800;font-size:14px;cursor:pointer;">🔓 دخول</button>
+      <button type="button" id="chapterPasswordSubmitBtn" onclick="submitChapterPassword()" style="flex:1;padding:12px;border:none;border-radius:9px;background:var(--accent2);color:#fff;font-family:'Cairo',sans-serif;font-weight:800;font-size:14px;cursor:pointer;">🔓 دخول</button>
       <button type="button" onclick="closeChapterPasswordModal()" style="flex:1;padding:12px;border:2px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font-family:'Cairo',sans-serif;font-weight:800;font-size:14px;cursor:pointer;">إلغاء</button>
     </div>
   </div>
@@ -3350,6 +3350,40 @@
   let ACTIVE_CHAPTER_GENDER = '';
   let _chaptersCache = [];
   let _pendingChapterId = null;
+
+  // ===== معرّف الجهاز + IP (لحماية كلمة سر الفصل من التخمين) =====
+  function _chapterDeviceId() {
+    const KEY = 'church_device_id_v1'; // نفس المفتاح المستخدم في welcome.js لتوحيد المعرّف
+    try {
+      let id = localStorage.getItem(KEY) || '';
+      if (id.length < 16) {
+        id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+           : 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+        localStorage.setItem(KEY, id);
+      }
+      return id;
+    } catch (e) {
+      // التخزين المحلي غير متاح (تصفح خاص مثلًا): معرّف عشوائي في الذاكرة بدل معرّف مشترك،
+      // حتى لا تتشارك الأجهزة كلها نفس عدّاد المحاولات الخاطئة.
+      if (!window.__memDeviceId) window.__memDeviceId = 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+      return window.__memDeviceId;
+    }
+  }
+  let _cachedClientIp = null;
+  async function _clientIpBestEffort() {
+    // ⚠️ هذا عنوان IP "ذاتي التبليغ" من المتصفح (عبر خدمة خارجية) — يمكن انتحاله تقنياً،
+    // وهو مكمّل فقط لعنوان IP الحقيقي الذي تلتقطه الـ Edge Function في السيرفر (أدق وأوثق).
+    if (_cachedClientIp !== null) return _cachedClientIp;
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 2500);
+      const r = await fetch('https://api.ipify.org?format=json', { signal: ctrl.signal });
+      clearTimeout(t);
+      const j = await r.json();
+      _cachedClientIp = j && j.ip ? j.ip : '';
+    } catch (e) { _cachedClientIp = ''; }
+    return _cachedClientIp;
+  }
   const CHAPTER_SESSION_KEY   = 'absence_active_chapter_v1';
   const CHAPTERS_CACHE_LS_KEY = 'absence_chapters_cache_v1';
 
@@ -3732,13 +3766,39 @@
     if (!_supabaseClient) { errEl.textContent = '⚠️ تعذر الاتصال بالسحابة للتحقق من كلمة السر — تحقق من الإنترنت'; errEl.style.display = 'block'; return; }
     errEl.style.display = 'none';
 
+    const submitBtn = document.getElementById('chapterPasswordSubmitBtn');
+    if (submitBtn) submitBtn.disabled = true;
+
     try {
+      const ip = await _clientIpBestEffort();
       const { data, error } = await _supabaseClient.rpc('verify_chapter_password', {
         p_chapter_id: _pendingChapterId,
-        p_password: pass
+        p_password: pass,
+        p_device_id: _chapterDeviceId(),
+        p_ip: ip || null,
+        p_user_agent: (navigator.userAgent || '').slice(0, 300)
       });
       if (error) throw error;
-      if (!data) { errEl.textContent = '❌ كلمة السر غير صحيحة'; errEl.style.display = 'block'; return; }
+
+      // توافق مع الصيغة القديمة (true/false) في حال لم يُطبَّق تحديث SQL بعد
+      if (data === true || data === false) {
+        if (!data) { errEl.textContent = '❌ كلمة السر غير صحيحة'; errEl.style.display = 'block'; return; }
+      } else if (data && typeof data === 'object') {
+        if (!data.ok) {
+          if (data.status === 'banned') {
+            errEl.textContent = '⛔ تم منعك نهائياً من محاولة الدخول لهذا الفصل من هذا الجهاز بسبب تكرار إدخال كلمة سر خاطئة. تواصل مع المشرف العام.';
+          } else if (data.status === 'locked') {
+            const mins = Math.max(1, Math.ceil((data.remaining_seconds || 900) / 60));
+            errEl.textContent = '🔒 تم قفل محاولة الدخول لهذا الفصل مؤقتاً بسبب تكرار كلمة السر الخاطئة. حاول مرة أخرى بعد ' + mins + ' دقيقة تقريباً، أو تواصل مع المشرف العام.';
+          } else {
+            const left = (typeof data.attempts_left === 'number') ? (' — محاولات متبقية: ' + data.attempts_left) : '';
+            errEl.textContent = '❌ كلمة السر غير صحيحة' + left;
+          }
+          errEl.style.display = 'block';
+          return;
+        }
+      }
+
       const chapter = _chaptersCache.find(c => c.chapter_id === _pendingChapterId);
       const id = _pendingChapterId;
       closeChapterPasswordModal();
@@ -3746,6 +3806,8 @@
     } catch(e) {
       console.error(e);
       errEl.textContent = '⚠️ تعذر التحقق من كلمة السر — تحقق من الاتصال بالإنترنت'; errEl.style.display = 'block';
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
   }
 

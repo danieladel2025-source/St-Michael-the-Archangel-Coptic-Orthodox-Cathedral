@@ -357,6 +357,7 @@
       <button class="btn btn-outline" id="navPastoral" onclick="showView('pastoral')">💙 متابعة رعوية</button>
       <button class="btn btn-outline" id="navChapters" onclick="showView('chapters')">🗂️ إدارة الفصول</button>
       <button class="btn btn-outline" id="navServants" onclick="showView('servants')">🧑‍🤝‍🧑 قائمة الخدام</button>
+      <button class="btn btn-outline" id="navSecurity" onclick="showView('security')">🛡️ التحذيرات الأمنية<span id="securityBadge" style="display:none;background:var(--accent,#c8392b);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-right:6px;"></span></button>
       <button class="btn btn-outline" onclick="loadAllClasses()">⟳ تحديث</button>
       <button class="btn btn-red" onclick="deleteAllClasses()">🗑️ حذف كل الفصول</button>
       <button class="btn btn-red" onclick="doLogout()">خروج</button>
@@ -382,6 +383,7 @@
     <div id="pastoralView" style="display:none;"></div>
     <div id="chaptersView" style="display:none;"></div>
     <div id="servantsView" style="display:none;"></div>
+    <div id="securityView" style="display:none;"></div>
   </div>
 </div>
 
@@ -519,6 +521,7 @@
     window._adminEmail = user.email || '';
     showView('classes');
     loadAllClasses();
+    refreshSecurityBadge();
   }
 
   // عند فتح الصفحة، تحقق هل يوجد جلسة دخول محفوظة
@@ -916,13 +919,80 @@
     document.getElementById('pastoralView').style.display = name === 'pastoral' ? 'block' : 'none';
     document.getElementById('chaptersView').style.display = name === 'chapters' ? 'block' : 'none';
     document.getElementById('servantsView').style.display = name === 'servants' ? 'block' : 'none';
+    document.getElementById('securityView').style.display = name === 'security' ? 'block' : 'none';
     document.getElementById('navServants').style.opacity = name === 'servants' ? '1' : '.65';
     document.getElementById('navClasses').style.opacity = name === 'classes' ? '1' : '.65';
     document.getElementById('navPastoral').style.opacity = name === 'pastoral' ? '1' : '.65';
     document.getElementById('navChapters').style.opacity = name === 'chapters' ? '1' : '.65';
+    document.getElementById('navSecurity').style.opacity = name === 'security' ? '1' : '.65';
     if (name === 'pastoral') renderPastoralView();
     if (name === 'chapters') loadChaptersAdmin();
     if (name === 'servants') loadServantsAdmin();
+    if (name === 'security') loadSecurityEvents();
+  }
+
+  // ================== التحذيرات الأمنية (محاولات تخمين كلمة سر الفصول) ==================
+  let securityEventsCache = [];
+
+  async function refreshSecurityBadge() {
+    try {
+      const { data, error } = await sb.rpc('admin_list_security_events');
+      if (error) return;
+      const list = data || [];
+      const unseen = list.filter(e => e.event_type === 'banned' && !e.acknowledged).length;
+      const badge = document.getElementById('securityBadge');
+      if (badge) {
+        if (unseen > 0) { badge.textContent = unseen; badge.style.display = 'inline-block'; }
+        else badge.style.display = 'none';
+      }
+    } catch (e) { /* صامت */ }
+  }
+
+  async function loadSecurityEvents() {
+    const wrap = document.getElementById('securityView');
+    wrap.innerHTML = '<div class="empty-state"><div class="ic">⏳</div>جاري تحميل التحذيرات الأمنية...</div>';
+    const { data, error } = await sb.rpc('admin_list_security_events');
+    if (error) {
+      wrap.innerHTML = '<div class="empty-state"><div class="ic">⚠️</div>تعذر تحميل التحذيرات: ' + escapeHtml(error.message) +
+        '<br><small>تأكد من تطبيق ملف SQL الخاص بحماية كلمة سر الفصول (chapter_security_locks / admin_list_security_events).</small></div>';
+      return;
+    }
+    securityEventsCache = data || [];
+    renderSecurityEvents();
+    refreshSecurityBadge();
+  }
+
+  function renderSecurityEvents() {
+    const wrap = document.getElementById('securityView');
+    if (!securityEventsCache.length) {
+      wrap.innerHTML = '<div class="empty-state"><div class="ic">✅</div>لا توجد تحذيرات أمنية حالياً — لا يوجد محاولات تخمين مشبوهة لكلمات سر الفصول.</div>';
+      return;
+    }
+    const typeLabel = { banned: '⛔ منع نهائي', locked: '🔒 قفل مؤقت (15 دقيقة)', unbanned_by_admin: '✅ رفع المنع (بواسطة مشرف)' };
+    wrap.innerHTML = '<div class="toolbar"><span class="summary-pill">' + securityEventsCache.length + ' حدث أمني</span></div>' +
+      '<table class="data-table"><thead><tr><th>النوع</th><th>الفصل</th><th>معرّف الجهاز</th><th>عنوان IP</th><th>الجهاز / المتصفح</th><th>الوقت</th><th></th></tr></thead><tbody>' +
+      securityEventsCache.map(ev => {
+        const chapter = (chaptersAdminCache.find(c => c.chapter_id === ev.chapter_id) || {}).chapter_name || ev.chapter_id;
+        const when = ev.created_at ? new Date(ev.created_at).toLocaleString('ar-EG') : '—';
+        const canUnban = ev.event_type === 'banned' && !ev.acknowledged;
+        return '<tr>' +
+          '<td>' + escapeHtml(typeLabel[ev.event_type] || ev.event_type) + '</td>' +
+          '<td>' + escapeHtml(chapter) + '</td>' +
+          '<td style="font-size:11px;color:#888;">' + escapeHtml(ev.device_id || '—') + '</td>' +
+          '<td>' + escapeHtml(ev.ip || '—') + '</td>' +
+          '<td style="font-size:11px;">' + escapeHtml(ev.user_agent || '—') + '</td>' +
+          '<td>' + when + '</td>' +
+          '<td>' + (canUnban ? '<button class="btn btn-gold" onclick="unbanChapterDevice(\'' + escapeHtml(String(ev.chapter_id)) + '\',\'' + escapeHtml(String(ev.device_id)) + '\')">✅ رفع المنع</button>' : '') + '</td>' +
+          '</tr>';
+      }).join('') + '</tbody></table>';
+  }
+
+  async function unbanChapterDevice(chapterId, deviceId) {
+    if (!confirm('هل تريد رفع المنع عن هذا الجهاز للسماح له بمحاولة الدخول للفصل مرة أخرى؟')) return;
+    const { data, error } = await sb.rpc('admin_unban_chapter_device', { p_chapter_id: chapterId, p_device_id: deviceId });
+    if (error || data === false) { showToast('⚠️ تعذر رفع المنع' + (error ? ': ' + error.message : '')); return; }
+    showToast('✅ تم رفع المنع عن الجهاز');
+    loadSecurityEvents();
   }
 
   // ================== قائمة الخدام المسجّلين (الاسم + الفصل + الهاتف) ==================

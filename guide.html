@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0d1117">
 <title>شرح النظام — نظام تسجيل غياب ومتابعة المخدومين والخدام</title>
@@ -126,6 +127,16 @@
 </head>
 <body>
 
+<!-- ===== بوابة الدخول: الصفحة مخصصة للأعضاء المسجّلين فقط (خدام مسجَّلون أو مشرفون) ===== -->
+<div id="guideGate" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;background:var(--paper);font-family:'Cairo',sans-serif;">
+  <div style="max-width:380px;background:#fff;border:1px solid var(--cream);border-radius:16px;padding:28px 22px;box-shadow:0 8px 24px var(--shadow);">
+    <div id="guideGateIcon" style="font-size:40px;margin-bottom:8px;">⏳</div>
+    <div id="guideGateMsg" style="font-weight:800;font-size:15px;color:var(--ink);margin-bottom:14px;">جاري التحقق من صلاحية الدخول...</div>
+    <a href="./index.html" id="guideGateBtn" style="display:none;background:var(--gold);color:var(--ink);text-decoration:none;font-weight:800;font-size:13px;padding:10px 20px;border-radius:8px;">↩️ العودة لتسجيل الدخول</a>
+  </div>
+</div>
+
+<div id="guideContent" style="display:none;">
 <div class="top">
   <h1>📖 شرح النظام</h1>
   <a class="back" href="./index.html">↩️ العودة للنظام</a>
@@ -163,7 +174,8 @@
       <li><a href="#s19">تنبيه تحضير الدرس</a></li>
       <li><a href="#s20">موقع المخدوم على الخرائط</a></li>
       <li><a href="#s21">النزول السريع</a></li>
-      <li><a href="#s22">نصائح مهمة</a></li>
+      <li><a href="#s22">الأمان وحماية كلمة سر الفصول</a></li>
+      <li><a href="#s23">نصائح مهمة</a></li>
     </ol>
   </nav>
 
@@ -900,9 +912,50 @@
     </ul>
   </section>
 
-  <!-- 22 نصائح -->
+  <!-- 22 الأمان وحماية كلمة سر الفصول -->
   <section id="s22">
-    <h2><span class="n">22</span> نصائح مهمة</h2>
+    <h2><span class="n">22</span> الأمان وحماية كلمة سر الفصول 🛡️</h2>
+    <p>لحماية بيانات المخدومين من محاولات تخمين كلمة سر الفصل، يراقب النظام الآن كل محاولة دخول خاطئة بشكل تلقائي.</p>
+
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">أ) القفل التلقائي عند تكرار الخطأ</h3>
+    <ul>
+      <li>عند إدخال كلمة سر الفصل خطأ <b>3 مرات متتالية</b>، يُقفل الدخول من ذلك الجهاز لهذا الفصل تحديدًا لمدة <b>15 دقيقة</b>.</li>
+      <li>إن تكرر الخطأ 3 مرات أخرى بعد انتهاء القفل الأول، يتحول القفل إلى <b>منع نهائي</b> لذلك الجهاز من محاولة الدخول لهذا الفصل.</li>
+      <li>القفل والمنع خاصان <b>بالجهاز والفصل معًا</b>: لا يؤثران على بقية الفصول، ولا على خادم آخر يحاول من جهاز مختلف.</li>
+      <li>الحل في كلتا الحالتين (قفل مؤقت أو منع نهائي): انتظار المدة المحددة، أو التواصل مع <b>المشرف العام</b> لرفع المنع أو لتذكيرك بكلمة السر.</li>
+    </ul>
+    <div class="warn">⚠️ هذا النظام يحمي من التخمين العشوائي، وليس بديلاً عن الحفاظ على سرية كلمة السر. لا تشاركها إلا مع خدام الفصل أنفسهم.</div>
+
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">ب) صفحة "التحذيرات الأمنية" (للمشرف العام فقط)</h3>
+    <figure>
+      <div class="shot"><div class="shot-bar"><i></i><i></i><i></i> لوحة المشرفين — التحذيرات الأمنية</div>
+        <div class="shot-body">
+          <div class="m-toolbar" style="position:relative"><span class="m-tb" style="background:var(--accent)">🛡️ التحذيرات الأمنية</span></div>
+          <table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-top:6px">
+            <tr style="background:var(--cream);font-weight:800"><td style="padding:4px">النوع</td><td style="padding:4px">الفصل</td><td style="padding:4px">IP</td><td style="padding:4px">الوقت</td><td></td></tr>
+            <tr style="border-top:1px solid var(--cream)"><td style="padding:4px;color:var(--accent);font-weight:800">⛔ منع نهائي</td><td style="padding:4px">فصل مارجرجس</td><td style="padding:4px">41.x.x.x</td><td style="padding:4px">اليوم 6:12م</td><td style="padding:4px"><span class="m-btn bg-gold" style="display:inline-block;padding:3px 8px;font-size:10px">رفع المنع</span></td></tr>
+          </table>
+        </div>
+      </div>
+      <figcaption>الصورة: تبويب التحذيرات الأمنية في لوحة المشرفين</figcaption>
+    </figure>
+    <ul>
+      <li>تظهر هذه الصفحة فقط في <b>لوحة المشرفين</b> من زر <b class="k">🛡️ التحذيرات الأمنية</b> بجانب باقي التبويبات، ويظهر بجانبه عدّاد أحمر بعدد حالات المنع الجديدة.</li>
+      <li>كل حالة منع نهائي تُسجَّل مع: <b>اسم/معرّف الفصل</b>، <b>معرّف الجهاز</b> الذي حاول الدخول، <b>عنوان IP</b>، ومعلومات <b>المتصفح والجهاز</b> (نوعه ونظامه).</li>
+      <li>زر <b class="k">✅ رفع المنع</b> يسمح للمشرف بإلغاء المنع عن جهاز معيّن، فيستطيع صاحبه المحاولة من جديد.</li>
+    </ul>
+    <div class="tip">💡 ملاحظة تقنية: لا يستطيع أي نظام ويب قراءة عنوان MAC أو "اسم الهاتف" الذي يعطيه صاحبه لجهازه — هذه معلومات محجوبة من المتصفح لأي موقع لأسباب تتعلق بالخصوصية. لذلك يعتمد النظام بدلًا من ذلك على معرّف جهاز فريد يُنشأ تلقائيًا، بالإضافة إلى عنوان IP ونوع المتصفح/الجهاز، وهي كافية عمليًا لتمييز الجهاز المسبِّب للمشكلة.</div>
+
+    <h3 style="font-size:16px;font-weight:900;margin:14px 0 6px">ج) نسيان كلمة سر الفصل</h3>
+    <ul>
+      <li>لا حاجة للانتظار أو لمعرفة كلمة السر القديمة: يستطيع <b>المشرف العام</b> فتح <b class="k">🗂️ إدارة الفصول</b> ← <b class="k">✏️ تعديل</b> على الفصل، ثم كتابة <b>كلمة سر جديدة</b> مباشرة وحفظها.</li>
+      <li>بعد الحفظ، على خدام الفصل استخدام كلمة السر الجديدة فورًا.</li>
+    </ul>
+  </section>
+
+  <!-- 23 نصائح -->
+  <section id="s23">
+    <h2><span class="n">23</span> نصائح مهمة</h2>
     <ul>
       <li>سجّل الحضور في <b>نفس يوم الخدمة</b>؛ فالتعديل مسموح ٧ أيام فقط.</li>
       <li>خُذ <b>نسخة احتياطية</b> أسبوعيًا.</li>
@@ -915,5 +968,68 @@
 
   <footer>نظام تسجيل غياب ومتابعة المخدومين والخدام — كاتدرائية رئيس الملائكة الجليل ميخائيل، طنطا</footer>
 </div>
+</div><!-- /guideContent -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+  'use strict';
+  // ⚠️ نفس بيانات اتصال Supabase المستخدمة في index.html / welcome.js (مشروع واحد)
+  var SUPABASE_URL      = 'https://tnpokrdrhactzjrhlyjv.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRucG9rcmRyaGFjdHpqcmhseWp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMTg4MDYsImV4cCI6MjEwNjc5NDgwNn0.GAR0ckTxCGwHg4LeR1GAU5CTXnDLLpQkuY2lL6BycBw'; // نفس المفتاح العام (anon) المستخدم في index.html — آمن للنشر
+  var DEVICE_KEY = 'church_device_id_v1';
+  var ADMIN_AUTH_STORAGE_KEY = 'wg-admin-auth'; // نفس المفتاح المستخدم في welcome.js لجلسة المشرف
+
+  function deviceId() {
+    try {
+      var id = localStorage.getItem(DEVICE_KEY) || '';
+      return id.length >= 16 ? id : '';
+    } catch (e) { return ''; }
+  }
+
+  function showGate(ok, msg) {
+    var icon = document.getElementById('guideGateIcon');
+    var msgEl = document.getElementById('guideGateMsg');
+    var btn = document.getElementById('guideGateBtn');
+    if (ok) {
+      document.getElementById('guideGate').style.display = 'none';
+      document.getElementById('guideContent').style.display = 'block';
+      return;
+    }
+    icon.textContent = '🔒';
+    msgEl.textContent = msg || 'هذه الصفحة متاحة فقط للأعضاء المسجّلين في النظام (خادم مسجَّل أو مشرف). سجّل بياناتك أولاً من الصفحة الرئيسية.';
+    btn.style.display = 'inline-block';
+  }
+
+  (async function checkAccess() {
+    if (!(window.supabase && window.supabase.createClient) || !SUPABASE_URL) {
+      // تعذّر تجهيز الاتصال بالسحابة — نمنع الدخول احتياطاً
+      showGate(false, '⚠️ تعذّر التحقق من صلاحية الدخول. تأكد من الاتصال بالإنترنت.');
+      return;
+    }
+    try {
+      // 1) هل هو مشرف عام مسجَّل دخوله؟
+      var adminSb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, storage: window.sessionStorage, storageKey: ADMIN_AUTH_STORAGE_KEY }
+      });
+      var sessionRes = await adminSb.auth.getSession();
+      if (sessionRes && sessionRes.data && sessionRes.data.session) { showGate(true); return; }
+
+      // 2) هل هو خادم مسجَّل فعلياً على السيرفر (وليس فقط محلياً على الجهاز)؟
+      var dev = deviceId();
+      if (dev) {
+        var anonSb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        var r = await anonSb.rpc('get_servant', { p_device: dev });
+        if (!r.error && r.data) { showGate(true); return; }
+      }
+
+      showGate(false);
+    } catch (e) {
+      console.error(e);
+      showGate(false, '⚠️ تعذّر التحقق من صلاحية الدخول — تحقق من الاتصال بالإنترنت ثم أعد المحاولة.');
+    }
+  })();
+})();
+</script>
 </body>
 </html>
