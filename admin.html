@@ -357,6 +357,7 @@
       <button class="btn btn-outline" id="navPastoral" onclick="showView('pastoral')">💙 متابعة رعوية</button>
       <button class="btn btn-outline" id="navChapters" onclick="showView('chapters')">🗂️ إدارة الفصول</button>
       <button class="btn btn-outline" id="navServants" onclick="showView('servants')">🧑‍🤝‍🧑 قائمة الخدام</button>
+      <button class="btn btn-outline" id="navPromotion" onclick="showView('promotion')">🎓 الترقية السنوية</button>
       <button class="btn btn-outline" id="navSecurity" onclick="showView('security')">🛡️ التحذيرات الأمنية<span id="securityBadge" style="display:none;background:var(--accent,#c8392b);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-right:6px;"></span></button>
       <button class="btn btn-outline" onclick="loadAllClasses()">⟳ تحديث</button>
       <button class="btn btn-red" onclick="deleteAllClasses()">🗑️ حذف كل الفصول</button>
@@ -384,6 +385,7 @@
     <div id="chaptersView" style="display:none;"></div>
     <div id="servantsView" style="display:none;"></div>
     <div id="securityView" style="display:none;"></div>
+    <div id="promotionView" style="display:none;"></div>
   </div>
 </div>
 
@@ -522,6 +524,7 @@
     showView('classes');
     loadAllClasses();
     refreshSecurityBadge();
+    promoAutoTick();
   }
 
   // عند فتح الصفحة، تحقق هل يوجد جلسة دخول محفوظة
@@ -920,6 +923,8 @@
     document.getElementById('chaptersView').style.display = name === 'chapters' ? 'block' : 'none';
     document.getElementById('servantsView').style.display = name === 'servants' ? 'block' : 'none';
     document.getElementById('securityView').style.display = name === 'security' ? 'block' : 'none';
+    document.getElementById('promotionView').style.display = name === 'promotion' ? 'block' : 'none';
+    document.getElementById('navPromotion').style.opacity = name === 'promotion' ? '1' : '.65';
     document.getElementById('navServants').style.opacity = name === 'servants' ? '1' : '.65';
     document.getElementById('navClasses').style.opacity = name === 'classes' ? '1' : '.65';
     document.getElementById('navPastoral').style.opacity = name === 'pastoral' ? '1' : '.65';
@@ -929,6 +934,7 @@
     if (name === 'chapters') loadChaptersAdmin();
     if (name === 'servants') loadServantsAdmin();
     if (name === 'security') loadSecurityEvents();
+    if (name === 'promotion') loadPromotionAdmin();
   }
 
   // ================== التحذيرات الأمنية (محاولات تخمين كلمة سر الفصول) ==================
@@ -993,6 +999,120 @@
     if (error || data === false) { showToast('⚠️ تعذر رفع المنع' + (error ? ': ' + error.message : '')); return; }
     showToast('✅ تم رفع المنع عن الجهاز');
     loadSecurityEvents();
+  }
+
+  // ================== 🎓 الترقية السنوية للفصول ==================
+  // تنقل "مرحلة الفصل" فقط (بمخدوميه). الخدام لا يُنقلون: كل خادم يبقى على المرحلة التي اختارها في الصفحة الرئيسية.
+  const PROMO_ORDER = ['nursery','kg1','kg2','p1','p2','p3','p4','p5','p6','e1','e2','e3','s1','s2','s3','u1','u2','u3','u4','u5','grad','youth'];
+  const PROMO_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  let promoState = null;
+
+  function promoStageName(id) { return (typeof STAGE_NAMES !== 'undefined' && STAGE_NAMES[id]) || id; }
+  function promoFmtDate(d) {
+    if (!d) return '—';
+    const x = new Date(String(d).length <= 10 ? d + 'T00:00:00' : d);
+    return isNaN(x) ? String(d) : x.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+
+  async function loadPromotionAdmin() {
+    const wrap = document.getElementById('promotionView');
+    wrap.innerHTML = '<div class="empty-state"><div class="ic">⏳</div>جاري تحميل إعدادات الترقية...</div>';
+    const { data, error } = await sb.rpc('admin_get_promotion');
+    if (error || !data) {
+      const missing = error && (error.code === 'PGRST202' || error.code === '42883' || /could not find|does not exist|schema cache/i.test(error.message || ''));
+      wrap.innerHTML = '<div class="empty-state"><div class="ic">⚠️</div>' +
+        (missing ? 'شغّل ملف promotion_setup.sql على Supabase أولًا.' : 'تعذر تحميل الإعدادات: ' + escapeHtml((error && error.message) || '')) + '</div>';
+      return;
+    }
+    promoState = data;
+    renderPromotionAdmin();
+  }
+
+  function renderPromotionAdmin() {
+    const s = promoState || {};
+    const map = s.stage_map || {};
+    const wrap = document.getElementById('promotionView');
+    const opts = sel => '<option value="">— بدون ترقية (تبقى كما هي) —</option>' +
+      PROMO_ORDER.map(id => '<option value="' + id + '"' + (sel === id ? ' selected' : '') + '>' + escapeHtml(promoStageName(id)) + '</option>').join('');
+    const dayOpts = Array.from({ length: 31 }, (_, i) => '<option value="' + (i + 1) + '"' + ((s.promo_day || 1) === i + 1 ? ' selected' : '') + '>' + (i + 1) + '</option>').join('');
+    const monOpts = PROMO_MONTHS.map((m, i) => '<option value="' + (i + 1) + '"' + ((s.promo_month || 9) === i + 1 ? ' selected' : '') + '>' + m + '</option>').join('');
+
+    let last = '<span style="color:#888">لم تتم أي ترقية بعد.</span>';
+    const ls = s.last_run_summary;
+    if (ls && ls.ran) {
+      const rows = Object.keys(ls.moved || {}).map(k => {
+        const [f, t] = k.split('>');
+        return '<li>' + escapeHtml(promoStageName(f)) + ' ← ' + escapeHtml(promoStageName(t)) + ': <b>' + ls.moved[k] + '</b> فصل</li>';
+      }).join('');
+      last = '<div>آخر ترقية: <b>' + promoFmtDate(ls.at) + '</b> — إجمالي الفصول المنقولة: <b>' + (ls.total || 0) + '</b></div>' +
+             (rows ? '<ul style="margin:6px 18px 0;padding:0;line-height:1.9">' + rows + '</ul>' : '');
+    }
+
+    wrap.innerHTML =
+      '<div style="background:#fff;border-radius:12px;padding:18px 20px;line-height:1.9">' +
+        '<h3 style="margin:0 0 8px">🎓 الترقية السنوية للفصول</h3>' +
+        '<div style="font-size:13px;color:#555;margin-bottom:14px">في اليوم الذي تحدده من كل سنة تنتقل كل الفصول إلى المرحلة التالية دفعة واحدة (حضانة ← KG1 ← KG2 ← أولى ابتدائي ← ثانية ابتدائي ...). ' +
+        '<b>الخدام لا يُنقلون</b>: كل خادم يبقى على المرحلة التي اختارها في الصفحة الرئيسية ويرى الفصول التي صارت في مرحلته.</div>' +
+        '<label style="display:flex;gap:8px;align-items:center;font-weight:700;margin-bottom:12px"><input type="checkbox" id="promoEnabled"' + (s.enabled ? ' checked' : '') + '> تفعيل الترقية السنوية التلقائية</label>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px"><b>يوم الترقية كل سنة:</b>' +
+          '<select id="promoDay" class="search-box" style="flex:0 0 auto;min-width:80px">' + dayOpts + '</select>' +
+          '<select id="promoMonth" class="search-box" style="flex:0 0 auto;min-width:130px">' + monOpts + '</select></div>' +
+        '<div style="font-size:13px;margin-bottom:6px">الترقية القادمة: <b>' + promoFmtDate(s.next_run) + '</b>' + (s.enabled ? '' : ' <span style="color:#c8392b">(غير مفعّلة)</span>') + '</div>' +
+        '<div style="font-size:13px;margin-bottom:14px">' + last + '</div>' +
+        '<details style="margin-bottom:14px"><summary style="cursor:pointer;font-weight:700">⚙️ مسار الترقية (يمكنك تعديل وجهة كل مرحلة)</summary>' +
+          '<table class="chapters-table" style="margin-top:8px"><thead><tr><th>مرحلة الفصل الحالية</th><th>تنتقل إلى</th></tr></thead><tbody>' +
+          PROMO_ORDER.map(id => '<tr><td>' + escapeHtml(promoStageName(id)) + '</td><td><select id="promoMap_' + id + '" class="search-box" style="min-width:200px">' + opts(map[id] || '') + '</select></td></tr>').join('') +
+          '</tbody></table></details>' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+          '<button class="btn btn-blue" id="promoSaveBtn" onclick="savePromotion()">💾 حفظ الإعدادات</button>' +
+          '<button class="btn btn-red" id="promoRunBtn" onclick="runPromotionNow()">▶️ تنفيذ الترقية الآن</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function _promoCollect() {
+    const map = {};
+    PROMO_ORDER.forEach(id => { const el = document.getElementById('promoMap_' + id); map[id] = el ? el.value : ''; });
+    return {
+      p_enabled: document.getElementById('promoEnabled').checked,
+      p_month: parseInt(document.getElementById('promoMonth').value, 10),
+      p_day: parseInt(document.getElementById('promoDay').value, 10),
+      p_map: map
+    };
+  }
+
+  async function savePromotion() {
+    const btn = document.getElementById('promoSaveBtn');
+    btn.disabled = true;
+    const { error } = await sb.rpc('admin_set_promotion', _promoCollect());
+    btn.disabled = false;
+    if (error) { showToast('⚠️ تعذر الحفظ: ' + error.message); return; }
+    showToast('✅ تم حفظ إعدادات الترقية');
+    loadPromotionAdmin();
+  }
+
+  async function runPromotionNow() {
+    if (!confirm('🎓 سيتم نقل كل الفصول الآن إلى المرحلة التالية حسب مسار الترقية.\n\nالخدام لن يتأثروا. لا يمكن التراجع تلقائيًا.\n\nهل أنت متأكد؟')) return;
+    if (!confirm('⚠️ تأكيد أخير: تنفيذ الترقية الآن؟')) return;
+    const btn = document.getElementById('promoRunBtn');
+    btn.disabled = true;
+    // نحفظ ما ظهر على الشاشة أولًا حتى يُنفَّذ المسار المعروض أمامك
+    const saved = await sb.rpc('admin_set_promotion', _promoCollect());
+    if (saved.error) { btn.disabled = false; showToast('⚠️ تعذر حفظ المسار: ' + saved.error.message); return; }
+    const { data, error } = await sb.rpc('admin_run_promotion', { p_force: true });
+    btn.disabled = false;
+    if (error) { showToast('⚠️ تعذر تنفيذ الترقية: ' + error.message); return; }
+    showToast('🎓 تمت الترقية — ' + ((data && data.total) || 0) + ' فصل');
+    loadPromotionAdmin();
+    loadAllClasses();
+  }
+
+  // عند دخول أي مشرف: لو حان موعد الترقية ولم تُنفَّذ (مثلًا لم تُفعَّل الجدولة اليومية) تُنفَّذ الآن
+  async function promoAutoTick() {
+    try {
+      const { data, error } = await sb.rpc('admin_run_promotion', { p_force: false });
+      if (!error && data && data.ran) { showToast('🎓 تمت الترقية السنوية للفصول (' + (data.total || 0) + ' فصل)'); loadAllClasses(); }
+    } catch (e) { /* ملف promotion_setup.sql لم يُشغَّل بعد — نتجاهل بصمت */ }
   }
 
   // ================== قائمة الخدام المسجّلين (الاسم + الفصل + الهاتف) ==================
