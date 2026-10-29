@@ -2556,6 +2556,37 @@
     </div>
   </div>
 
+  <!-- ===== حذف المخدومين من غرفة الإدارة (للخدام والمشرف — بكلمة سر الفصل) ===== -->
+  <style>
+    body:not(.role-servant):not(.role-admin) #roomStudentsSection{display:none}
+    .room-del-section{background:#fff;border:1px solid #e5e7eb;border-top:4px solid #c8392b;border-radius:12px;padding:16px 18px;margin-top:20px;box-shadow:0 4px 12px var(--shadow)}
+    .room-del-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+    .room-del-title{font-weight:900;font-size:15px;color:#7f1d1d;display:flex;align-items:center;gap:8px}
+    .room-del-badge{background:#c8392b;color:#fff;border-radius:20px;padding:2px 12px;font-size:12px}
+    .room-del-hint{font-size:12px;color:#64748b;margin-bottom:10px;line-height:1.7}
+    .room-del-list{max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+    .room-del-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:#f8fafc;border:1px solid #e2e8f0;font-size:13px}
+    .room-del-row .nm{flex:1;font-weight:700}
+    .room-del-row button{border:none;background:#fef2f2;color:#c8392b;border-radius:8px;padding:6px 10px;cursor:pointer;font-family:Cairo,sans-serif;font-weight:800}
+    .room-pw-ov{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px}
+    .room-pw-box{background:#fff;border-radius:14px;max-width:360px;width:100%;padding:18px;font-family:Cairo,sans-serif;direction:rtl;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+    .room-pw-box h3{margin:0 0 6px;font-size:16px;color:#7f1d1d}
+    .room-pw-box p{margin:0 0 10px;font-size:13px;color:#475569;line-height:1.7}
+    .room-pw-box input{width:100%;box-sizing:border-box;padding:10px;border:2px solid #e2e8f0;border-radius:9px;font-family:Cairo,sans-serif;font-size:15px}
+    .room-pw-err{color:#c8392b;font-size:12px;font-weight:700;min-height:18px;margin-top:6px}
+    .room-pw-btns{display:flex;gap:8px;margin-top:10px}
+    .room-pw-btns button{flex:1;padding:10px;border:none;border-radius:9px;font-family:Cairo,sans-serif;font-weight:800;font-size:14px;cursor:pointer}
+  </style>
+  <div class="room-del-section" id="roomStudentsSection">
+    <div class="room-del-head">
+      <div class="room-del-title">🗑️ حذف المخدومين <span class="room-del-badge" id="roomStudentsCount">0</span></div>
+      <button class="btn" style="background:#c8392b;color:white;font-size:13px;padding:8px 14px;" onclick="roomDeleteAllStudents()">🗑️ حذف جميع المخدومين</button>
+    </div>
+    <div class="room-del-hint">🔐 الحذف يتطلب كلمة سر الفصل (اسم الفصل كما هو في التعديل)، ويُسجَّل اسمك في سجل النشاط.</div>
+    <input type="search" class="search-box" id="roomStudentsSearch" style="width:100%;max-width:420px;" placeholder="🔍  ابحث باسم المخدوم..." oninput="renderRoomStudents()" />
+    <div class="room-del-list" id="roomStudentsList"></div>
+  </div>
+
   <!-- ===== سجل النشاط (من افتقد / من حذف) ===== -->
   <style>
     .activity-section{background:white;border:1px solid #e5e7eb;border-top:4px solid #475569;border-radius:12px;padding:16px 18px;margin-top:20px;box-shadow:0 4px 12px var(--shadow)}
@@ -2576,11 +2607,14 @@
   <div class="activity-section">
     <div class="activity-header">
       <div class="activity-title">🧾 سجل النشاط <span class="activity-badge" id="activityCount">0</span></div>
-      <select id="activityFilter" onchange="renderActivityLog()">
-        <option value="all">الكل</option>
-        <option value="followup">الافتقاد فقط</option>
-        <option value="delete">الحذف فقط</option>
-      </select>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="activityFilter" onchange="renderActivityLog()">
+          <option value="all">الكل</option>
+          <option value="followup">الافتقاد فقط</option>
+          <option value="delete">الحذف فقط</option>
+        </select>
+        <button class="btn admin-only-del" style="background:#475569;color:white;font-size:12px;padding:6px 12px;" onclick="clearActivityLog()">🧹 مسح السجل</button>
+      </div>
     </div>
     <div class="activity-list" id="activityList"></div>
   </div>
@@ -7751,6 +7785,133 @@
 
 <!-- تم إلغاء إخفاء الشريط العلوي عند التمرير: الشريط ثابت في رأس الصفحة -->
 
+<!-- ===== حذف المخدومين من غرفة الإدارة ===== -->
+<script>
+  // كلمة السر = اسم الفصل كما هو في التعديل (مع تجاهل المسافات الزائدة)
+  function _roomExpectedPassword() {
+    var n = (typeof ACTIVE_CHAPTER_NAME === 'string' && ACTIVE_CHAPTER_NAME) ||
+            ((document.getElementById('classNameInput') || {}).value || '');
+    return String(n).replace(/\s+/g, ' ').trim();
+  }
+
+  function _roomCanDelete() {
+    var r = window.WelcomeGate && WelcomeGate.role && WelcomeGate.role();
+    if (r === 'admin' || r === 'servant') return true;
+    alert('🔒 سجّل دخولك كخادم أو مشرف من صفحة الترحيب أولاً.');
+    return false;
+  }
+
+  // نافذة إدخال كلمة السر (تُطلب في كل عملية حذف)
+  function _roomAskPassword(title, msg) {
+    return new Promise(function (resolve) {
+      var expected = _roomExpectedPassword();
+      if (!expected) { alert('⚠️ لا يوجد اسم فصل محدد ككلمة سر. افتح فصلاً أولاً.'); return resolve(false); }
+      var ov = document.createElement('div');
+      ov.className = 'room-pw-ov';
+      ov.innerHTML = '<div class="room-pw-box"><h3>' + _esc(title) + '</h3><p>' + _esc(msg) + '</p>' +
+        '<input type="password" id="roomPwInput" placeholder="كلمة سر الفصل" autocomplete="off" />' +
+        '<div class="room-pw-err" id="roomPwErr"></div>' +
+        '<div class="room-pw-btns"><button type="button" id="roomPwOk" style="background:#c8392b;color:#fff;">تأكيد الحذف</button>' +
+        '<button type="button" id="roomPwNo" style="background:#e2e8f0;color:#334155;">إلغاء</button></div></div>';
+      document.body.appendChild(ov);
+      var inp = ov.querySelector('#roomPwInput'), err = ov.querySelector('#roomPwErr');
+      function done(v) { ov.remove(); resolve(v); }
+      function check() {
+        var typed = String(inp.value || '').replace(/\s+/g, ' ').trim();
+        if (typed === expected) return done(true);
+        err.textContent = '❌ كلمة السر غير صحيحة';
+        inp.value = ''; inp.focus();
+      }
+      ov.querySelector('#roomPwOk').onclick = check;
+      ov.querySelector('#roomPwNo').onclick = function () { done(false); };
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') check(); });
+      setTimeout(function () { inp.focus(); }, 50);
+    });
+  }
+
+  // يحذف كل ما يخص مخدوماً (مباشرة أو داخل أيام/تواريخ)
+  function _roomPurgeStudentData(id) {
+    [attendance, notes, recitations, recitationDone, confessions, massAttendance, followupStore].forEach(function (o) {
+      if (!o || typeof o !== 'object') return;
+      delete o[id];
+      Object.keys(o).forEach(function (k) {
+        var v = o[k];
+        if (v && typeof v === 'object' && !Array.isArray(v)) delete v[id];
+      });
+    });
+  }
+
+  function renderRoomStudents() {
+    var box = document.getElementById('roomStudentsList');
+    if (!box) return;
+    var badge = document.getElementById('roomStudentsCount');
+    if (badge) badge.textContent = students.length;
+    var q = ((document.getElementById('roomStudentsSearch') || {}).value || '').trim();
+    var nq = typeof _normAr === 'function' ? _normAr(q) : q;
+    var list = students.slice().sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || ''), 'ar'); })
+      .filter(function (s) { return !nq || (typeof _normAr === 'function' ? _normAr(s.name || '') : String(s.name || '')).indexOf(nq) !== -1; });
+    if (!list.length) { box.innerHTML = '<div class="activity-empty">لا يوجد مخدومون' + (q ? ' مطابقون للبحث' : '') + '</div>'; return; }
+    box.innerHTML = list.map(function (s) {
+      return '<div class="room-del-row"><span class="nm">' + _esc(s.name || 'بدون اسم') + '</span>' +
+             '<button type="button" data-id="' + _esc(s.id) + '" title="حذف المخدوم">🗑️ حذف</button></div>';
+    }).join('');
+  }
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('#roomStudentsList button[data-id]');
+    if (b) roomDeleteStudent(b.getAttribute('data-id'));
+  });
+
+  async function roomDeleteStudent(id) {
+    if (!_roomCanDelete()) return;
+    var s = students.find(function (x) { return String(x.id) === String(id); });
+    if (!s) return;
+    if (!confirm('هل أنت متأكد من حذف المخدوم "' + s.name + '"؟\nسيُحذف معه سجل حضوره وملاحظاته ومتابعته.')) return;
+    if (!(await _roomAskPassword('🔐 تأكيد حذف المخدوم', 'أدخل كلمة سر الفصل لحذف "' + s.name + '".'))) return;
+    logActivity('delete_student', { studentId: s.id, studentName: s.name });
+    _roomPurgeStudentData(s.id);
+    students = students.filter(function (x) { return String(x.id) !== String(id); });
+    save();
+    renderAll();
+    renderRoomStudents();
+  }
+
+  async function roomDeleteAllStudents() {
+    if (!_roomCanDelete()) return;
+    if (!students.length) { alert('لا يوجد مخدومون لحذفهم.'); return; }
+    if (!confirm('⚠️ سيتم حذف جميع المخدومين (' + students.length + ') وسجلات حضورهم نهائياً. (الخدام لن يتأثروا). هل أنت متأكد؟')) return;
+    if (!confirm('⚠️ تذكّر أن تمتلك نسخة احتياطية (Back up) للبيانات قبل الحذف. متابعة؟')) return;
+    if (!(await _roomAskPassword('🔐 تأكيد حذف جميع المخدومين', 'أدخل كلمة سر الفصل لحذف كل المخدومين.'))) return;
+    var n = students.length;
+    logActivity('delete_all_students', { count: n });
+    students.forEach(function (s) { _roomPurgeStudentData(s.id); });
+    students = [];
+    editingId = null; viewingId = null;
+    save();
+    renderAll();
+    renderRoomStudents();
+    alert('✅ تم حذف جميع المخدومين (' + n + ')');
+  }
+
+  // مسح سجل النشاط — للمشرف العام فقط
+  function clearActivityLog() {
+    if (!(window.WelcomeGate && WelcomeGate.role && WelcomeGate.role() === 'admin')) {
+      alert('🔒 مسح سجل النشاط متاح للمشرف العام فقط.'); return;
+    }
+    if (!confirm('🧹 سيتم مسح سجل النشاط بالكامل. هل أنت متأكد؟')) return;
+    activityLog = [];
+    logActivity('delete_log');   // يبقى أثر واحد: من قام بالمسح
+    save();
+  }
+
+  // تحديث القائمة مع كل renderAll
+  (function () {
+    var _ra = renderAll;
+    renderAll = function () { _ra.apply(this, arguments); try { renderRoomStudents(); } catch (e) {} };
+  })();
+  document.addEventListener('DOMContentLoaded', function () { try { renderRoomStudents(); } catch (e) {} });
+</script>
+
 <!-- ===== نظام الافتقاد ===== -->
 <script>
   // تخزين حالة الافتقاد (تم / لم يتم) ونوعه وملاحظاته
@@ -7780,6 +7941,8 @@
       case 'delete_student': return { icon: '🗑️', cls: 'del', html: 'تم حذف المخدوم ' + who + ' بواسطة ' + by };
       case 'delete_servant': return { icon: '🗑️', cls: 'del', html: 'تم حذف الخادم ' + who + ' بواسطة ' + by };
       case 'delete_all':     return { icon: '⚠️', cls: 'del', html: 'تم حذف جميع المخدومين والخدام بواسطة ' + by };
+      case 'delete_all_students': return { icon: '⚠️', cls: 'del', html: 'تم حذف جميع المخدومين' + (x.count ? ' (' + x.count + ')' : '') + ' بواسطة ' + by };
+      case 'delete_log':     return { icon: '🧹', cls: 'del', html: 'تم مسح سجل النشاط بواسطة ' + by };
       default:               return { icon: '•', cls: '', html: _esc(x.t || '') + ' — ' + by };
     }
   }
