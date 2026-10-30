@@ -1785,6 +1785,7 @@
   <div class="gate-card">
     <div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:18px;">
       <a id="libLinkGate" href="./library.html" title="الانتقال إلى المكتبة الروحية" style="display:inline-flex;align-items:center;gap:6px;background:rgba(41,128,185,0.1);border:1px solid rgba(41,128,185,0.35);color:var(--accent2);text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📚 المكتبة الروحية</a>
+      <a id="curLinkGate" href="./curriculum.html" title="الانتقال إلى منهج الكرازة" style="display:inline-flex;align-items:center;gap:6px;background:rgba(26,122,74,0.1);border:1px solid rgba(26,122,74,0.35);color:var(--green);text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📜 منهج الكرازة</a>
       <a href="./admin.html" title="الانتقال إلى لوحة المشرفين" style="display:inline-flex;align-items:center;gap:6px;background:rgba(200,57,43,0.1);border:1px solid rgba(200,57,43,0.35);color:var(--accent);text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">🔒 لوحة المشرفين</a>
     </div>
     <div class="gate-header">
@@ -2100,6 +2101,7 @@
   </div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <a id="libLinkHeader" href="./library.html" title="الانتقال إلى المكتبة الروحية" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📚 المكتبة الروحية</a>
+    <a id="curLinkHeader" href="./curriculum.html" title="الانتقال إلى منهج الكرازة" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📜 منهج الكرازة</a>
     <a href="./admin.html" title="الانتقال إلى لوحة المشرفين" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">🔒 لوحة المشرفين</a>
     <button type="button" class="switch-chapter-btn" id="activeChapterBadge" onclick="switchChapter()" title="تبديل الفصل">📂 تبديل الفصل</button>
   </div>
@@ -3947,6 +3949,13 @@
     if (el) el.textContent = '📂 ' + (ACTIVE_CHAPTER_NAME || 'تبديل الفصل');
     const lh = document.getElementById('libLinkHeader');
     if (lh) lh.href = _libraryHref(ACTIVE_CHAPTER_GENDER);
+    const ch = document.getElementById('curLinkHeader');
+    if (ch) {
+      const q = [];
+      if (ACTIVE_CHAPTER_STAGE) q.push('y=' + encodeURIComponent(ACTIVE_CHAPTER_STAGE));
+      if (ACTIVE_CHAPTER_GENDER) q.push('g=' + ACTIVE_CHAPTER_GENDER);
+      ch.href = './curriculum.html' + (q.length ? '?' + q.join('&') : '');
+    }
   }
 
   function switchChapter() {
