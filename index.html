@@ -575,6 +575,7 @@
   .status-badge.present { background: #dcfce7; color: #166534; }
   .status-badge.absent { background: #fee2e2; color: #991b1b; }
   .status-badge.late { background: #fef9c3; color: #92400e; }
+  .status-badge.none { background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1; }
   .status-badge:hover { transform: scale(1.05); }
 
   .action-btn {
@@ -4811,6 +4812,21 @@
     return document.getElementById('attendanceDate').value;
   }
 
+  // ===== حالة الحضور =====
+  // 'none' = لم يُسجَّل بعد (لا يُحسب حاضراً ولا غائباً) — يزيد عدد الحاضرين فقط عند تحضير كل شخص فعلياً
+  function getAttStatus(date, id) { return (attendance[date] || {})[id] || 'none'; }
+  function getServantAttStatus(date, sid) { return (servantsAttendance[date] || {})[sid] || 'none'; }
+  // للسجلات التاريخية: الجلسات القديمة (قبل اليوم) التي لم يُسجَّل فيها شخص تُعامَل كحاضر
+  // حفاظاً على بيانات الجلسات السابقة كما كانت، أما جلسة اليوم فتبقى "لم يُسجَّل" حتى يتم التحضير
+  function getHistStatus(map, date, id) {
+    const st = (map[date] || {})[id];
+    if (st) return st;
+    return date < localTodayStr() ? 'present' : 'none';
+  }
+  const ATT_CYCLE = { none: 'present', present: 'absent', absent: 'late', late: 'present' };
+  const ATT_LABELS = { none: '⚪ لم يُسجَّل', present: '✅ حاضر', absent: '❌ غائب', late: '⏰ متأخر' };
+  const ATT_LABELS_PLAIN = { none: 'لم يُسجَّل', present: 'حاضر', absent: 'غائب', late: 'متأخر' };
+
 
   // ===== تحليلات المتابعة الراعوية المتقدمة وحساب النسب تلقائياً =====
   function calculatePastoralAnalytics() {
@@ -4830,7 +4846,7 @@
 
     students.forEach(s => {
       // 1. حساب الحضور اليومي
-      const st = (attendance[date] || {})[s.id] || 'present';
+      const st = getAttStatus(date, s.id);
       if (st === 'present' || st === 'late') presentCount++;
 
       // 2. حساب التسميع اليومي
@@ -5305,7 +5321,7 @@
     let present = 0, absent = 0, late = 0, totalConf = 0, totalMass = 0, totalServiceAtt = 0;
 
     students.forEach(s => {
-      const st = (attendance[date] || {})[s.id] || 'present';
+      const st = getAttStatus(date, s.id);
       if (st === 'present') present++;
       else if (st === 'absent') absent++;
       else if (st === 'late') late++;
@@ -5439,7 +5455,7 @@
     empty.style.display = 'none';
 
     tbody.innerHTML = filtered.map(s => {
-      const status = (attendance[date] || {})[s.id] || 'present';
+      const status = getAttStatus(date, s.id);
       const note = (notes[date] || {})[s.id] || '';
       const recTxt = (recitations[date] || {})[s.id] || '';
       const isDone = (recitationDone[date] || {})[s.id] ? 'checked' : '';
@@ -5469,7 +5485,7 @@
         absentWarningHtml = `<span style="font-size:12px;color:#aaa;">—</span>`;
       }
       
-      const statusLabels = { present: '✅ حاضر', absent: '❌ غائب', late: '⏰ متأخر' };
+      const statusLabels = ATT_LABELS;
       const photoHtml = s.photo
         ? `<img src="${s.photo}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;cursor:zoom-in;display:block;" onclick="event.stopPropagation();openPhotoLightbox('${s.id}')" title="اضغط لعرض الصورة كاملة">`
         : `<span style="font-size:20px;">👤</span>`;
@@ -5650,9 +5666,8 @@
     const date = getToday();
     if (!isSessionEditable(date)) { blockEditExpired(); return; }
     if (!attendance[date]) attendance[date] = {};
-    const current = attendance[date][id] || 'present';
-    const next = { present: 'absent', absent: 'late', late: 'present' };
-    attendance[date][id] = next[current];
+    const current = attendance[date][id] || 'none';
+    attendance[date][id] = ATT_CYCLE[current] || 'present';
     touchSession(date);
     save();
     renderAll();
@@ -5885,8 +5900,8 @@
     const s = students.find(x => x.id === id);
     if (!s) return;
     const date = getToday();
-    const status = (attendance[date] || {})[s.id] || 'present';
-    const statusLabels = { present: '✅ حاضر', absent: '❌ غائب', late: '⏰ متأخر' };
+    const status = getAttStatus(date, s.id);
+    const statusLabels = ATT_LABELS;
     const photo = s.photo ? `<img src="${s.photo}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;border:2px solid #ccc;display:block;margin:0 auto 16px;cursor:zoom-in;" onclick="openPhotoLightbox('${s.id}')" title="اضغط لعرض الصورة كاملة">` : `<div style="font-size:60px;text-align:center;margin-bottom:16px;">👤</div>`;
 
     let absentDays = 0;
@@ -5975,7 +5990,7 @@
       const date = getToday();
       if (!date) { alert('⚠️ يرجى تحديد التاريخ أولاً.'); return; }
       const className = getClassName();
-      const statusLabels = { present: 'حاضر', absent: 'غائب', late: 'متأخر' };
+      const statusLabels = ATT_LABELS_PLAIN;
 
       // ========== لوحة الألوان ==========
       const C = {
@@ -6008,6 +6023,10 @@
           cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:C.redBg} };
           cell.font = { name:'Cairo', size:10, bold:true, color:{argb:C.redFont} };
           applyBorder(cell, C.redBorder);
+        } else if (statusKey === 'none') {
+          cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'F1F5F9'} };
+          cell.font = { name:'Cairo', size:10, bold:true, color:{argb:'64748B'} };
+          applyBorder(cell, C.borderThin);
         } else {
           cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:C.amberBg} };
           cell.font = { name:'Cairo', size:10, bold:true, color:{argb:C.amberFont} };
@@ -6084,7 +6103,7 @@
       styleHeaderRow(hRow1, C.navyMid, studCols.length);
 
       students.forEach((s, i) => {
-        const statusKey = (attendance[date] || {})[s.id] || 'present';
+        const statusKey = getAttStatus(date, s.id);
         const dayNote   = (notes[date] || {})[s.id] || '';
         const recTxt    = (recitations[date] || {})[s.id] || '';
         const isDone    = (recitationDone[date] || {})[s.id] ? '✓ تم' : '✗ لم يتم';
@@ -6095,10 +6114,10 @@
         const fridayDates = Object.keys(attendance).filter(isFridayDate);
         let presentCnt = 0, absentCount = 0, lateCnt = 0;
         fridayDates.forEach(d => {
-          const st = (attendance[d] || {})[s.id] || 'present';
+          const st = getHistStatus(attendance, d, s.id);
           if (st === 'absent') absentCount++;
           else if (st === 'late') lateCnt++;
-          else presentCnt++;
+          else if (st === 'present') presentCnt++;
         });
         const totalSessions = fridayDates.length;
         const attPct = totalSessions > 0 ? Math.round((presentCnt + lateCnt) / totalSessions * 100) : 0;
@@ -6182,7 +6201,7 @@
 
       // صف إجمالي في النهاية
       let sp=0, sa=0, sl=0;
-      students.forEach(s => { const t=(attendance[date]||{})[s.id]||'present'; if(t==='present') sp++; else if(t==='absent') sa++; else sl++; });
+      students.forEach(s => { const t=getAttStatus(date, s.id); if(t==='present') sp++; else if(t==='absent') sa++; else if(t==='late') sl++; });
       const totalRowData = ['', '', '', 'الإجمالي ▶', '', '', '', '', '', confessions ? Object.values(confessions).reduce((a,v)=>a+v,0) : 0, massAttendance ? Object.values(massAttendance).reduce((a,v)=>a+v,0) : 0, '', '', '', '', '', '', ''];
       const totRow = ws1.addRow(totalRowData);
       totRow.height = 22;
@@ -6224,7 +6243,7 @@
       styleHeaderRow(hRow2, C.purpleMid, srvCols.length);
 
       servants.forEach((sv, i) => {
-        const statusKey = (servantsAttendance[date] || {})[sv.sid] || 'present';
+        const statusKey = getServantAttStatus(date, sv.sid);
         let absentCount = 0;
         Object.keys(servantsAttendance).forEach(d => { if((servantsAttendance[d]||{})[sv.sid]==='absent' && isFridayDate(d)) absentCount++; });
 
@@ -6317,7 +6336,7 @@
 
         students.forEach((s, i) => {
           const rowData = [i+1, s.id, s.name];
-          allDates.forEach(d => { rowData.push(statusLabels[(attendance[d]||{})[s.id]||'present']); });
+          allDates.forEach(d => { rowData.push(statusLabels[getHistStatus(attendance, d, s.id)]); });
           const row = ws3.addRow(rowData);
           row.height = 19;
           const isAlt = i % 2 === 1;
@@ -6332,8 +6351,12 @@
             } else {
               const dIdx = cn - 4;
               const d = allDates[dIdx];
-              const sk = (attendance[d]||{})[s.id] || 'present';
-              if (sk === 'absent') {
+              const sk = getHistStatus(attendance, d, s.id);
+              if (sk === 'none') {
+                cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'F1F5F9'} };
+                cell.font = { name:'Cairo', size:9, color:{argb:'64748B'} };
+                applyBorder(cell, C.borderThin);
+              } else if (sk === 'absent') {
                 cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:C.redBg} };
                 cell.font = { name:'Cairo', size:9, bold:true, color:{argb:C.redFont} };
                 applyBorder(cell, C.redBorder);
@@ -6361,9 +6384,9 @@
       ws4.columns = [ {width:3},{width:30},{width:15},{width:15},{width:15} ];
 
       let sp2=0,sa2=0,sl2=0;
-      students.forEach(s => { const t=(attendance[date]||{})[s.id]||'present'; if(t==='present') sp2++; else if(t==='absent') sa2++; else sl2++; });
+      students.forEach(s => { const t=getAttStatus(date, s.id); if(t==='present') sp2++; else if(t==='absent') sa2++; else if(t==='late') sl2++; });
       let rp=0,ra=0,rl=0;
-      servants.forEach(sv => { const t=(servantsAttendance[date]||{})[sv.sid]||'present'; if(t==='present') rp++; else if(t==='absent') ra++; else rl++; });
+      servants.forEach(sv => { const t=getServantAttStatus(date, sv.sid); if(t==='present') rp++; else if(t==='absent') ra++; else if(t==='late') rl++; });
       const totalConf = students.reduce((a,s) => a+(confessions[s.id]||0), 0);
       const totalMass = students.reduce((a,s) => a+(massAttendance[s.id]||0), 0);
 
@@ -6461,19 +6484,20 @@
 
   function exportPDF() {
     const date = getToday();
-    const statusMap = { present: '✅ حاضر', absent: '❌ غائب', late: '⏰ متأخر' };
+    const statusMap = ATT_LABELS;
 
     let studPresent = 0, studAbsent = 0, studLate = 0;
     students.forEach(s => {
-      const st = (attendance[date] || {})[s.id] || 'present';
+      const st = getAttStatus(date, s.id);
       if (st === 'present') studPresent++;
       else if (st === 'absent') studAbsent++;
-      else studLate++;
+      else if (st === 'late') studLate++;
     });
 
     let studRows = students.map((s, i) => {
-      const st = statusMap[(attendance[date] || {})[s.id] || 'present'];
-      const stClass = ((attendance[date] || {})[s.id] || 'present') === 'absent' ? 'absent' : ((attendance[date] || {})[s.id] === 'late' ? 'late' : 'present');
+      const stKey = getAttStatus(date, s.id);
+      const st = statusMap[stKey];
+      const stClass = stKey;
       const dayNote = (notes[date] || {})[s.id] || '';
       const recTxt = (recitations[date] || {})[s.id] || '—';
       const isDone = (recitationDone[date] || {})[s.id] ? '✅ تم' : '❌ لم يتم';
@@ -6487,14 +6511,14 @@
 
     let srvPresent = 0, srvAbsent = 0, srvLate = 0;
     servants.forEach(sv => {
-      const st = (servantsAttendance[date] || {})[sv.sid] || 'present';
+      const st = getServantAttStatus(date, sv.sid);
       if (st === 'present') srvPresent++;
       else if (st === 'absent') srvAbsent++;
-      else srvLate++;
+      else if (st === 'late') srvLate++;
     });
 
     let srvRows = servants.map((sv, i) => {
-      const st = (servantsAttendance[date] || {})[sv.sid] || 'present';
+      const st = getServantAttStatus(date, sv.sid);
       const stLabel = statusMap[st];
       let absentCount = 0;
       Object.keys(servantsAttendance).forEach(d => {
@@ -6545,6 +6569,7 @@
   .st-present{color:#166534;font-weight:700;}
   .st-absent{color:#991b1b;font-weight:700;}
   .st-late{color:#92400e;font-weight:700;}
+  .st-none{color:#64748b;font-weight:700;}
   .footer{margin-top:24px;text-align:center;font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:12px;}
   @media print{.print-btn{display:none} body{padding:12px} .section-title{-webkit-print-color-adjust:exact;print-color-adjust:exact;} th{-webkit-print-color-adjust:exact;print-color-adjust:exact;} img{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
 </style></head><body>
@@ -6711,9 +6736,8 @@
     const date = getToday();
     if (!isSessionEditable('SV_' + date)) { blockEditExpired(); return; }
     if (!servantsAttendance[date]) servantsAttendance[date] = {};
-    const current = servantsAttendance[date][sid] || 'present';
-    const next = { present: 'absent', absent: 'late', late: 'present' };
-    servantsAttendance[date][sid] = next[current];
+    const current = servantsAttendance[date][sid] || 'none';
+    servantsAttendance[date][sid] = ATT_CYCLE[current] || 'present';
     touchSession('SV_' + date);
     save();
     renderAll();
@@ -6759,10 +6783,10 @@
         )
       : servants;
 
-    const statusLabels = { present: '✅ حاضر', absent: '❌ غائب', late: '⏰ متأخر' };
+    const statusLabels = ATT_LABELS;
 
     tbody.innerHTML = filtered.map(sv => {
-      const status = (servantsAttendance[date] || {})[sv.sid] || 'present';
+      const status = getServantAttStatus(date, sv.sid);
       let absentCount = 0;
       Object.keys(servantsAttendance).forEach(d => {
         if ((servantsAttendance[d] || {})[sv.sid] === 'absent' && isFridayDate(d)) absentCount++;
@@ -6802,7 +6826,7 @@
     const date = getToday();
     let present = 0, absent = 0, late = 0;
     servants.forEach(sv => {
-      const st = (servantsAttendance[date] || {})[sv.sid] || 'present';
+      const st = getServantAttStatus(date, sv.sid);
       if (st === 'present') present++;
       else if (st === 'absent') absent++;
       else if (st === 'late') late++;
@@ -6817,8 +6841,8 @@
     const sv = servants.find(x => x.sid === sid);
     if (!sv) return;
     const date = getToday();
-    const status = (servantsAttendance[date] || {})[sv.sid] || 'present';
-    const statusLabels = { present: '✅ حاضر', absent: '❌ غائب', late: '⏰ متأخر' };
+    const status = getServantAttStatus(date, sv.sid);
+    const statusLabels = ATT_LABELS;
 
     let absentCount = 0, lateCount = 0, presentCount = 0;
     Object.keys(servantsAttendance).forEach(d => {
@@ -6975,22 +6999,23 @@
       .replace(/{date}/g, date)
       .replace(/{copticDate}/g, copticData);
 
-    let studPresent = 0, studAbsent = 0, studLate = 0;
+    let studPresent = 0, studAbsent = 0, studLate = 0, studNone = 0;
     const absentNames = [], lateNames = [];
     students.forEach(s => {
-      const st = (attendance[date] || {})[s.id] || 'present';
+      const st = getAttStatus(date, s.id);
       if (st === 'present') studPresent++;
       else if (st === 'absent') { studAbsent++; absentNames.push(s.name); }
-      else { studLate++; lateNames.push(s.name); }
+      else if (st === 'late') { studLate++; lateNames.push(s.name); }
+      else studNone++;
     });
 
     let srvPresent = 0, srvAbsent = 0, srvLate = 0;
     const srvAbsentNames = [];
     servants.forEach(sv => {
-      const st = (servantsAttendance[date] || {})[sv.sid] || 'present';
+      const st = getServantAttStatus(date, sv.sid);
       if (st === 'present') srvPresent++;
       else if (st === 'absent') { srvAbsent++; srvAbsentNames.push(sv.name); }
-      else srvLate++;
+      else if (st === 'late') srvLate++;
     });
 
     let recDone = 0;
@@ -7024,6 +7049,7 @@
     msg += `━━━━━━━━━━━━━━━━━━━\n\n`;
     msg += `👦 *إحصائيات المخدومين (${students.length} مخدوم):*\n`;
     msg += `✅ حضور: ${studPresent}  |  ❌ غياب: ${studAbsent}  |  ⏰ تأخير: ${studLate}\n`;
+    if (studNone > 0) msg += `⚪ لم يُسجَّل بعد: ${studNone}\n`;
     msg += `📊 نسبة الحضور: ${attPct}%\n`;
     msg += `📖 نسبة التسميع: ${recPct}%\n`;
 
@@ -7668,15 +7694,15 @@
     const allDates = Object.keys(attendance).filter(isFridayDate).sort().reverse();
     let present = 0, absent = 0, late = 0;
 
-    const stMap   = { present: '✅ حاضر', absent: '❌ غائب', late: '⏰ متأخر' };
-    const stColor = { present: '#f0fdf4', absent: '#fff5f5', late: '#fffbeb' };
-    const stBorder= { present: '#86efac', absent: '#fca5a5', late: '#fcd34d' };
+    const stMap   = ATT_LABELS;
+    const stColor = { none: '#f8fafc', present: '#f0fdf4', absent: '#fff5f5', late: '#fffbeb' };
+    const stBorder= { none: '#cbd5e1', present: '#86efac', absent: '#fca5a5', late: '#fcd34d' };
 
     const items = allDates.map(date => {
-      const st = (attendance[date] || {})[s.id] || 'present';
+      const st = getHistStatus(attendance, date, s.id);
       if (st === 'present') present++;
       else if (st === 'absent') absent++;
-      else late++;
+      else if (st === 'late') late++;
       const dayNote = (notes[date] || {})[s.id] || '';
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;font-size:13px;background:${stColor[st]};border:1px solid ${stBorder[st]};">
         <span style="font-weight:700;color:#555;min-width:90px;">${date}</span>
@@ -7725,11 +7751,11 @@
       list.innerHTML = '<div style="text-align:center;color:#aaa;padding:12px;font-size:13px;">لا توجد جلسات مسجلة</div>';
       return;
     }
-    const stMap = { present: '✅ حاضر', absent: '❌ غائب', late: '⏰ متأخر' };
-    const stColor = { present: '#f0fdf4', absent: '#fff5f5', late: '#fffbeb' };
+    const stMap = ATT_LABELS;
+    const stColor = { none: '#f8fafc', present: '#f0fdf4', absent: '#fff5f5', late: '#fffbeb' };
     list.innerHTML = allDates.map(d => {
       const id = window._ahCurrentStudentId;
-      const st = (attendance[d] || {})[id] || 'present';
+      const st = getHistStatus(attendance, d, id);
       const note = (notes[d] || {})[id] || '';
       const editable = isSessionEditable(d);
       const lockNote = editable ? '' : '<span style="font-size:11px;color:#c8392b;font-weight:700;">🔒 انتهت مدة التعديل (٧ أيام)</span>';
@@ -9436,7 +9462,7 @@
 
     var u = cs.u + cv.u;
     qEl('qrSetupBar').innerHTML = u > 0
-      ? '<div class="qr-setup"><div>ℹ️ ' + u + ' شخص لم يُسجَّل لهم حضور أو غياب اليوم، والنظام يعتبرهم <b>حاضرين افتراضيًا</b>. عند انتهاء المسح (أو قبل بدئه) اضغط الزر ليُحسب من لم يُمسح غائبًا.</div>' +
+      ? '<div class="qr-setup"><div>ℹ️ ' + u + ' شخص لم يُسجَّل لهم حضور أو غياب اليوم، ولا يدخلون في عدد الحاضرين حتى يتم تحضيرهم. عند انتهاء المسح اضغط الزر ليُحسب من لم يُمسح غائبًا.</div>' +
         '<button type="button" class="btn" style="background:var(--accent);color:#fff;font-size:13px;padding:9px 14px;width:100%;justify-content:center;" onclick="qrMarkUnrecordedAbsent()">🔴 اعتبر غير المسجَّلين غائبين (' + u + ')</button></div>'
       : '';
 
