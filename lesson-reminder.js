@@ -4,6 +4,8 @@
 //  - بطاقة في الصفحة تعرض الحالة وزر "تم التحضير"
 //  - إشعار فوري عند فتح التطبيق إذا دخلنا فترة التحضير
 //  - جدولة إشعار عبر الـ Service Worker لوقت التنبيه القادم
+//  - موضوع الدرس القادم يُؤخذ تلقائياً من «منهج الكرازة» حسب مرحلة الفصل (جدول curriculum_lessons)،
+//    ويبقى حقل الكتابة اليدوية احتياطياً فقط لو لا يوجد درس مسجّل للمرحلة
 // =====================================================================
 (function () {
   'use strict';
@@ -12,6 +14,8 @@
   var MS_DAY = 86400000;
   var DEFAULTS = { enabled: true, daysBefore: 3, hour: 9, done: {}, notified: {}, topics: {} };
   var _lastSig = '';
+  var CUR_TTL = 10 * 60 * 1000;                       // تحديث المنهج من السحابة كل 10 دقائق
+  var _cur = { stage: '', lessons: [], at: 0, busy: false, loaded: false };
 
   // ---------- أدوات ----------
   function meetingDow() {
@@ -54,6 +58,75 @@
     return n + ' أيام';
   }
 
+  function escH(t) {
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+
+  // ---------- منهج الكرازة (الدرس القادم حسب مرحلة الفصل) ----------
+  function stageId() {
+    return (typeof ACTIVE_CHAPTER_STAGE !== 'undefined' && ACTIVE_CHAPTER_STAGE) ? ACTIVE_CHAPTER_STAGE : '';
+  }
+  function curCacheKey(stage) { return 'lessonReminder_cur_v1_' + stage; }
+  function readCurCache(stage) {
+    var yesterday = ymd(addDays(startOfDay(new Date()), -1)), out = [];
+    try {
+      var c = JSON.parse(localStorage.getItem(curCacheKey(stage)) || 'null');
+      ((c && c.lessons) || []).forEach(function (l) { if (l && l.d >= yesterday && l.t) out.push(l); });
+    } catch (e) {}
+    return out;
+  }
+  function ensureCurriculum() {
+    var stage = stageId();
+    if (!stage) { if (_cur.stage) _cur = { stage: '', lessons: [], at: 0, busy: false, loaded: false }; return; }
+    if (_cur.stage !== stage) {
+      _cur = { stage: stage, lessons: readCurCache(stage), at: 0, busy: false, loaded: false };
+      _lastSig = '';
+    }
+    if (_cur.busy || Date.now() - _cur.at < CUR_TTL) return;
+    var sb = (typeof _supabaseClient !== 'undefined') ? _supabaseClient : null;
+    if (!sb) return;
+    _cur.busy = true; _cur.at = Date.now();
+    var from = ymd(addDays(startOfDay(new Date()), -1));
+    Promise.resolve(
+      sb.from('curriculum_lessons').select('lesson_date,title,ref')
+        .eq('stage', stage).gte('lesson_date', from)
+        .order('lesson_date', { ascending: true }).order('created_at', { ascending: true }).limit(40)
+    ).then(function (res) {
+      if (_cur.stage !== stage) return;                // تغيّر الفصل أثناء الجلب
+      _cur.busy = false;
+      if (!res || res.error) return;
+      _cur.lessons = (res.data || []).map(function (r) { return { d: r.lesson_date, t: r.title, ref: r.ref || '' }; });
+      _cur.loaded = true;
+      try { localStorage.setItem(curCacheKey(stage), JSON.stringify({ lessons: _cur.lessons })); } catch (e) {}
+      _lastSig = '';
+      check();
+    }).catch(function () { if (_cur.stage === stage) _cur.busy = false; });
+  }
+  // الدرس المسجّل في يوم الميعاد، وإلا أقرب درس مسجّل له (ويُذكر تاريخه)
+  function autoLesson(c) {
+    var stage = stageId();
+    if (!stage || _cur.stage !== stage || !_cur.lessons.length) return null;
+    var exact = _cur.lessons.filter(function (l) { return l.d === c.key; });
+    if (exact.length) return { list: exact, date: c.key, exact: true };
+    var best = '', bd = 1e9, base = new Date(c.key + 'T12:00:00');
+    _cur.lessons.forEach(function (l) {
+      var diff = Math.abs(Math.round((new Date(l.d + 'T12:00:00') - base) / MS_DAY));
+      if (diff <= bd) { bd = diff; best = l.d; }
+    });
+    return best ? { list: _cur.lessons.filter(function (l) { return l.d === best; }), date: best, exact: false } : null;
+  }
+  function lessonLine(l) { return l.t + (l.ref ? ' (' + l.ref + ')' : ''); }
+  function topicFor(c) {
+    var a = autoLesson(c);
+    if (a) {
+      var t = a.list.map(lessonLine).join(' + ');
+      return a.exact ? t : t + ' [' + a.date + ']';
+    }
+    return (c.s.topics[c.key] || '').trim();
+  }
+
   function compute() {
     var s = load();
     var now = new Date();
@@ -68,7 +141,7 @@
   }
 
   function notifTexts(c) {
-    var topic = (c.s.topics[c.key] || '').trim();
+    var topic = topicFor(c);
     var when = c.daysLeft <= 0 ? 'درس اليوم' : 'باقي ' + daysText(c.daysLeft) + ' على الدرس';
     return {
       title: '📖 وقت تحضير الدرس',
@@ -111,6 +184,7 @@
 
   // ---------- الفحص الدوري ----------
   function check() {
+    ensureCurriculum();
     var c = compute();
     if (c.state === 'due' && !c.s.notified[c.key] &&
         'Notification' in window && Notification.permission === 'granted') {
@@ -147,7 +221,13 @@
       '.lp-actions{display:flex;gap:8px;flex-wrap:wrap}' +
       '.lp-btn{border:none;border-radius:8px;padding:8px 14px;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;cursor:pointer;background:#f1ece0;color:var(--ink,#0d1117)}' +
       '.lp-btn.primary{background:var(--green,#1a7a4a);color:#fff}' +
-      '.lp-btn.warn{background:var(--accent2,#2980b9);color:#fff}';
+      '.lp-btn.warn{background:var(--accent2,#2980b9);color:#fff}' +
+      '.lp-lesson{background:#f7f3e8;border:1px dashed #d4c89a;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:14px;line-height:1.8}' +
+      '.lp-lesson .lp-lbl{display:block;font-size:12px;font-weight:700;color:#7a735f}' +
+      '.lp-lesson b{display:block;font-size:16px;font-weight:900;color:var(--ink,#0d1117)}' +
+      '.lp-lesson .lp-ref{font-family:Amiri,serif;font-size:15px;color:#57503f}' +
+      '.lp-lesson.muted{color:#7a735f;font-weight:600}' +
+      '.lp-lesson a{color:var(--accent2,#2980b9);font-weight:700;font-size:12.5px;margin-inline-start:8px}';
     document.head.appendChild(st);
   }
 
@@ -177,8 +257,9 @@
         '<label class="lp-switch"><input type="checkbox" id="lpEnabled"> مفعّل</label>' +
       '</div>' +
       '<div class="lp-status" id="lpStatus"></div>' +
+      '<div class="lp-lesson muted" id="lpLesson"></div>' +
       '<div class="lp-row">' +
-        '<label>موضوع الدرس القادم (اختياري)<input type="text" id="lpTopic" maxlength="120" placeholder="مثال: قصة القديس ونس"></label>' +
+        '<label id="lpTopicWrap" style="display:none">موضوع الدرس القادم (اختياري)<input type="text" id="lpTopic" maxlength="120" placeholder="مثال: قصة القديس ونس"></label>' +
         '<label>التنبيه قبل (أيام)<select id="lpDays">' + dayOptions() + '</select></label>' +
         '<label>الساعة<select id="lpHour">' + hourOptions() + '</select></label>' +
       '</div>' +
@@ -243,6 +324,29 @@
     setIfIdle('lpDays', 'value', String(c.s.daysBefore));
     setIfIdle('lpHour', 'value', String(c.s.hour));
     setIfIdle('lpTopic', 'value', c.s.topics[c.key] || '');
+
+    // الدرس القادم من منهج الكرازة (تلقائي) — والكتابة اليدوية احتياطية فقط
+    var box = document.getElementById('lpLesson'), wrap = document.getElementById('lpTopicWrap');
+    if (box && wrap) {
+      var a = autoLesson(c), stage = stageId(), link = './curriculum.html' + (stage ? '?y=' + encodeURIComponent(stage) : '');
+      var html, manual = false;
+      if (a) {
+        var when = DAYS[new Date(a.date + 'T12:00:00').getDay()] + ' ' + a.date;
+        html = '<span class="lp-lbl">📜 ' + (a.exact ? 'درس ' : 'أقرب درس مسجّل في المنهج: ') + escH(when) + '</span>' +
+          a.list.map(function (l) { return '<b>' + escH(l.t) + '</b>' + (l.ref ? '<span class="lp-ref">' + escH(l.ref) + '</span>' : ''); }).join('') +
+          '<a href="' + escH(link) + '">منهج الكرازة ↗</a>';
+        box.className = 'lp-lesson';
+      } else {
+        box.className = 'lp-lesson muted';
+        manual = true;
+        if (!stage) html = 'حدّد المرحلة الدراسية للفصل (تعديل الفصل) ليظهر درسه القادم تلقائياً من منهج الكرازة. ويمكنك كتابة الموضوع يدوياً:';
+        else if (_cur.busy && !_cur.loaded) html = '⏳ جاري تحميل منهج الكرازة...';
+        else html = 'لم يُضَف لهذه المرحلة درس في منهج الكرازة بعد. ويمكنك كتابة الموضوع يدوياً:';
+        if (_cur.busy && !_cur.loaded && stage) manual = false;
+      }
+      if (box.innerHTML !== html) box.innerHTML = html;
+      wrap.style.display = manual ? '' : 'none';
+    }
 
     var meetingTxt = DAYS[c.meeting.getDay()] + ' ' + ymd(c.meeting);
     var status;

@@ -3965,6 +3965,7 @@
     if (lh) lh.href = _libraryHref(ACTIVE_CHAPTER_GENDER);
     const ch = document.getElementById('curLinkHeader');
     if (ch) ch.href = _curriculumHref(ACTIVE_CHAPTER_STAGE);
+    if (window.LessonReminder && LessonReminder.check) setTimeout(function () { try { LessonReminder.check(); } catch (e) {} }, 300);
   }
 
   function switchChapter() {
