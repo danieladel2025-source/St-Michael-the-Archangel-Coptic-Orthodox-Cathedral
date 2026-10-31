@@ -1785,7 +1785,7 @@
   <div class="gate-card">
     <div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-bottom:18px;">
       <a id="libLinkGate" href="./library.html" title="الانتقال إلى المكتبة الروحية" style="display:inline-flex;align-items:center;gap:6px;background:rgba(41,128,185,0.1);border:1px solid rgba(41,128,185,0.35);color:var(--accent2);text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📚 المكتبة الروحية</a>
-      <a id="curLinkGate" href="./curriculum.html" title="الانتقال إلى منهج الكرازة" style="display:inline-flex;align-items:center;gap:6px;background:rgba(26,122,74,0.1);border:1px solid rgba(26,122,74,0.35);color:var(--green);text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📜 منهج الكرازة</a>
+      <a id="curLinkGate" href="./curriculum.html" title="الانتقال إلى منهج الكرازة" style="display:inline-flex;align-items:center;gap:6px;background:rgba(26,122,74,0.1);border:1px solid rgba(26,122,74,0.35);color:#1a7a4a;text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📜 منهج الكرازة</a>
       <a href="./admin.html" title="الانتقال إلى لوحة المشرفين" style="display:inline-flex;align-items:center;gap:6px;background:rgba(200,57,43,0.1);border:1px solid rgba(200,57,43,0.35);color:var(--accent);text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">🔒 لوحة المشرفين</a>
     </div>
     <div class="gate-header">
@@ -2101,7 +2101,7 @@
   </div>
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <a id="libLinkHeader" href="./library.html" title="الانتقال إلى المكتبة الروحية" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📚 المكتبة الروحية</a>
-    <a id="curLinkHeader" href="./curriculum.html" title="الانتقال إلى منهج الكرازة" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📜 منهج الكرازة</a>
+    <a id="curLinkHeader" href="./curriculum.html" title="منهج الكرازة لهذا الفصل" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📜 منهج الكرازة</a>
     <a href="./admin.html" title="الانتقال إلى لوحة المشرفين" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">🔒 لوحة المشرفين</a>
     <button type="button" class="switch-chapter-btn" id="activeChapterBadge" onclick="switchChapter()" title="تبديل الفصل">📂 تبديل الفصل</button>
   </div>
@@ -3513,6 +3513,18 @@
     return _chaptersCache.filter(c => _genderKey(String(c.chapter_id)) === _genderFilter);
   }
   function _libraryHref(g) { return (g === 'boys' || g === 'girls') ? './library.html?g=' + g : './library.html'; }
+  // رابط منهج الكرازة: يمرّر مرحلة الفصل ليفتح المنهج على دروس هذا الفصل مباشرة
+  function _curriculumHref(stage) { return (stage && STAGE_INDEX[stage]) ? './curriculum.html?y=' + encodeURIComponent(stage) : './curriculum.html'; }
+  // في شاشة اختيار الفصل: الخادم يُفتح له منهج مرحلته المسجّلة في صفحة الترحيب
+  function _gateStage() {
+    try {
+      if (window.WelcomeGate && WelcomeGate.role() === 'servant') {
+        const p = WelcomeGate.profile();
+        if (p && p.stage && STAGE_INDEX[p.stage]) return p.stage;
+      }
+    } catch(e) {}
+    return '';
+  }
 
   function setGenderFilter(g) {
     _genderFilter = g; _stageFilter = 'all';
@@ -3531,6 +3543,8 @@
     box.innerHTML = html;
     const a = document.getElementById('libLinkGate');
     if (a) a.href = _libraryHref(_genderFilter);
+    const cg = document.getElementById('curLinkGate');
+    if (cg) cg.href = _curriculumHref(_gateStage());
   }
   function setEditGender(g) {
     const box = document.getElementById('chapterEditGender');
@@ -3950,12 +3964,7 @@
     const lh = document.getElementById('libLinkHeader');
     if (lh) lh.href = _libraryHref(ACTIVE_CHAPTER_GENDER);
     const ch = document.getElementById('curLinkHeader');
-    if (ch) {
-      const q = [];
-      if (ACTIVE_CHAPTER_STAGE) q.push('y=' + encodeURIComponent(ACTIVE_CHAPTER_STAGE));
-      if (ACTIVE_CHAPTER_GENDER) q.push('g=' + ACTIVE_CHAPTER_GENDER);
-      ch.href = './curriculum.html' + (q.length ? '?' + q.join('&') : '');
-    }
+    if (ch) ch.href = _curriculumHref(ACTIVE_CHAPTER_STAGE);
   }
 
   function switchChapter() {

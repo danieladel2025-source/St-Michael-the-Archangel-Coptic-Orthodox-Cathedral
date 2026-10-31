@@ -20,7 +20,6 @@
     --gold: #d4a017;
     --green: #1a7a4a;
     --line: #b5a98a;
-    --girls: #c2185b;
     --muted: #6a6352;
     --shadow: rgba(13,17,23,0.12);
   }
@@ -72,9 +71,10 @@
   .chip[aria-pressed="true"] { background:var(--ink); border-color:var(--ink); color:var(--paper); }
   .chips.years .chip[aria-pressed="true"] { background:var(--accent2); border-color:var(--accent2); color:#fff; }
   .chip.nodata { color:#7d765f; border-style:dashed; }
+  .myclass { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:10px 16px; border:1.5px solid var(--accent2); background:rgba(41,128,185,0.08); border-radius:14px; font-size:14px; font-weight:700; }
+  .myclass b { color:var(--accent2); font-weight:900; }
+  .pick-hint { font-size:14px; font-weight:800; color:var(--muted); }
   .chip.num { min-width:48px; justify-content:center; padding:8px 10px; font-size:16px; font-weight:900; }
-  .chip.boys[aria-pressed="true"] { background:var(--accent2); border-color:var(--accent2); }
-  .chip.girls[aria-pressed="true"] { background:var(--girls); border-color:var(--girls); }
 
   /* ===== بطاقة درس اليوم ===== */
   .hero { background:var(--ink); color:var(--paper); border-radius:18px; padding:22px 22px 18px; margin:18px 0 6px; }
@@ -136,10 +136,6 @@
   .tag { display:inline-block; font-size:11px; font-weight:800; padding:2px 10px; border-radius:999px; line-height:1.7; white-space:nowrap; }
   .tag.today { background:var(--accent); color:#fff; }
   .tag.next { border:1.5px solid var(--ink); color:var(--ink); }
-  .tag.boys { background:rgba(41,128,185,0.13); color:#1d5d8a; }
-  .tag.girls { background:rgba(194,24,91,0.1); color:#9c1249; }
-  .hero .tag.boys { background:rgba(255,255,255,0.16); color:#d3e9f8; }
-  .hero .tag.girls { background:rgba(255,255,255,0.16); color:#f8d3e3; }
 
   /* ===== عرض حسب اليوم ===== */
   .day-nav { display:grid; grid-template-columns:48px minmax(0,1fr) 48px; gap:10px; align-items:center; margin-top:18px; }
@@ -207,12 +203,6 @@
   }
   .fld input[dir=ltr] { text-align:left; }
   .fld textarea { resize:vertical; min-height:68px; }
-  .seg { display:flex; flex-wrap:wrap; gap:8px; }
-  .rad { position:relative; }
-  .rad input { position:absolute; opacity:0; inset:0; width:100%; height:100%; cursor:pointer; }
-  .rad span { display:inline-flex; align-items:center; min-height:42px; padding:8px 15px; border:1.5px solid var(--line); border-radius:999px; font-size:13.5px; font-weight:700; background:transparent; }
-  .rad input:checked + span { background:var(--ink); border-color:var(--ink); color:var(--paper); }
-  .rad input:focus-visible + span { outline:3px solid var(--accent2); outline-offset:2px; }
   .msg { margin-top:12px; min-height:4px; font-size:13px; font-weight:700; line-height:1.7; color:var(--accent); }
   .sheet-actions { display:flex; gap:10px; position:sticky; bottom:0; margin:16px -18px 0; padding:12px 18px calc(12px + env(safe-area-inset-bottom)); background:var(--paper); border-top:1px solid rgba(181,169,138,0.45); }
   .btn-primary { flex:1; min-height:48px; border:0; border-radius:12px; background:var(--accent2); color:#fff; font-size:15px; font-weight:800; cursor:pointer; }
@@ -258,7 +248,7 @@
     .lesson, .lesson.past { opacity:1; background:none !important; break-inside:avoid; }
     .l-day { color:#000; }
     .month { break-inside:auto; }
-    .tag, .tag.today, .tag.next, .tag.boys, .tag.girls { background:none !important; color:#000 !important; border:1px solid #000 !important; }
+    .tag, .tag.today, .tag.next { background:none !important; color:#000 !important; border:1px solid #000 !important; }
     .lesson.today { border-inline-start-color:#000; }
   }
 </style>
@@ -306,7 +296,6 @@
    ref   : (اختياري) الإصحاح أو الآيات
    verse : (اختياري) آية الحفظ
    note  : (اختياري) ملاحظة أو نشاط
-   g     : (اختياري) 'boys' أو 'girls' لو الدرس لأحدهما فقط — وإذا تُرك فالدرس للبنين والبنات معاً
    ============================================================ */
 const CURRICULUM_DATA = [
   { y:'p1', d:'2026-10-30', t:'عرس قانا الجليل', ref:'يوحنا ٢: ١-١١' },
@@ -314,6 +303,11 @@ const CURRICULUM_DATA = [
 
 (function () {
 'use strict';
+
+/* ================= الإعدادات ================= */
+const SUPER_ADMIN_EMAIL = 'admin@gmail.com';   // المشرف العام: يضيف المناهج ويعدّلها ويحذفها
+const ALLOW_CHANGE_CLASS = true;               // true = الخادم يقدر يغيّر فصله من الصفحة (لو لم تكن مرحلته مسجّلة في صفحة الترحيب)
+const PROFILE_KEY = 'church_user_profile_v1';  // بيانات الخادم من صفحة الترحيب (welcome.js) — مرحلته مقفلة ولا يغيّرها إلا المشرف العام
 
 /* ================= المراحل الدراسية (نفس STAGE_GROUPS في index.html) ================= */
 const GROUPS = [
@@ -373,7 +367,7 @@ const TODAY = toISO(new Date());
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 
 /* ================= تجهيز البيانات ================= */
-let LESSONS = [], BY_YEAR = {}, HAS_GENDER = false;
+let LESSONS = [], BY_YEAR = {};
 function setData(rows) {
   const out = [];
   rows.forEach(function (r, i) {
@@ -382,23 +376,25 @@ function setData(rows) {
     out.push({
       id: r.id || '', y: y, d: r.d, dt: dt, t: String(r.t).trim(), ref: r.ref ? String(r.ref).trim() : '',
       verse: r.verse ? String(r.verse).trim() : '', note: r.note ? String(r.note).trim() : '',
-      g: (r.g === 'boys' || r.g === 'girls') ? r.g : '', n: i
+      n: i
     });
   });
   out.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : a.n - b.n));
   LESSONS = out;
   BY_YEAR = {};
   out.forEach(l => { (BY_YEAR[l.y] = BY_YEAR[l.y] || []).push(l); });
-  HAS_GENDER = out.some(l => l.g);
 }
 
 /* ================= الحالة ================= */
-const LS_KEY = 'curriculum_last_year_v1';
+const LS_KEY = 'curriculum_last_year_v1';      // آخر سنة تصفّحها المشرف
+const MINE_KEY = 'curriculum_my_stage_v1';     // فصل الخادم
 const qs = new URLSearchParams(location.search);
-const state = { view:'year', y:'p1', group:'prim', g:'all', d:'', showPast:false, scrollTo:'', hero:null,
-                cloud:'none', admin:null, user:'', autoYear:false, autoDay:false };
-const visible = l => state.g === 'all' || !l.g || l.g === state.g;
-const countYear = id => (BY_YEAR[id] || []).filter(visible).length;
+const state = { view:'year', y:'p1', group:'prim', d:'', showPast:false, scrollTo:'', hero:null,
+                cloud:'none', admin:null, user:'', autoYear:false, autoDay:false,
+                mine:'', choosing:false, ready:false, locked:false };
+/* الخادم يرى دروس فصله فقط — المشرف يرى كل المراحل */
+const visible = l => state.admin ? true : l.y === state.mine;
+const countYear = id => (BY_YEAR[id] || []).length;
 const countGroup = g => g.stages.reduce((a, s) => a + countYear(s.id), 0);
 function visibleDates() {
   const seen = {}, out = [];
@@ -407,7 +403,7 @@ function visibleDates() {
 }
 function defaultDay() {
   const ds = [], seen = {};
-  LESSONS.forEach(l => { if (!seen[l.d]) { seen[l.d] = 1; ds.push(l.d); } });
+  LESSONS.forEach(l => { if (visible(l) && !seen[l.d]) { seen[l.d] = 1; ds.push(l.d); } });
   if (!ds.length || ds.indexOf(TODAY) > -1) return TODAY;
   for (let i = 0; i < ds.length; i++) if (ds[i] > TODAY) return ds[i];
   return ds[ds.length - 1];
@@ -417,38 +413,52 @@ function firstYearWithData() {
   return '';
 }
 function saveYear() { try { localStorage.setItem(LS_KEY, state.y); } catch (e) {} }
+function saveMine() { try { localStorage.setItem(MINE_KEY, state.mine); } catch (e) {} }
 function syncUrl() {
   try {
     const p = new URLSearchParams();
-    if (state.view === 'day') { p.set('v', 'day'); p.set('d', state.d); } else { p.set('y', state.y); }
-    if (state.g !== 'all') p.set('g', state.g);
+    if (state.view === 'day') p.set('v', 'day'), p.set('d', state.d);
+    const yy = state.admin ? state.y : state.mine;
+    if (yy && (state.view !== 'day' || !state.admin)) p.set('y', yy);
     history.replaceState(null, '', location.pathname + '?' + p.toString());
   } catch (e) {}
 }
 
 /* ================= عناصر العرض ================= */
-const tagHtml = l => l.g ? '<span class="tag ' + l.g + '">' + (l.g === 'boys' ? 'بنين فقط' : 'بنات فقط') + '</span>' : '';
+
+const canChange = () => ALLOW_CHANGE_CLASS && !state.locked;
+function profileStage() {                                         // مرحلة الخادم المسجّلة في صفحة الترحيب
+  try { const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); const s = canon(p && p.stage); return STAGE[s] ? s : ''; } catch (e) { return ''; }
+}
+
+function chooserHtml(sel) {
+  let h = '<div class="chips" role="group" aria-label="المرحلة الدراسية">' + GROUPS.map(g => {
+    return '<button type="button" class="chip' + (countGroup(g) ? '' : ' nodata') + '" data-act="group" data-id="' + g.id + '" aria-pressed="' + (state.group === g.id) + '">' +
+      g.icon + ' ' + esc(g.short) + '</button>';
+  }).join('') + '</div>';
+  h += '<div class="chips years" role="group" aria-label="السنة الدراسية">' + GROUP_BY_ID[state.group].stages.map(s => {
+    const isNum = /^[٠-٩]/.test(s.short);
+    return '<button type="button" class="chip' + (isNum ? ' num' : '') + (countYear(s.id) ? '' : ' nodata') + '" data-act="year" data-id="' + s.id + '" aria-pressed="' + (sel === s.id) + '" aria-label="' + esc(s.name) + '" title="' + esc(s.name) + '">' +
+      esc(s.short) + '</button>';
+  }).join('') + '</div>';
+  return h;
+}
 
 function pickersHtml() {
-  let h = '';
-  if (state.view === 'year') {
-    h += '<div class="chips" role="group" aria-label="المرحلة الدراسية">' + GROUPS.map(g => {
-      return '<button type="button" class="chip' + (countGroup(g) ? '' : ' nodata') + '" data-act="group" data-id="' + g.id + '" aria-pressed="' + (state.group === g.id) + '">' +
-        g.icon + ' ' + esc(g.short) + '</button>';
-    }).join('') + '</div>';
-    h += '<div class="chips years" role="group" aria-label="السنة الدراسية">' + GROUP_BY_ID[state.group].stages.map(s => {
-      const isNum = /^[٠-٩]/.test(s.short);
-      return '<button type="button" class="chip' + (isNum ? ' num' : '') + (countYear(s.id) ? '' : ' nodata') + '" data-act="year" data-id="' + s.id + '" aria-pressed="' + (state.y === s.id) + '" aria-label="' + esc(s.name) + '" title="' + esc(s.name) + '">' +
-        esc(s.short) + '</button>';
-    }).join('') + '</div>';
-  }
-  if (HAS_GENDER) {
-    h += '<div class="chips" role="group" aria-label="بنين وبنات">' +
-      '<button type="button" class="chip" data-act="gender" data-g="all" aria-pressed="' + (state.g === 'all') + '">الكل</button>' +
-      '<button type="button" class="chip boys" data-act="gender" data-g="boys" aria-pressed="' + (state.g === 'boys') + '">👦 بنين</button>' +
-      '<button type="button" class="chip girls" data-act="gender" data-g="girls" aria-pressed="' + (state.g === 'girls') + '">👧 بنات</button></div>';
-  }
-  return h;
+  if (state.admin) return state.view === 'year' ? chooserHtml(state.y) : '';          // المشرف: كل المراحل
+  if (!state.mine && !state.ready) return '';
+  if (!state.mine || state.choosing) return '<p class="pick-hint">اختر مرحلتك ثم فصلك:</p>' + chooserHtml(state.mine);
+  return '<div class="myclass"><span>🏫 فصلك: <b>' + esc(STAGE[state.mine].name) + '</b></span>' +
+    (canChange() ? '<button type="button" class="link-btn" data-act="changeClass">تغيير الفصل</button>' : '') + '</div>';
+}
+
+/* الخادم لم يحدد فصله بعد (أو يغيّره) */
+function needPickHtml() {
+  if (state.admin) return '';
+  if (!state.mine && !state.ready) return '<div class="empty"><b>جاري التحميل…</b></div>';
+  if (!state.mine || state.choosing) return '<div class="empty"><b>اختر فصلك</b>اختر المرحلة ثم الفصل لتظهر دروسه.' +
+    (state.mine ? '<br><button type="button" class="link-btn" data-act="cancelChange">إلغاء</button>' : '') + '</div>';
+  return '';
 }
 
 function rowHtml(l, nextDate) {
@@ -457,7 +467,6 @@ function rowHtml(l, nextDate) {
   let tags = '';
   if (l.d === TODAY) tags += '<span class="tag today">اليوم</span>';
   else if (nextDate && l.d === nextDate) tags += '<span class="tag next">القادم</span>';
-  tags += tagHtml(l);
   return '<li class="lesson' + cls + '" data-d="' + l.d + '">' +
     '<div class="l-date"><div class="l-day">' + ad(l.dt.getDate()) + '</div><div class="l-wd">' + AR_DAYS[l.dt.getDay()] + '</div>' + (cop ? '<div class="l-cop">' + esc(cop) + '</div>' : '') + '</div>' +
     '<div class="l-body">' + (tags ? '<div class="l-tags">' + tags + '</div>' : '') + '<div class="l-title">' + esc(l.t) + '</div>' +
@@ -483,9 +492,12 @@ function monthsHtml(list, nextDate) {
 }
 
 function yearHtml() {
-  const st = STAGE[state.y];
-  const all = (BY_YEAR[state.y] || []).filter(visible);
   state.hero = null;
+  const np = needPickHtml();
+  if (np) return np;
+  const sid = state.admin ? state.y : state.mine;
+  const st = STAGE[sid];
+  const all = BY_YEAR[sid] || [];
   let h = '<p class="print-title">منهج الكرازة — ' + esc(st.name) + '</p>';
   if (!all.length) {
     return h + '<div class="empty"><b>لم يُضَف منهج ' + esc(st.name) + ' بعد</b>ستظهر دروس هذه السنة هنا فور إضافتها.' +
@@ -504,7 +516,7 @@ function yearHtml() {
 
   h += '<section class="hero" aria-label="' + label + '"><div class="hero-top"><span class="hero-label">' + label + '</span><span class="hero-year">' + esc(st.name) + '</span></div>';
   heroLessons.forEach((l, i) => {
-    h += '<div class="hero-lesson' + (i ? ' extra' : '') + '"><h2 class="hero-title">' + esc(l.t) + '</h2>' + tagHtml(l) +
+    h += '<div class="hero-lesson' + (i ? ' extra' : '') + '"><h2 class="hero-title">' + esc(l.t) + '</h2>' +
       (l.ref ? '<div class="hero-ref">' + esc(l.ref) + '</div>' : '') +
       (l.verse ? '<blockquote class="hero-verse"><span class="vlabel">آية الحفظ</span>' + esc(l.verse) + '</blockquote>' : '') +
       (l.note ? '<p class="hero-note">' + esc(l.note) + '</p>' : '') + '</div>';
@@ -525,6 +537,8 @@ const CHEV_PREV = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" s
 const CHEV_NEXT = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
 
 function dayHtml() {
+  const np = needPickHtml();
+  if (np) return np;
   const d = state.d, dt = parseISO(d) || new Date();
   const dates = visibleDates();
   let prev = '', next = '';
@@ -554,12 +568,12 @@ function dayHtml() {
     items.forEach(s => {
       rows.filter(r => r.y === s.id).forEach(r => {
         h += '<button type="button" class="day-row" data-act="open" data-y="' + s.id + '" data-d="' + d + '"><span class="day-year">' + esc(s.name) + '</span>' +
-          '<span class="day-lesson"><b>' + esc(r.t) + '</b>' + (r.ref ? '<em>' + esc(r.ref) + '</em>' : '') + tagHtml(r) + '</span></button>';
+          '<span class="day-lesson"><b>' + esc(r.t) + '</b>' + (r.ref ? '<em>' + esc(r.ref) + '</em>' : '') + '</span></button>';
       });
     });
     h += '</section>';
   });
-  h += '<p class="day-rest">لا توجد دروس مُدخلة لباقي السنوات في هذا اليوم.</p>';
+  if (state.admin) h += '<p class="day-rest">لا توجد دروس مُدخلة لباقي السنوات في هذا اليوم.</p>';
   return h;
 }
 
@@ -570,6 +584,7 @@ const elContent = document.getElementById('content');
 function render() {
   document.getElementById('tabYear').setAttribute('aria-selected', state.view === 'year');
   document.getElementById('tabDay').setAttribute('aria-selected', state.view === 'day');
+  document.getElementById('tabYear').textContent = state.admin ? 'حسب السنة الدراسية' : 'دروس فصلي';
   elPickers.innerHTML = pickersHtml();
   document.getElementById('adminbar').innerHTML = adminBarHtml();
   elContent.innerHTML = state.view === 'year' ? yearHtml() : dayHtml();
@@ -616,7 +631,9 @@ document.addEventListener('click', function (e) {
     case 'group': {
       const g = GROUP_BY_ID[t.dataset.id];
       if (!g) return;
-      state.group = g.id; state.autoYear = false;
+      state.group = g.id;
+      if (!state.admin) { focusSel = '[data-act="group"][data-id="' + g.id + '"]'; break; }      // الخادم: يتصفح المراحل ليختار فصله فقط
+      state.autoYear = false;
       const withData = g.stages.filter(s => countYear(s.id));
       state.y = (withData[0] || g.stages[0]).id;
       state.showPast = false; saveYear();
@@ -625,12 +642,19 @@ document.addEventListener('click', function (e) {
     }
     case 'year':
       if (!STAGE[t.dataset.id]) return;
+      if (!state.admin) {                                                                          // الخادم اختار فصله
+        state.mine = t.dataset.id; state.choosing = false; state.group = GROUP_OF[state.mine].id;
+        state.showPast = false; state.d = defaultDay(); state.autoDay = false; saveMine();
+        break;
+      }
       state.y = t.dataset.id; state.group = GROUP_OF[state.y].id; state.showPast = false; state.autoYear = false; saveYear();
       focusSel = '[data-act="year"][data-id="' + state.y + '"]';
       break;
-    case 'gender':
-      state.g = t.dataset.g; focusSel = '[data-act="gender"][data-g="' + state.g + '"]';
+    case 'changeClass':
+      if (!canChange()) return;
+      state.choosing = true; if (state.mine) state.group = GROUP_OF[state.mine].id;
       break;
+    case 'cancelChange': state.choosing = false; break;
     case 'prev': case 'next': {
       const ds = visibleDates();
       let target = '';
@@ -709,12 +733,12 @@ const isMissing = err => /PGRST20[25]|42883|42P01|Could not find|schema cache/i.
 function mapError(err) {
   const code = err && err.code, m = (err && err.message) || '';
   if (isMissing(err)) return 'لم يتم تشغيل ملف curriculum_setup.sql على Supabase بعد.';
-  if (code === '42501') { loadSession().then(render); return 'انتهت جلسة الدخول أو لا توجد صلاحية — سجّل الدخول من جديد.'; }
+  if (code === '42501') { loadSession().then(render); return 'لا توجد صلاحية على السحابة لهذا الحساب — تأكد أن الإيميل مضاف في القسم 7 من ملف curriculum_setup.sql أو سجّل الدخول من جديد.'; }
   if (code === '23505') return 'يوجد درس بنفس العنوان في نفس اليوم لنفس السنة.';
   if (code === '23514') return 'أحد النصوص أطول من المسموح.';
   return m || 'حدث خطأ غير متوقع.';
 }
-const fromDb = r => ({ id: r.id, y: r.stage, d: r.lesson_date, t: r.title, ref: r.ref, verse: r.verse, note: r.note, g: r.gender });
+const fromDb = r => ({ id: r.id, y: r.stage, d: r.lesson_date, t: r.title, ref: r.ref, verse: r.verse, note: r.note });
 function readCache() {
   try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); return c && Array.isArray(c.rows) ? c : null; } catch (e) { return null; }
 }
@@ -737,7 +761,6 @@ async function fetchCloud() {
       if (!res.data || res.data.length < size) break;
     }
     setData(rows);
-    if (!HAS_GENDER) state.g = 'all';
     writeCache(rows);
     state.cloud = 'ok';
     fetching = false;
@@ -749,7 +772,9 @@ async function fetchCloud() {
   }
 }
 
-/* هل يوجد مشرف مسجّل دخول؟ (الجلسة نفسها مشتركة مع لوحة المشرفين على نفس المتصفح) */
+/* المشرف العام (SUPER_ADMIN_EMAIL) يملك صلاحية الإضافة والتعديل والحذف مباشرة،
+   وأي إيميل آخر مضاف في curriculum_setup.sql (القسم 7) يأخذ نفس الصلاحية. */
+const isSuper = email => String(email || '').trim().toLowerCase() === SUPER_ADMIN_EMAIL;
 async function loadSession() {
   if (!sb) return;
   try {
@@ -757,10 +782,11 @@ async function loadSession() {
     const user = s && s.data && s.data.session && s.data.session.user;
     if (!user) { state.admin = null; state.user = ''; return; }
     state.user = user.email || '';
+    state.admin = isSuper(state.user) ? { email: state.user, root: true } : null;
     const res = await sb.rpc('curriculum_can_edit');
-    state.admin = (!res.error && res.data === true) ? { email: user.email || '' } : null;
     if (res.error && isMissing(res.error)) state.cloud = 'missing';
-  } catch (e) { state.admin = null; }
+    if (!state.admin && !res.error && res.data === true) state.admin = { email: state.user };
+  } catch (e) { if (!isSuper(state.user)) state.admin = null; }
 }
 
 /* ================= النوافذ والتنبيه ================= */
@@ -817,6 +843,7 @@ async function submitLogin(form) {
     if (res.error) err = 'الإيميل أو كلمة المرور غير صحيحة.';
     else {
       await loadSession();
+      if (state.admin) state.group = GROUP_OF[state.y].id;
       if (!state.admin) err = state.cloud === 'missing'
         ? 'تم الدخول، لكن ملف curriculum_setup.sql لم يُشغَّل على Supabase بعد.'
         : 'تم الدخول، لكن هذا الحساب غير مصرّح له بتعديل المنهج. أضِف إيميله في القسم 7 من ملف curriculum_setup.sql.';
@@ -851,8 +878,7 @@ function openLessonForm(id) {
   if (!state.admin) return;
   const l = id ? LESSONS.filter(x => x.id === id)[0] : null;
   if (id && !l) return;
-  const stage = l ? l.y : state.y, g = l ? l.g : '';
-  const rad = (v, label) => '<label class="rad"><input type="radio" name="gender" value="' + v + '"' + (g === v ? ' checked' : '') + '><span>' + label + '</span></label>';
+  const stage = l ? l.y : state.y;
   openModal(
     '<h3>' + (l ? '✏️ تعديل الدرس' : '➕ إضافة درس') + '</h3>' +
     '<form id="lessonForm" data-id="' + (l ? esc(l.id) : '') + '">' +
@@ -862,23 +888,21 @@ function openLessonForm(id) {
       '<label class="fld"><span>الإصحاح / الآيات <em>(اختياري)</em></span><input type="text" name="ref" maxlength="300" value="' + (l ? esc(l.ref) : '') + '"></label>' +
       '<label class="fld"><span>آية الحفظ <em>(اختياري)</em></span><textarea name="verse" rows="2" maxlength="600">' + (l ? esc(l.verse) : '') + '</textarea></label>' +
       '<label class="fld"><span>ملاحظة أو نشاط <em>(اختياري)</em></span><textarea name="note" rows="2" maxlength="1000">' + (l ? esc(l.note) : '') + '</textarea></label>' +
-      '<div class="fld"><span>الدرس لـ</span><div class="seg">' + rad('', 'بنين وبنات') + rad('boys', 'بنين فقط') + rad('girls', 'بنات فقط') + '</div></div>' +
       '<div class="msg" id="formMsg" role="alert"></div>' +
       '<div class="sheet-actions"><button type="submit" class="btn-primary">💾 حفظ الدرس</button><button type="button" class="btn-ghost" data-act="closeModal">إلغاء</button></div>' +
     '</form>');
 }
 async function submitLesson(form) {
   const f = form.elements, msg = document.getElementById('formMsg'), btn = form.querySelector('[type=submit]');
-  const checked = form.querySelector('input[name=gender]:checked');
   const v = { stage: f.stage.value, date: f.date.value, title: f.title.value.trim(), ref: f.ref.value.trim(),
-              verse: f.verse.value.trim(), note: f.note.value.trim(), gender: checked ? checked.value : '' };
+              verse: f.verse.value.trim(), note: f.note.value.trim() };
   if (!v.title) { msg.textContent = 'اكتب عنوان الدرس.'; return; }
   if (!parseISO(v.date)) { msg.textContent = 'اختر تاريخاً صحيحاً.'; return; }
   btn.disabled = true; btn.textContent = 'جاري الحفظ...'; msg.textContent = '';
   let res;
   try {
     res = await sb.rpc('curriculum_save', { p_id: form.dataset.id || null, p_stage: v.stage, p_date: v.date, p_title: v.title,
-                                            p_ref: v.ref, p_verse: v.verse, p_note: v.note, p_gender: v.gender });
+                                            p_ref: v.ref, p_verse: v.verse, p_note: v.note, p_gender: '' });
   } catch (e) { res = { error: { message: 'تعذر الاتصال بالسحابة. حاول مرة أخرى.' } }; }
   if (res.error) { msg.textContent = mapError(res.error); btn.disabled = false; btn.textContent = '💾 حفظ الدرس'; return; }
   closeModal();
@@ -912,7 +936,6 @@ const HEAD_KEYS = {};
   ['ref',    ['الآيات', 'الإصحاح', 'الإصحاح والآيات', 'المرجع', 'ref', 'reference']],
   ['verse',  ['آية الحفظ', 'الحفظ', 'verse']],
   ['note',   ['ملاحظة', 'ملاحظات', 'نشاط', 'note', 'notes']],
-  ['gender', ['لمن', 'بنين وبنات', 'النوع', 'الفئة', 'gender']],
   ['year',   ['السنة', 'السنة الدراسية', 'الفصل', 'المرحلة', 'year', 'stage']]
 ].forEach(function (p) { p[1].forEach(function (h) { HEAD_KEYS[normAr(h)] = p[0]; }); });
 
@@ -935,13 +958,6 @@ function parseCellDate(v) {
   else return '';
   const iso = y + '-' + pad(mo) + '-' + pad(d);
   return parseISO(iso) ? iso : '';
-}
-function parseGender(s) {
-  const n = normAr(s);
-  if (!n || n === 'الكل' || n === 'الاثنين' || n === 'بنين وبنات' || n === 'بنين بنات' || n === 'both' || n === 'all') return '';
-  if (n === 'بنين' || n === 'ولاد' || n === 'ذكور' || n === 'boys' || n === 'boy') return 'boys';
-  if (n === 'بنات' || n === 'اناث' || n === 'girls' || n === 'girl') return 'girls';
-  return null;
 }
 function matchStage(s) {                                                // معرّف السنة أو اسمها بصيغ مختلفة
   const raw = String(s).trim().toLowerCase();
@@ -970,7 +986,7 @@ function detectColumns(aoa) {
     (aoa[i] || []).forEach(function (c, j) { const k = HEAD_KEYS[normAr(c)]; if (k && map[k] === undefined) { map[k] = j; hits++; } });
     if (map.title !== undefined && hits >= 2) return { map: map, start: i + 1, found: true };
   }
-  return { map: { date: 0, title: 1, ref: 2, verse: 3, note: 4, gender: 5 }, start: 0, found: false };
+  return { map: { date: 0, title: 1, ref: 2, verse: 3, note: 4 }, start: 0, found: false };
 }
 function parseSheet(aoa, defaultStage) {
   const det = detectColumns(aoa), m = det.map, rows = [], errors = [];
@@ -989,11 +1005,9 @@ function parseSheet(aoa, defaultStage) {
       stage = matchStage(txt('year'));
       if (!stage) { errors.push({ line: line, msg: 'سنة غير معروفة «' + txt('year') + '»' }); continue; }
     }
-    const g = parseGender(txt('gender'));
-    if (g === null) { errors.push({ line: line, msg: 'قيمة «لمن» غير مفهومة «' + txt('gender') + '»' }); continue; }
     const ref = txt('ref'), verse = txt('verse'), note = txt('note');
     if (title.length > 300 || ref.length > 300 || verse.length > 600 || note.length > 1000) { errors.push({ line: line, msg: 'نص أطول من المسموح' }); continue; }
-    rows.push({ line: line, stage: stage, date: date, title: title, ref: ref, verse: verse, note: note, gender: g });
+    rows.push({ line: line, stage: stage, date: date, title: title, ref: ref, verse: verse, note: note });
   }
   return { rows: rows, errors: errors, found: det.found, hasYear: m.year !== undefined };
 }
@@ -1041,7 +1055,7 @@ function openImport() {
     '<label class="fld"><span>السنة الدراسية <em>(تُستخدم لو لا يوجد عمود «السنة» في الملف)</em></span><select id="impStage">' + stageOptions(state.y) + '</select></label>' +
     '<label class="fld"><span>الملف</span><input type="file" id="impFile" accept=".xlsx,.xls,.csv"></label>' +
     '<details class="imp-help"><summary>شكل الملف المطلوب</summary><div>' +
-      'أعمدة بهذه العناوين: <b>التاريخ</b> و<b>عنوان الدرس</b> و<b>الآيات</b> و<b>آية الحفظ</b> و<b>ملاحظة</b> و<b>لمن</b> (بنين / بنات / فارغ للاثنين)، ' +
+      'أعمدة بهذه العناوين: <b>التاريخ</b> و<b>عنوان الدرس</b> و<b>الآيات</b> و<b>آية الحفظ</b> و<b>ملاحظة</b>، ' +
       'وعمود اختياري <b>السنة</b> (مثل «الأول الابتدائي») لاستيراد عدة سنوات في ملف واحد. ' +
       'التاريخ مثل 2026-11-06 أو 6/11/2026. إعادة استيراد نفس الدرس (نفس السنة واليوم والعنوان) تحدّثه ولا تكرره.' +
       '</div><button type="button" class="link-btn" data-act="impTemplate">تنزيل ملف نموذج</button></details>' +
@@ -1076,7 +1090,7 @@ function renderImportPreview() {
   const res = impState.res = parseSheet(impState.aoa, document.getElementById('impStage').value);
   const prev = document.getElementById('impPreview'), go = document.getElementById('impGo');
   let h = '';
-  if (!res.found) h += '<p class="sub">لم نجد صف العناوين، فاعتُمد الترتيب: التاريخ، العنوان، الآيات، آية الحفظ، ملاحظة، لمن.</p>';
+  if (!res.found) h += '<p class="sub">لم نجد صف العناوين، فاعتُمد الترتيب: التاريخ، العنوان، الآيات، آية الحفظ، ملاحظة.</p>';
   h += '<p class="imp-sum"><b>' + ad(res.rows.length) + '</b> درس جاهز للاستيراد</p>';
   if (res.errors.length) h += '<p class="imp-sum imp-err">' + ad(res.errors.length) + ' صف به مشكلة ولن يُستورد:</p><ul class="imp-errs">' +
     res.errors.slice(0, 8).map(e => '<li>سطر ' + ad(e.line) + ': ' + esc(e.msg) + '</li>').join('') +
@@ -1084,7 +1098,7 @@ function renderImportPreview() {
   if (res.rows.length) {
     h += '<div class="imp-wrap"><table class="imp-table"><thead><tr><th>اليوم</th>' + (res.hasYear ? '<th>السنة</th>' : '') + '<th>الدرس</th></tr></thead><tbody>' +
       res.rows.slice(0, 8).map(r => '<tr><td>' + esc(longDate(parseISO(r.date))) + '</td>' + (res.hasYear ? '<td>' + esc(STAGE[r.stage].name) + '</td>' : '') +
-        '<td>' + esc(r.title) + (r.gender ? ' <span class="tag ' + r.gender + '">' + (r.gender === 'boys' ? 'بنين' : 'بنات') + '</span>' : '') + '</td></tr>').join('') +
+        '<td>' + esc(r.title) + '</td></tr>').join('') +
       '</tbody></table></div>' + (res.rows.length > 8 ? '<p class="sub">… و' + ad(res.rows.length - 8) + ' درس آخر</p>' : '');
   }
   prev.innerHTML = h;
@@ -1098,7 +1112,7 @@ async function runImport() {
   let inserted = 0, updated = 0, done = 0;
   try {
     for (let i = 0; i < res.rows.length; i += 400) {
-      const chunk = res.rows.slice(i, i + 400).map(r => ({ stage: r.stage, date: r.date, title: r.title, ref: r.ref, verse: r.verse, note: r.note, gender: r.gender }));
+      const chunk = res.rows.slice(i, i + 400).map(r => ({ stage: r.stage, date: r.date, title: r.title, ref: r.ref, verse: r.verse, note: r.note, gender: '' }));
       const out = await sb.rpc('curriculum_import', { p_rows: chunk });
       if (out.error) throw out.error;
       inserted += (out.data && out.data.inserted) || 0; updated += (out.data && out.data.updated) || 0; done += chunk.length;
@@ -1119,11 +1133,11 @@ async function downloadTemplate() {
   try {
     const XLSX = await loadXLSX();
     const ws = XLSX.utils.aoa_to_sheet([
-      ['التاريخ', 'عنوان الدرس', 'الآيات', 'آية الحفظ', 'ملاحظة', 'لمن', 'السنة'],
-      ['2026-11-06', 'عرس قانا الجليل', 'يوحنا ٢: ١-١١', '', '', '', 'الأول الابتدائي'],
-      ['2026-11-13', 'مثال لدرس للبنات فقط', '', '', 'اكتب هنا أي ملاحظة', 'بنات', 'الأول الابتدائي']
+      ['التاريخ', 'عنوان الدرس', 'الآيات', 'آية الحفظ', 'ملاحظة', 'السنة'],
+      ['2026-11-06', 'عرس قانا الجليل', 'يوحنا ٢: ١-١١', '', '', 'الأول الابتدائي'],
+      ['2026-11-13', 'مثال لدرس آخر', '', '', 'اكتب هنا أي ملاحظة', 'الأول الابتدائي']
     ]);
-    ws['!cols'] = [{ wch: 14 }, { wch: 30 }, { wch: 18 }, { wch: 30 }, { wch: 24 }, { wch: 10 }, { wch: 20 }];
+    ws['!cols'] = [{ wch: 14 }, { wch: 30 }, { wch: 18 }, { wch: 30 }, { wch: 24 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     wb.Workbook = { Views: [{ RTL: true }] };
     XLSX.utils.book_append_sheet(wb, ws, 'المنهج');
@@ -1135,15 +1149,17 @@ async function downloadTemplate() {
 (function init() {
   const cached = readCache();
   setData(cached ? cached.rows : CURRICULUM_DATA);            // أول عرض فوري من نسخة الجهاز أو البيانات الاحتياطية
-  const qy = canon(qs.get('y') || '');
-  let saved = '';
-  try { saved = canon(localStorage.getItem(LS_KEY) || ''); } catch (e) {}
+  const qy = canon(qs.get('y') || qs.get('stage') || '');          // فصل الخادم القادم من نظام الغياب: curriculum.html?y=p1
+  let saved = '', mineSaved = '';
+  try { saved = canon(localStorage.getItem(LS_KEY) || ''); mineSaved = canon(localStorage.getItem(MINE_KEY) || ''); } catch (e) {}
   state.autoYear = !STAGE[qy] && !STAGE[saved];
   state.y = STAGE[qy] ? qy : (STAGE[saved] ? saved : (firstYearWithData() || 'p1'));
-  state.group = GROUP_OF[state.y].id;
-  const qg = qs.get('g');
-  let pendingG = (qg === 'boys' || qg === 'girls') ? qg : '';
-  state.g = (HAS_GENDER && pendingG) ? pendingG : 'all';
+  const ps = profileStage();                                        // الأولوية لمرحلة الخادم المسجّلة، ثم الرابط، ثم آخر اختيار
+  state.locked = !!ps;
+  state.mine = ps || (STAGE[qy] ? qy : (STAGE[mineSaved] ? mineSaved : ''));
+  if (state.mine) saveMine();
+  state.group = GROUP_OF[state.mine || state.y].id;
+  state.ready = !sb;
   state.view = qs.get('v') === 'day' ? 'day' : 'year';
   state.autoDay = !parseISO(qs.get('d'));
   state.d = state.autoDay ? defaultDay() : qs.get('d');
@@ -1152,11 +1168,15 @@ async function downloadTemplate() {
     fetchCloud().then(function () {                           // ثم تحديث من السحابة
       if (state.autoYear) { const f = firstYearWithData(); if (f) { state.y = f; state.group = GROUP_OF[f].id; } }
       if (state.autoDay) state.d = defaultDay();
-      if (pendingG && HAS_GENDER && state.g === 'all') state.g = pendingG;
-      pendingG = '';
       render();
     });
-    loadSession().then(render);
+    loadSession().then(function () {
+      state.ready = true;
+      if (state.admin) state.group = GROUP_OF[state.y].id;
+      if (state.autoDay) state.d = defaultDay();
+      render();
+    });
+    setTimeout(function () { if (!state.ready) { state.ready = true; render(); } }, 4000);
   }
 })();
 })();
