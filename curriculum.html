@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>منهج الكرازة — كاتدرائية رئيس الملائكة الجليل ميخائيل - طنطا</title>
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #0d1117;
+    --paper: #f5f0e8;
+    --cream: #ede8dc;
+    --accent: #c8392b;
+    --accent2: #2980b9;
+    --gold: #d4a017;
+    --green: #1a7a4a;
+    --line: #b5a98a;
+    --girls: #c2185b;
+    --muted: #6a6352;
+    --shadow: rgba(13,17,23,0.12);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body {
+    font-family:'Cairo',sans-serif; background:var(--paper); color:var(--ink);
+    min-height:100vh; padding-bottom:48px; line-height:1.6;
+  }
+  button { font-family:inherit; }
+  :focus-visible { outline:3px solid var(--accent2); outline-offset:2px; }
+
+  /* ===== الهيدر (نفس هيدر المكتبة الروحية) ===== */
+  .header {
+    background:var(--ink); color:var(--paper);
+    padding:18px 24px; display:flex; align-items:center; justify-content:space-between;
+    box-shadow:0 4px 20px var(--shadow); position:sticky; top:0; z-index:100; flex-wrap:wrap; gap:12px;
+  }
+  .header-brand { display:flex; align-items:center; gap:14px; }
+  .header-icon { width:46px; height:46px; background:var(--accent); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px; }
+  .header h1 { font-size:19px; font-weight:900; }
+  .header-subtitle { font-size:12px; color:var(--line); margin-top:2px; }
+  .back-link {
+    display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.3); color:#fff; text-decoration:none;
+    font-weight:700; font-size:13px; padding:8px 14px; border-radius:20px; transition:background .2s;
+  }
+  .back-link:hover { background:rgba(255,255,255,0.22); }
+
+  .main { max-width:860px; margin:0 auto; padding:16px 16px 0; }
+
+  /* ===== تبويبا العرض ===== */
+  .view-tabs { display:flex; border-bottom:2px solid rgba(181,169,138,0.45); }
+  .view-tab {
+    flex:1; padding:13px 8px; font-size:14px; font-weight:800; color:#807865; cursor:pointer;
+    background:none; border:0; border-bottom:3px solid transparent; margin-bottom:-2px;
+  }
+  .view-tab[aria-selected="true"] { color:var(--accent2); border-bottom-color:var(--accent2); }
+
+  /* ===== أزرار الاختيار (المرحلة / السنة / بنين وبنات) ===== */
+  .pickers { display:flex; flex-direction:column; gap:10px; margin-top:16px; }
+  .pickers:empty { display:none; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip {
+    display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:8px 15px;
+    border:1.5px solid var(--line); border-radius:999px; background:transparent; color:var(--ink);
+    font-size:13.5px; font-weight:700; cursor:pointer;
+  }
+  .chip[aria-pressed="true"] { background:var(--ink); border-color:var(--ink); color:var(--paper); }
+  .chips.years .chip[aria-pressed="true"] { background:var(--accent2); border-color:var(--accent2); color:#fff; }
+  .chip.nodata { color:#7d765f; border-style:dashed; }
+  .chip.num { min-width:48px; justify-content:center; padding:8px 10px; font-size:16px; font-weight:900; }
+  .chip.boys[aria-pressed="true"] { background:var(--accent2); border-color:var(--accent2); }
+  .chip.girls[aria-pressed="true"] { background:var(--girls); border-color:var(--girls); }
+
+  /* ===== بطاقة درس اليوم ===== */
+  .hero { background:var(--ink); color:var(--paper); border-radius:18px; padding:22px 22px 18px; margin:18px 0 6px; }
+  .hero-top { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .hero-label { font-size:13px; font-weight:800; color:var(--gold); }
+  .hero-year { font-size:12px; font-weight:700; padding:2px 11px; border-radius:999px; background:rgba(255,255,255,0.12); color:#ece6d6; }
+  .hero-lesson + .hero-lesson { margin-top:18px; padding-top:16px; border-top:1px dashed rgba(255,255,255,0.22); }
+  .hero-title { font-size:clamp(26px,7.2vw,38px); font-weight:900; line-height:1.35; }
+  .hero-lesson.extra .hero-title { font-size:clamp(20px,5.4vw,26px); }
+  .hero .tag { margin-top:8px; }
+  .hero-ref { font-family:'Amiri','Scheherazade New','Traditional Arabic',serif; font-size:20px; line-height:1.7; color:#e9dfc7; margin-top:6px; }
+  .hero-verse {
+    margin-top:14px; padding:2px 14px 2px 0; border-inline-start:3px solid var(--gold);
+    font-family:'Amiri','Scheherazade New','Traditional Arabic',serif; font-size:19px; line-height:2; color:#f1ead9;
+  }
+  .hero-verse .vlabel { display:block; font-family:'Cairo',sans-serif; font-size:11.5px; font-weight:700; color:var(--gold); line-height:1.8; }
+  .hero-note { margin-top:12px; font-size:13.5px; line-height:1.8; color:#d7cfbb; }
+  .hero-meta {
+    display:flex; flex-wrap:wrap; gap:2px 18px; margin-top:18px; padding-top:12px;
+    border-top:1px solid rgba(255,255,255,0.16); font-size:13px; font-weight:600; color:#d3cbb7;
+  }
+  .hero-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .hbtn {
+    min-height:40px; padding:8px 16px; border-radius:999px; cursor:pointer; font-size:13px; font-weight:700;
+    background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3); color:#fff; transition:background .2s;
+  }
+  .hbtn:hover { background:rgba(255,255,255,0.2); }
+
+  /* ===== قائمة الدروس (على طريقة القطمارس: التاريخ بالأحمر ثم الدرس) ===== */
+  .past-toggle {
+    display:block; width:100%; margin-top:14px; padding:11px 12px; cursor:pointer;
+    background:none; border:1.5px dashed var(--line); border-radius:12px; color:var(--muted); font-size:13px; font-weight:800;
+  }
+  .past-toggle:hover { background:rgba(181,169,138,0.12); }
+  .hide-past .lesson.past, .hide-past .month.all-past { display:none; }
+  .month { margin-top:24px; }
+  .month-title { display:flex; align-items:center; gap:10px; font-size:15.5px; font-weight:900; }
+  .month-title::after { content:""; flex:1; height:2px; background:var(--line); opacity:.4; }
+  .lessons { list-style:none; }
+  .lesson {
+    display:grid; grid-template-columns:64px minmax(0,1fr); gap:14px; align-items:start;
+    padding:14px 6px; border-bottom:1px solid rgba(181,169,138,0.45); scroll-margin-top:110px;
+  }
+  .lesson.past { opacity:.65; }
+  .lesson.today { background:rgba(200,57,43,0.06); border-inline-start:4px solid var(--accent); padding-inline-start:10px; }
+  .l-date { text-align:center; line-height:1.2; }
+  .l-day { font-size:29px; font-weight:900; color:var(--accent); line-height:1.15; }
+  .l-wd { font-size:12px; font-weight:700; color:var(--muted); }
+  .l-cop { font-size:11px; color:var(--muted); margin-top:1px; }
+  .l-title { font-size:17.5px; font-weight:800; line-height:1.55; }
+  .l-ref { font-family:'Amiri','Scheherazade New','Traditional Arabic',serif; font-size:16.5px; line-height:1.7; color:#57503f; }
+  .l-verse { margin-top:6px; font-family:'Amiri','Scheherazade New','Traditional Arabic',serif; font-size:16px; line-height:1.9; color:#3f3a2d; }
+  .l-verse span { font-family:'Cairo',sans-serif; font-size:11.5px; font-weight:800; color:var(--muted); margin-inline-end:6px; }
+  .l-note { margin-top:6px; font-size:12.5px; line-height:1.8; color:var(--muted); }
+  .l-tags { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:3px; }
+  .lesson.flash { animation:flash 1.8s ease-out; }
+  @keyframes flash { from { background:rgba(212,160,23,0.4); } to { background:transparent; } }
+
+  .tag { display:inline-block; font-size:11px; font-weight:800; padding:2px 10px; border-radius:999px; line-height:1.7; white-space:nowrap; }
+  .tag.today { background:var(--accent); color:#fff; }
+  .tag.next { border:1.5px solid var(--ink); color:var(--ink); }
+  .tag.boys { background:rgba(41,128,185,0.13); color:#1d5d8a; }
+  .tag.girls { background:rgba(194,24,91,0.1); color:#9c1249; }
+  .hero .tag.boys { background:rgba(255,255,255,0.16); color:#d3e9f8; }
+  .hero .tag.girls { background:rgba(255,255,255,0.16); color:#f8d3e3; }
+
+  /* ===== عرض حسب اليوم ===== */
+  .day-nav { display:grid; grid-template-columns:48px minmax(0,1fr) 48px; gap:10px; align-items:center; margin-top:18px; }
+  .nav-btn {
+    width:48px; height:48px; border-radius:50%; border:1.5px solid var(--line); background:#fff; color:var(--ink);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .nav-btn:disabled { opacity:.35; cursor:default; }
+  .day-card { position:relative; display:block; text-align:center; padding:10px 8px; border-radius:14px; cursor:pointer; }
+  .day-card:hover { background:rgba(181,169,138,0.14); }
+  .day-wd { display:block; font-size:13px; font-weight:700; color:var(--muted); }
+  .day-main { display:block; font-size:clamp(21px,6vw,29px); font-weight:900; line-height:1.4; }
+  .day-cop { display:block; font-size:13px; font-weight:600; color:var(--muted); }
+  .day-pick { display:block; margin-top:2px; font-size:12px; font-weight:800; color:var(--accent2); }
+  .day-card input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; border:0; }
+  .day-actions { display:flex; justify-content:center; gap:8px; margin-top:6px; min-height:4px; }
+  .link-btn { background:none; border:0; padding:6px 10px; color:var(--accent2); font-size:13px; font-weight:800; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+  .group-title { display:flex; align-items:center; gap:10px; margin:26px 0 4px; font-size:15.5px; font-weight:900; }
+  .group-title::after { content:""; flex:1; height:2px; background:var(--line); opacity:.4; }
+  .day-row {
+    display:grid; grid-template-columns:116px minmax(0,1fr); gap:12px; align-items:start; width:100%; text-align:start;
+    padding:13px 6px; background:none; border:0; border-bottom:1px solid rgba(181,169,138,0.45); color:var(--ink); cursor:pointer;
+  }
+  .day-row:hover { background:rgba(41,128,185,0.06); }
+  .day-year { font-size:13.5px; font-weight:800; color:var(--accent2); padding-top:2px; }
+  .day-lesson b { display:block; font-size:16.5px; font-weight:800; line-height:1.55; }
+  .day-lesson em { display:block; font-style:normal; font-family:'Amiri','Scheherazade New','Traditional Arabic',serif; font-size:16px; line-height:1.7; color:#57503f; }
+  .day-lesson .tag { margin-top:4px; }
+  .day-rest { margin-top:16px; font-size:12.5px; font-weight:700; color:var(--muted); text-align:center; }
+
+  .empty {
+    margin:22px 0; padding:30px 18px; border:2px dashed var(--line); border-radius:16px;
+    text-align:center; color:var(--muted); font-size:13.5px; line-height:1.8;
+  }
+  .empty b { display:block; font-size:16.5px; font-weight:900; color:var(--ink); margin-bottom:4px; }
+  .empty .link-btn { margin-top:8px; }
+
+  /* ===== وضع المشرف (يظهر فقط بعد الدخول) ===== */
+  .admin-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:14px; padding:10px 14px; border:1.5px solid var(--gold); background:rgba(212,160,23,0.1); border-radius:14px; }
+  .ab-title { font-size:14px; font-weight:900; }
+  .ab-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .abtn { min-height:40px; padding:8px 16px; border-radius:999px; border:1.5px solid var(--ink); background:var(--ink); color:#fff; font-size:13px; font-weight:800; cursor:pointer; }
+  .abtn.alt { background:transparent; color:var(--ink); }
+  .empty .abtn { margin-top:12px; }
+  .l-actions { display:flex; gap:8px; margin-top:10px; }
+  .mini { min-height:36px; padding:6px 14px; border-radius:999px; border:1.5px solid var(--line); background:#fff; color:var(--ink); font-size:12.5px; font-weight:800; cursor:pointer; }
+  .mini.danger { color:var(--accent); border-color:rgba(200,57,43,0.5); }
+  .foot { margin-top:44px; padding-top:14px; border-top:1px solid rgba(181,169,138,0.45); display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:6px 12px; font-size:12.5px; color:var(--muted); text-align:center; }
+  .foot:empty { display:none; }
+  .foot-warn { font-weight:700; color:#8a5a00; }
+  .link-btn.quiet { color:var(--muted); font-weight:700; }
+
+  /* ===== النوافذ (دخول / درس / استيراد) ===== */
+  body.modal-open { overflow:hidden; }
+  .ov { position:fixed; inset:0; z-index:300; background:rgba(13,17,23,0.55); display:flex; align-items:flex-end; justify-content:center; }
+  .sheet { width:100%; max-width:560px; max-height:92vh; overflow-y:auto; background:var(--paper); border-radius:20px 20px 0 0; padding:20px 18px 0; }
+  @media (min-width:700px) { .ov { align-items:center; } .sheet { border-radius:20px; } }
+  .sheet h3 { font-size:18px; font-weight:900; }
+  .sheet .sub { margin-top:2px; font-size:13px; line-height:1.8; color:var(--muted); }
+  .fld { display:block; margin-top:14px; }
+  .fld > span { display:block; margin-bottom:5px; font-size:13px; font-weight:800; }
+  .fld > span em { font-style:normal; font-weight:600; color:var(--muted); }
+  .fld input[type=text], .fld input[type=email], .fld input[type=password], .fld input[type=date], .fld input[type=file], .fld select, .fld textarea {
+    width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); font-family:inherit; font-size:16px; font-weight:600;
+  }
+  .fld input[dir=ltr] { text-align:left; }
+  .fld textarea { resize:vertical; min-height:68px; }
+  .seg { display:flex; flex-wrap:wrap; gap:8px; }
+  .rad { position:relative; }
+  .rad input { position:absolute; opacity:0; inset:0; width:100%; height:100%; cursor:pointer; }
+  .rad span { display:inline-flex; align-items:center; min-height:42px; padding:8px 15px; border:1.5px solid var(--line); border-radius:999px; font-size:13.5px; font-weight:700; background:transparent; }
+  .rad input:checked + span { background:var(--ink); border-color:var(--ink); color:var(--paper); }
+  .rad input:focus-visible + span { outline:3px solid var(--accent2); outline-offset:2px; }
+  .msg { margin-top:12px; min-height:4px; font-size:13px; font-weight:700; line-height:1.7; color:var(--accent); }
+  .sheet-actions { display:flex; gap:10px; position:sticky; bottom:0; margin:16px -18px 0; padding:12px 18px calc(12px + env(safe-area-inset-bottom)); background:var(--paper); border-top:1px solid rgba(181,169,138,0.45); }
+  .btn-primary { flex:1; min-height:48px; border:0; border-radius:12px; background:var(--accent2); color:#fff; font-size:15px; font-weight:800; cursor:pointer; }
+  .btn-primary:disabled { opacity:.5; cursor:default; }
+  .btn-ghost { min-height:48px; padding:0 20px; border:1.5px solid var(--line); border-radius:12px; background:transparent; color:var(--ink); font-size:14px; font-weight:800; cursor:pointer; }
+  .imp-help { margin-top:12px; font-size:13px; line-height:1.9; color:var(--muted); }
+  .imp-help summary { cursor:pointer; font-weight:800; color:var(--accent2); }
+  .imp-sum { margin-top:12px; font-size:14px; font-weight:700; }
+  .imp-err { color:var(--accent); }
+  .imp-errs { margin-top:4px; padding-inline-start:20px; font-size:12.5px; line-height:1.9; color:var(--accent); }
+  .imp-wrap { margin-top:10px; overflow-x:auto; border:1px solid rgba(181,169,138,0.6); border-radius:12px; background:#fff; }
+  .imp-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .imp-table th { text-align:start; padding:8px 10px; background:var(--cream); font-weight:800; }
+  .imp-table td { padding:8px 10px; border-top:1px solid rgba(181,169,138,0.4); vertical-align:top; }
+  .toast { position:fixed; left:50%; bottom:22px; z-index:400; max-width:90vw; padding:11px 20px; border-radius:999px; background:var(--ink); color:#fff; font-size:13.5px; font-weight:700; text-align:center; opacity:0; transform:translate(-50%, 16px); pointer-events:none; transition:opacity .25s, transform .25s; }
+  .toast.show { opacity:1; transform:translate(-50%, 0); }
+
+  .print-title { display:none; }
+  noscript { display:block; padding:24px; text-align:center; font-weight:700; }
+
+  @media (max-width:600px) {
+    .header { padding:12px 16px; gap:8px; position:static; }
+    .header h1 { font-size:16px; }
+    .hero { padding:20px 18px 16px; }
+    .lesson { grid-template-columns:56px minmax(0,1fr); gap:12px; }
+    .day-row { grid-template-columns:minmax(0,1fr); gap:2px; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    .lesson.flash { animation:none; }
+    .back-link, .hbtn, .toast { transition:none; }
+  }
+
+  /* ===== الطباعة: منهج السنة المختارة فقط ===== */
+  @media print {
+    body { background:#fff; padding:0; }
+    .header, .view-tabs, .pickers, .hero-actions, .day-nav, .day-actions, .past-toggle, .admin-bar, .l-actions, .foot, .toast, #modalRoot { display:none !important; }
+    .main { max-width:none; padding:0; }
+    .print-title { display:block; font-size:22px; font-weight:900; margin-bottom:12px; padding-bottom:8px; border-bottom:2px solid #000; }
+    .hide-past .lesson.past { display:grid !important; }
+    .hide-past .month.all-past { display:block !important; }
+    .hero { background:#fff; color:#000; border:2px solid #000; border-radius:0; padding:12px 14px; margin-top:0; }
+    .hero *, .hero .tag { color:#000 !important; border-color:#000 !important; background:transparent !important; }
+    .lesson, .lesson.past { opacity:1; background:none !important; break-inside:avoid; }
+    .l-day { color:#000; }
+    .month { break-inside:auto; }
+    .tag, .tag.today, .tag.next, .tag.boys, .tag.girls { background:none !important; color:#000 !important; border:1px solid #000 !important; }
+    .lesson.today { border-inline-start-color:#000; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <div class="header-icon" aria-hidden="true">📜</div>
+    <div>
+      <h1>منهج الكرازة</h1>
+      <div class="header-subtitle">كاتدرائية رئيس الملائكة الجليل ميخائيل — طنطا</div>
+    </div>
+  </div>
+  <a href="./index.html" class="back-link">↩️ الرجوع لنظام الغياب</a>
+</div>
+
+<main class="main">
+  <div class="view-tabs" role="tablist" aria-label="طريقة العرض">
+    <button type="button" role="tab" class="view-tab" id="tabYear" aria-controls="content" data-act="view" data-v="year">حسب السنة الدراسية</button>
+    <button type="button" role="tab" class="view-tab" id="tabDay" aria-controls="content" data-act="view" data-v="day">حسب اليوم</button>
+  </div>
+  <div id="adminbar"></div>
+  <div class="pickers" id="pickers"></div>
+  <div id="content" role="tabpanel"></div>
+  <footer class="foot" id="foot"></footer>
+</main>
+<div id="modalRoot"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<noscript>يلزم تفعيل JavaScript لعرض منهج الكرازة.</noscript>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+/* ============================================================
+   بيانات المنهج الاحتياطية (كل سطر = درس واحد)
+   تُستخدم فقط لو تعذر الاتصال بالسحابة ولا توجد نسخة محفوظة على الجهاز.
+   بعد تشغيل curriculum_setup.sql يُدار المنهج من الصفحة نفسها بواسطة المشرفين (🔒 دخول المشرفين أسفل الصفحة).
+
+   y     : معرّف السنة الدراسية — نفس معرّفات النظام:
+           nursery, kg1, kg2, p1…p6 (ابتدائي), e1…e3 (إعدادي), s1…s3 (ثانوي),
+           u1…u5 (جامعة), grad (اجتماع شباب), youth (خريجين)
+   d     : تاريخ اليوم بصيغة  YYYY-MM-DD  (مثال: 2026-11-06)
+   t     : عنوان الدرس
+   ref   : (اختياري) الإصحاح أو الآيات
+   verse : (اختياري) آية الحفظ
+   note  : (اختياري) ملاحظة أو نشاط
+   g     : (اختياري) 'boys' أو 'girls' لو الدرس لأحدهما فقط — وإذا تُرك فالدرس للبنين والبنات معاً
+   ============================================================ */
+const CURRICULUM_DATA = [
+  { y:'p1', d:'2026-10-30', t:'عرس قانا الجليل', ref:'يوحنا ٢: ١-١١' },
+];
+
+(function () {
+'use strict';
+
+/* ================= المراحل الدراسية (نفس STAGE_GROUPS في index.html) ================= */
+const GROUPS = [
+  { id:'kg',   icon:'🧸', name:'الحضانة ورياض الأطفال', short:'الحضانة', stages:[
+    { id:'nursery', name:'حضانة', short:'حضانة' }, { id:'kg1', name:'KG1 (روضة أولى)', short:'KG1' }, { id:'kg2', name:'KG2 (روضة ثانية)', short:'KG2' } ] },
+  { id:'prim', icon:'🎒', name:'المرحلة الابتدائية', short:'الابتدائية', stages:[
+    { id:'p1', name:'الأول الابتدائي', short:'١' }, { id:'p2', name:'الثاني الابتدائي', short:'٢' }, { id:'p3', name:'الثالث الابتدائي', short:'٣' },
+    { id:'p4', name:'الرابع الابتدائي', short:'٤' }, { id:'p5', name:'الخامس الابتدائي', short:'٥' }, { id:'p6', name:'السادس الابتدائي', short:'٦' } ] },
+  { id:'prep', icon:'📘', name:'المرحلة الإعدادية', short:'الإعدادية', stages:[
+    { id:'e1', name:'الأول الإعدادي', short:'١' }, { id:'e2', name:'الثاني الإعدادي', short:'٢' }, { id:'e3', name:'الثالث الإعدادي', short:'٣' } ] },
+  { id:'sec',  icon:'📗', name:'المرحلة الثانوية', short:'الثانوية', stages:[
+    { id:'s1', name:'الأول الثانوي', short:'١' }, { id:'s2', name:'الثاني الثانوي', short:'٢' }, { id:'s3', name:'الثالث الثانوي', short:'٣' } ] },
+  { id:'uni',  icon:'🎓', name:'المرحلة الجامعية', short:'الجامعية', stages:[
+    { id:'u1', name:'الفرقة الأولى (جامعة)', short:'١' }, { id:'u2', name:'الفرقة الثانية (جامعة)', short:'٢' }, { id:'u3', name:'الفرقة الثالثة (جامعة)', short:'٣' },
+    { id:'u4', name:'الفرقة الرابعة (جامعة)', short:'٤' }, { id:'u5', name:'الفرقة الخامسة فأعلى (جامعة)', short:'٥+' } ] },
+  { id:'grad', icon:'🧑‍💼', name:'الشباب والخريجين', short:'الشباب', stages:[
+    { id:'grad', name:'اجتماع شباب (بيك هنقدر)', short:'اجتماع الشباب' }, { id:'youth', name:'خريجين', short:'الخريجين' } ] }
+];
+const ALIAS = { m1:'e1', m2:'e2', m3:'e3' };           // معرّفات المكتبة الروحية القديمة للإعدادي
+const canon = id => ALIAS[id] || id;
+const STAGE = {}, GROUP_OF = {}, GROUP_BY_ID = {};
+GROUPS.forEach(g => { GROUP_BY_ID[g.id] = g; g.stages.forEach(s => { STAGE[s.id] = s; GROUP_OF[s.id] = g; }); });
+
+/* ================= التواريخ ================= */
+const AR_DAYS = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const ad = x => String(x).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'.charAt(d));          // أرقام عربية
+const pad = x => (x < 10 ? '0' : '') + x;
+function toISO(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function parseISO(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+  if (!m) return null;
+  const d = new Date(+m[1], +m[2] - 1, +m[3], 12);                                  // الظهر لتفادي مشاكل التوقيت الصيفي
+  return (d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3]) ? d : null;
+}
+const longDate = dt => AR_DAYS[dt.getDay()] + ' ' + ad(dt.getDate()) + ' ' + AR_MONTHS[dt.getMonth()] + ' ' + ad(dt.getFullYear());
+
+/* التاريخ القبطي من المتصفح نفسه (لو غير مدعوم لا يظهر شيء) */
+const COPTIC_FMT = (function () {
+  try {
+    const f = new Intl.DateTimeFormat('ar-EG-u-ca-coptic', { day:'numeric', month:'long', year:'numeric' });
+    return f.resolvedOptions().calendar === 'coptic' ? f : null;
+  } catch (e) { return null; }
+})();
+function copticOf(dt) {
+  if (!COPTIC_FMT) return null;
+  try {
+    const o = {};
+    COPTIC_FMT.formatToParts(dt).forEach(p => { if (p.type === 'day' || p.type === 'month' || p.type === 'year') o[p.type] = p.value; });
+    return (o.day && o.month && o.year) ? { day: ad(o.day), month: o.month, year: ad(o.year) } : null;
+  } catch (e) { return null; }
+}
+const copticShort = dt => { const c = copticOf(dt); return c ? c.day + ' ' + c.month : ''; };
+const copticFull  = dt => { const c = copticOf(dt); return c ? c.day + ' ' + c.month + ' ' + c.year : ''; };
+
+const TODAY = toISO(new Date());
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+/* ================= تجهيز البيانات ================= */
+let LESSONS = [], BY_YEAR = {}, HAS_GENDER = false;
+function setData(rows) {
+  const out = [];
+  rows.forEach(function (r, i) {
+    const y = canon(r && r.y), dt = parseISO(r && r.d);
+    if (!STAGE[y] || !dt || !r.t) { console.warn('منهج الكرازة: سطر غير صالح رقم ' + (i + 1), r); return; }
+    out.push({
+      id: r.id || '', y: y, d: r.d, dt: dt, t: String(r.t).trim(), ref: r.ref ? String(r.ref).trim() : '',
+      verse: r.verse ? String(r.verse).trim() : '', note: r.note ? String(r.note).trim() : '',
+      g: (r.g === 'boys' || r.g === 'girls') ? r.g : '', n: i
+    });
+  });
+  out.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : a.n - b.n));
+  LESSONS = out;
+  BY_YEAR = {};
+  out.forEach(l => { (BY_YEAR[l.y] = BY_YEAR[l.y] || []).push(l); });
+  HAS_GENDER = out.some(l => l.g);
+}
+
+/* ================= الحالة ================= */
+const LS_KEY = 'curriculum_last_year_v1';
+const qs = new URLSearchParams(location.search);
+const state = { view:'year', y:'p1', group:'prim', g:'all', d:'', showPast:false, scrollTo:'', hero:null,
+                cloud:'none', admin:null, user:'', autoYear:false, autoDay:false };
+const visible = l => state.g === 'all' || !l.g || l.g === state.g;
+const countYear = id => (BY_YEAR[id] || []).filter(visible).length;
+const countGroup = g => g.stages.reduce((a, s) => a + countYear(s.id), 0);
+function visibleDates() {
+  const seen = {}, out = [];
+  LESSONS.forEach(l => { if (visible(l) && !seen[l.d]) { seen[l.d] = 1; out.push(l.d); } });
+  return out;
+}
+function defaultDay() {
+  const ds = [], seen = {};
+  LESSONS.forEach(l => { if (!seen[l.d]) { seen[l.d] = 1; ds.push(l.d); } });
+  if (!ds.length || ds.indexOf(TODAY) > -1) return TODAY;
+  for (let i = 0; i < ds.length; i++) if (ds[i] > TODAY) return ds[i];
+  return ds[ds.length - 1];
+}
+function firstYearWithData() {
+  for (let i = 0; i < GROUPS.length; i++) for (let j = 0; j < GROUPS[i].stages.length; j++) if ((BY_YEAR[GROUPS[i].stages[j].id] || []).length) return GROUPS[i].stages[j].id;
+  return '';
+}
+function saveYear() { try { localStorage.setItem(LS_KEY, state.y); } catch (e) {} }
+function syncUrl() {
+  try {
+    const p = new URLSearchParams();
+    if (state.view === 'day') { p.set('v', 'day'); p.set('d', state.d); } else { p.set('y', state.y); }
+    if (state.g !== 'all') p.set('g', state.g);
+    history.replaceState(null, '', location.pathname + '?' + p.toString());
+  } catch (e) {}
+}
+
+/* ================= عناصر العرض ================= */
+const tagHtml = l => l.g ? '<span class="tag ' + l.g + '">' + (l.g === 'boys' ? 'بنين فقط' : 'بنات فقط') + '</span>' : '';
+
+function pickersHtml() {
+  let h = '';
+  if (state.view === 'year') {
+    h += '<div class="chips" role="group" aria-label="المرحلة الدراسية">' + GROUPS.map(g => {
+      return '<button type="button" class="chip' + (countGroup(g) ? '' : ' nodata') + '" data-act="group" data-id="' + g.id + '" aria-pressed="' + (state.group === g.id) + '">' +
+        g.icon + ' ' + esc(g.short) + '</button>';
+    }).join('') + '</div>';
+    h += '<div class="chips years" role="group" aria-label="السنة الدراسية">' + GROUP_BY_ID[state.group].stages.map(s => {
+      const isNum = /^[٠-٩]/.test(s.short);
+      return '<button type="button" class="chip' + (isNum ? ' num' : '') + (countYear(s.id) ? '' : ' nodata') + '" data-act="year" data-id="' + s.id + '" aria-pressed="' + (state.y === s.id) + '" aria-label="' + esc(s.name) + '" title="' + esc(s.name) + '">' +
+        esc(s.short) + '</button>';
+    }).join('') + '</div>';
+  }
+  if (HAS_GENDER) {
+    h += '<div class="chips" role="group" aria-label="بنين وبنات">' +
+      '<button type="button" class="chip" data-act="gender" data-g="all" aria-pressed="' + (state.g === 'all') + '">الكل</button>' +
+      '<button type="button" class="chip boys" data-act="gender" data-g="boys" aria-pressed="' + (state.g === 'boys') + '">👦 بنين</button>' +
+      '<button type="button" class="chip girls" data-act="gender" data-g="girls" aria-pressed="' + (state.g === 'girls') + '">👧 بنات</button></div>';
+  }
+  return h;
+}
+
+function rowHtml(l, nextDate) {
+  const cls = l.d === TODAY ? ' today' : (l.d < TODAY ? ' past' : '');
+  const cop = copticShort(l.dt);
+  let tags = '';
+  if (l.d === TODAY) tags += '<span class="tag today">اليوم</span>';
+  else if (nextDate && l.d === nextDate) tags += '<span class="tag next">القادم</span>';
+  tags += tagHtml(l);
+  return '<li class="lesson' + cls + '" data-d="' + l.d + '">' +
+    '<div class="l-date"><div class="l-day">' + ad(l.dt.getDate()) + '</div><div class="l-wd">' + AR_DAYS[l.dt.getDay()] + '</div>' + (cop ? '<div class="l-cop">' + esc(cop) + '</div>' : '') + '</div>' +
+    '<div class="l-body">' + (tags ? '<div class="l-tags">' + tags + '</div>' : '') + '<div class="l-title">' + esc(l.t) + '</div>' +
+      (l.ref ? '<div class="l-ref">' + esc(l.ref) + '</div>' : '') +
+      (l.verse ? '<div class="l-verse"><span>آية الحفظ</span>' + esc(l.verse) + '</div>' : '') +
+      (l.note ? '<div class="l-note">' + esc(l.note) + '</div>' : '') +
+      (state.admin && l.id ? '<div class="l-actions"><button type="button" class="mini" data-act="editLesson" data-id="' + esc(l.id) + '">✏️ تعديل</button>' +
+        '<button type="button" class="mini danger" data-act="delLesson" data-id="' + esc(l.id) + '">🗑️ حذف</button></div>' : '') + '</div></li>';
+}
+
+function monthsHtml(list, nextDate) {
+  const groups = [];
+  list.forEach(l => {
+    const key = l.d.slice(0, 7);
+    let g = groups[groups.length - 1];
+    if (!g || g.key !== key) { g = { key: key, dt: l.dt, rows: [] }; groups.push(g); }
+    g.rows.push(l);
+  });
+  return groups.map(g =>
+    '<section class="month' + (g.rows.every(l => l.d < TODAY) ? ' all-past' : '') + '"><h3 class="month-title">' +
+    AR_MONTHS[g.dt.getMonth()] + ' ' + ad(g.dt.getFullYear()) + '</h3><ul class="lessons">' +
+    g.rows.map(l => rowHtml(l, nextDate)).join('') + '</ul></section>').join('');
+}
+
+function yearHtml() {
+  const st = STAGE[state.y];
+  const all = (BY_YEAR[state.y] || []).filter(visible);
+  state.hero = null;
+  let h = '<p class="print-title">منهج الكرازة — ' + esc(st.name) + '</p>';
+  if (!all.length) {
+    return h + '<div class="empty"><b>لم يُضَف منهج ' + esc(st.name) + ' بعد</b>ستظهر دروس هذه السنة هنا فور إضافتها.' +
+      (state.admin ? '<br><button type="button" class="abtn" data-act="addLesson">➕ إضافة درس</button>' : '') + '</div>';
+  }
+  const today = all.filter(l => l.d === TODAY);
+  const upcoming = all.filter(l => l.d > TODAY);
+  const past = all.filter(l => l.d < TODAY);
+  let heroDate, label;
+  if (today.length) { heroDate = TODAY; label = 'درس اليوم'; }
+  else if (upcoming.length) { heroDate = upcoming[0].d; label = 'الدرس القادم'; }
+  else { heroDate = past[past.length - 1].d; label = 'آخر درس'; }
+  const heroLessons = all.filter(l => l.d === heroDate);
+  const hd = heroLessons[0].dt, cop = copticFull(hd);
+  state.hero = { stage: st.name, lessons: heroLessons };
+
+  h += '<section class="hero" aria-label="' + label + '"><div class="hero-top"><span class="hero-label">' + label + '</span><span class="hero-year">' + esc(st.name) + '</span></div>';
+  heroLessons.forEach((l, i) => {
+    h += '<div class="hero-lesson' + (i ? ' extra' : '') + '"><h2 class="hero-title">' + esc(l.t) + '</h2>' + tagHtml(l) +
+      (l.ref ? '<div class="hero-ref">' + esc(l.ref) + '</div>' : '') +
+      (l.verse ? '<blockquote class="hero-verse"><span class="vlabel">آية الحفظ</span>' + esc(l.verse) + '</blockquote>' : '') +
+      (l.note ? '<p class="hero-note">' + esc(l.note) + '</p>' : '') + '</div>';
+  });
+  h += '<div class="hero-meta"><span>' + longDate(hd) + '</span>' + (cop ? '<span>' + esc(cop) + '</span>' : '') + '</div>' +
+    '<div class="hero-actions"><button type="button" class="hbtn" data-act="share">📲 مشاركة الدرس</button>' +
+    '<button type="button" class="hbtn" data-act="print">🖨️ طباعة منهج السنة</button></div></section>';
+
+  const hasFuture = today.length || upcoming.length;
+  const showPast = state.showPast || !hasFuture;
+  if (past.length && hasFuture) h += '<button type="button" class="past-toggle" data-act="togglePast" aria-expanded="' + showPast + '">' +
+    (showPast ? 'إخفاء الدروس السابقة' : 'عرض الدروس السابقة (' + ad(past.length) + ')') + '</button>';
+  h += '<div class="lessons-wrap' + (showPast ? '' : ' hide-past') + '">' + monthsHtml(all, upcoming.length ? upcoming[0].d : '') + '</div>';
+  return h;
+}
+
+const CHEV_PREV = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+const CHEV_NEXT = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
+
+function dayHtml() {
+  const d = state.d, dt = parseISO(d) || new Date();
+  const dates = visibleDates();
+  let prev = '', next = '';
+  dates.forEach(x => { if (x < d) prev = x; if (x > d && !next) next = x; });
+  const cop = copticFull(dt);
+  let h = '<div class="day-nav">' +
+    '<button type="button" class="nav-btn" data-act="prev"' + (prev ? '' : ' disabled') + ' aria-label="أقرب يوم سابق به دروس">' + CHEV_PREV + '</button>' +
+    '<label class="day-card" data-act="pick"><span class="day-wd">' + AR_DAYS[dt.getDay()] + (d === TODAY ? ' <span class="tag today">اليوم</span>' : '') + '</span>' +
+      '<span class="day-main">' + ad(dt.getDate()) + ' ' + AR_MONTHS[dt.getMonth()] + ' ' + ad(dt.getFullYear()) + '</span>' +
+      (cop ? '<span class="day-cop">' + esc(cop) + '</span>' : '') +
+      '<span class="day-pick">📅 اختيار يوم آخر</span>' +
+      '<input type="date" id="dayInput" value="' + d + '" aria-label="اختيار تاريخ اليوم"></label>' +
+    '<button type="button" class="nav-btn" data-act="next"' + (next ? '' : ' disabled') + ' aria-label="أقرب يوم تالٍ به دروس">' + CHEV_NEXT + '</button></div>';
+  h += '<div class="day-actions">' + (d !== TODAY ? '<button type="button" class="link-btn" data-act="today">الرجوع إلى اليوم</button>' : '') + '</div>';
+
+  const rows = LESSONS.filter(l => l.d === d && visible(l));
+  if (!rows.length) {
+    return h + '<div class="empty"><b>لا توجد دروس مُدخلة لهذا اليوم</b>' +
+      (dates.length ? '<button type="button" class="link-btn" data-act="nearest">الذهاب إلى أقرب يوم به دروس</button>' : 'ستظهر الدروس هنا فور إضافتها.') + '</div>';
+  }
+  const have = {};
+  rows.forEach(r => { have[r.y] = 1; });
+  GROUPS.forEach(g => {
+    const items = g.stages.filter(s => have[s.id]);
+    if (!items.length) return;
+    h += '<section><h3 class="group-title">' + g.icon + ' ' + esc(g.name) + '</h3>';
+    items.forEach(s => {
+      rows.filter(r => r.y === s.id).forEach(r => {
+        h += '<button type="button" class="day-row" data-act="open" data-y="' + s.id + '" data-d="' + d + '"><span class="day-year">' + esc(s.name) + '</span>' +
+          '<span class="day-lesson"><b>' + esc(r.t) + '</b>' + (r.ref ? '<em>' + esc(r.ref) + '</em>' : '') + tagHtml(r) + '</span></button>';
+      });
+    });
+    h += '</section>';
+  });
+  h += '<p class="day-rest">لا توجد دروس مُدخلة لباقي السنوات في هذا اليوم.</p>';
+  return h;
+}
+
+/* ================= الرسم والأحداث ================= */
+const elPickers = document.getElementById('pickers');
+const elContent = document.getElementById('content');
+
+function render() {
+  document.getElementById('tabYear').setAttribute('aria-selected', state.view === 'year');
+  document.getElementById('tabDay').setAttribute('aria-selected', state.view === 'day');
+  elPickers.innerHTML = pickersHtml();
+  document.getElementById('adminbar').innerHTML = adminBarHtml();
+  elContent.innerHTML = state.view === 'year' ? yearHtml() : dayHtml();
+  document.getElementById('foot').innerHTML = footHtml();
+  syncUrl();
+  if (state.scrollTo) {
+    const row = elContent.querySelector('.lesson[data-d="' + state.scrollTo + '"]');
+    state.scrollTo = '';
+    if (row) {
+      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      row.scrollIntoView({ block:'center', behavior: reduce ? 'auto' : 'smooth' });
+      row.classList.add('flash');
+    }
+  }
+}
+
+function openWhatsApp(text) { window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank'); }
+function shareHero() {
+  const hs = state.hero;
+  if (!hs) return;
+  const dt = hs.lessons[0].dt, cop = copticFull(dt);
+  const lines = ['📜 منهج الكرازة — ' + hs.stage, longDate(dt) + (cop ? ' (' + cop + ')' : '')];
+  hs.lessons.forEach(l => {
+    lines.push('📖 ' + l.t + (l.ref ? ' (' + l.ref + ')' : ''));
+    if (l.verse) lines.push('آية الحفظ: ' + l.verse);
+  });
+  const text = lines.join('\n');
+  if (navigator.share) navigator.share({ text: text }).catch(function (err) { if (!err || err.name !== 'AbortError') openWhatsApp(text); });
+  else openWhatsApp(text);
+}
+
+document.addEventListener('click', function (e) {
+  if (e.target.classList && e.target.classList.contains('ov')) { closeModal(); return; }
+  const t = e.target.closest('[data-act]');
+  if (!t) return;
+  const act = t.dataset.act;
+  let focusSel = '';
+  switch (act) {
+    case 'view':
+      state.view = t.dataset.v === 'day' ? 'day' : 'year';
+      if (state.view === 'day' && !parseISO(state.d)) state.d = defaultDay();
+      focusSel = '#' + t.id;
+      break;
+    case 'group': {
+      const g = GROUP_BY_ID[t.dataset.id];
+      if (!g) return;
+      state.group = g.id; state.autoYear = false;
+      const withData = g.stages.filter(s => countYear(s.id));
+      state.y = (withData[0] || g.stages[0]).id;
+      state.showPast = false; saveYear();
+      focusSel = '[data-act="group"][data-id="' + g.id + '"]';
+      break;
+    }
+    case 'year':
+      if (!STAGE[t.dataset.id]) return;
+      state.y = t.dataset.id; state.group = GROUP_OF[state.y].id; state.showPast = false; state.autoYear = false; saveYear();
+      focusSel = '[data-act="year"][data-id="' + state.y + '"]';
+      break;
+    case 'gender':
+      state.g = t.dataset.g; focusSel = '[data-act="gender"][data-g="' + state.g + '"]';
+      break;
+    case 'prev': case 'next': {
+      const ds = visibleDates();
+      let target = '';
+      if (act === 'prev') ds.forEach(x => { if (x < state.d) target = x; });
+      else target = ds.filter(x => x > state.d)[0] || '';
+      if (!target) return;
+      state.d = target; state.autoDay = false; focusSel = '[data-act="' + act + '"]';
+      break;
+    }
+    case 'today': state.d = TODAY; state.autoDay = false; break;
+    case 'nearest': {
+      const ds = visibleDates(), cur = parseISO(state.d) || new Date();
+      let best = '', bestDiff = Infinity;
+      ds.forEach(x => { const diff = Math.abs(parseISO(x) - cur); if (diff < bestDiff) { bestDiff = diff; best = x; } });
+      if (best) { state.d = best; state.autoDay = false; }
+      break;
+    }
+    case 'togglePast': state.showPast = !state.showPast; focusSel = '[data-act="togglePast"]'; break;
+    case 'open': {
+      if (!STAGE[t.dataset.y]) return;
+      state.view = 'year'; state.y = t.dataset.y; state.group = GROUP_OF[state.y].id; state.autoYear = false;
+      state.scrollTo = t.dataset.d;
+      if (t.dataset.d < TODAY) state.showPast = true;
+      saveYear();
+      break;
+    }
+    case 'pick': {
+      const inp = document.getElementById('dayInput');
+      if (inp && inp.showPicker && e.target === inp) { try { inp.showPicker(); } catch (err) {} }
+      return;
+    }
+    case 'openLogin': openLogin(); return;
+    case 'logout': doLogout(); return;
+    case 'addLesson': openLessonForm(''); return;
+    case 'editLesson': openLessonForm(t.dataset.id); return;
+    case 'delLesson': deleteLesson(t.dataset.id); return;
+    case 'openImport': openImport(); return;
+    case 'impTemplate': downloadTemplate(); return;
+    case 'impGo': runImport(); return;
+    case 'closeModal': closeModal(); return;
+    case 'share': shareHero(); return;
+    case 'print': window.print(); return;
+    default: return;
+  }
+  render();
+  if (focusSel) { const el = document.querySelector(focusSel); if (el && !el.disabled) el.focus({ preventScroll:true }); }
+});
+
+document.addEventListener('change', function (e) {
+  const t = e.target;
+  if (!t) return;
+  if (t.id === 'dayInput' && parseISO(t.value)) { state.d = t.value; state.autoDay = false; render(); }
+  else if (t.id === 'impFile') handleImportFile(t.files && t.files[0]);
+  else if (t.id === 'impStage') renderImportPreview();
+});
+document.addEventListener('submit', function (e) {
+  const f = e.target;
+  if (!f || !f.id) return;
+  e.preventDefault();
+  if (f.id === 'loginForm') submitLogin(f);
+  else if (f.id === 'lessonForm') submitLesson(f);
+});
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && sb && !modalRoot.firstChild && Date.now() - lastFetch > 300000) fetchCloud().then(render);
+});
+
+/* ================= السحابة (Supabase) — نفس مشروع المكتبة الروحية ================= */
+const SUPABASE_URL = 'https://tnpokrdrhactzjrhlyjv.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRucG9rcmRyaGFjdHpqcmhseWp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMTg4MDYsImV4cCI6MjEwNjc5NDgwNn0.GAR0ckTxCGwHg4LeR1GAU5CTXnDLLpQkuY2lL6BycBw';
+const CACHE_KEY = 'curriculum_cache_v1';
+const modalRoot = document.getElementById('modalRoot');
+let sb = null, lastFetch = 0, fetching = false;
+try { if (window.supabase && window.supabase.createClient) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch (e) { sb = null; }
+
+const isMissing = err => /PGRST20[25]|42883|42P01|Could not find|schema cache/i.test(((err && err.code) || '') + ' ' + ((err && err.message) || ''));
+function mapError(err) {
+  const code = err && err.code, m = (err && err.message) || '';
+  if (isMissing(err)) return 'لم يتم تشغيل ملف curriculum_setup.sql على Supabase بعد.';
+  if (code === '42501') { loadSession().then(render); return 'انتهت جلسة الدخول أو لا توجد صلاحية — سجّل الدخول من جديد.'; }
+  if (code === '23505') return 'يوجد درس بنفس العنوان في نفس اليوم لنفس السنة.';
+  if (code === '23514') return 'أحد النصوص أطول من المسموح.';
+  return m || 'حدث خطأ غير متوقع.';
+}
+const fromDb = r => ({ id: r.id, y: r.stage, d: r.lesson_date, t: r.title, ref: r.ref, verse: r.verse, note: r.note, g: r.gender });
+function readCache() {
+  try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); return c && Array.isArray(c.rows) ? c : null; } catch (e) { return null; }
+}
+function writeCache(rows) { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), rows: rows })); } catch (e) {} }
+
+/* تحميل كل الدروس من السحابة (صفحات من 1000 صف) وحفظ نسخة على الجهاز للعمل بدون إنترنت */
+async function fetchCloud() {
+  if (!sb) { state.cloud = 'none'; return false; }
+  if (fetching) return false;
+  fetching = true; lastFetch = Date.now();
+  try {
+    const rows = [], size = 1000;
+    for (let from = 0; ; from += size) {
+      const res = await sb.from('curriculum_lessons')
+        .select('id,stage,lesson_date,title,ref,verse,note,gender')
+        .order('lesson_date', { ascending: true }).order('created_at', { ascending: true }).order('id', { ascending: true })
+        .range(from, from + size - 1);
+      if (res.error) throw res.error;
+      (res.data || []).forEach(r => rows.push(fromDb(r)));
+      if (!res.data || res.data.length < size) break;
+    }
+    setData(rows);
+    if (!HAS_GENDER) state.g = 'all';
+    writeCache(rows);
+    state.cloud = 'ok';
+    fetching = false;
+    return true;
+  } catch (err) {
+    state.cloud = isMissing(err) ? 'missing' : 'offline';
+    fetching = false;
+    return false;
+  }
+}
+
+/* هل يوجد مشرف مسجّل دخول؟ (الجلسة نفسها مشتركة مع لوحة المشرفين على نفس المتصفح) */
+async function loadSession() {
+  if (!sb) return;
+  try {
+    const s = await sb.auth.getSession();
+    const user = s && s.data && s.data.session && s.data.session.user;
+    if (!user) { state.admin = null; state.user = ''; return; }
+    state.user = user.email || '';
+    const res = await sb.rpc('curriculum_can_edit');
+    state.admin = (!res.error && res.data === true) ? { email: user.email || '' } : null;
+    if (res.error && isMissing(res.error)) state.cloud = 'missing';
+  } catch (e) { state.admin = null; }
+}
+
+/* ================= النوافذ والتنبيه ================= */
+let toastTimer = 0;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.classList.remove('show'); }, 3200);
+}
+function openModal(html) {
+  clearTimeout(toastTimer); document.getElementById('toast').classList.remove('show');
+  modalRoot.innerHTML = '<div class="ov"><div class="sheet" role="dialog" aria-modal="true">' + html + '</div></div>';
+  document.body.classList.add('modal-open');
+  const f = modalRoot.querySelector('input:not([type=file]):not([type=radio]):not([type=hidden]),select');
+  if (f) setTimeout(function () { try { f.focus(); } catch (e) {} }, 40);
+}
+function closeModal() { modalRoot.innerHTML = ''; document.body.classList.remove('modal-open'); }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modalRoot.firstChild) closeModal(); });
+
+/* ================= شريط المشرف والتذييل ================= */
+function adminBarHtml() {
+  if (!state.admin) return '';
+  return '<div class="admin-bar"><span class="ab-title">✏️ وضع التعديل</span><div class="ab-actions">' +
+    '<button type="button" class="abtn" data-act="addLesson">➕ إضافة درس</button>' +
+    '<button type="button" class="abtn alt" data-act="openImport">📥 استيراد من Excel</button></div></div>';
+}
+function footHtml() {
+  let h = '';
+  if (state.cloud === 'offline') h += '<span class="foot-warn">⚠️ تعذر الاتصال بالسحابة — يُعرض آخر منهج محفوظ على هذا الجهاز</span>';
+  else if (state.cloud === 'missing' && state.user) h += '<span class="foot-warn">⚠️ لم يتم تشغيل ملف curriculum_setup.sql على Supabase بعد</span>';
+  if (state.user) h += '<span>' + esc(state.user) + (state.admin ? '' : ' (غير مصرّح له بالتعديل)') + '</span><button type="button" class="link-btn" data-act="logout">خروج</button>';
+  else if (sb) h += '<button type="button" class="link-btn quiet" data-act="openLogin">🔒 دخول المشرفين</button>';
+  return h;
+}
+
+/* ================= دخول المشرفين ================= */
+function openLogin() {
+  if (!sb) { toast('يلزم اتصال بالإنترنت لدخول المشرفين'); return; }
+  openModal(
+    '<h3>🔒 دخول المشرفين</h3><p class="sub">استخدم نفس الإيميل وكلمة المرور الخاصة بلوحة المشرفين.</p>' +
+    '<form id="loginForm">' +
+      '<label class="fld"><span>الإيميل</span><input type="email" name="email" autocomplete="username" required dir="ltr"></label>' +
+      '<label class="fld"><span>كلمة المرور</span><input type="password" name="password" autocomplete="current-password" required dir="ltr"></label>' +
+      '<div class="msg" id="formMsg" role="alert"></div>' +
+      '<div class="sheet-actions"><button type="submit" class="btn-primary">دخول</button><button type="button" class="btn-ghost" data-act="closeModal">إلغاء</button></div>' +
+    '</form>');
+}
+async function submitLogin(form) {
+  const msg = document.getElementById('formMsg'), btn = form.querySelector('[type=submit]');
+  msg.textContent = ''; btn.disabled = true; btn.textContent = 'جاري الدخول...';
+  let err = '';
+  try {
+    const res = await sb.auth.signInWithPassword({ email: form.elements.email.value.trim(), password: form.elements.password.value });
+    if (res.error) err = 'الإيميل أو كلمة المرور غير صحيحة.';
+    else {
+      await loadSession();
+      if (!state.admin) err = state.cloud === 'missing'
+        ? 'تم الدخول، لكن ملف curriculum_setup.sql لم يُشغَّل على Supabase بعد.'
+        : 'تم الدخول، لكن هذا الحساب غير مصرّح له بتعديل المنهج. أضِف إيميله في القسم 7 من ملف curriculum_setup.sql.';
+    }
+  } catch (e) { err = 'تعذر الاتصال بالسحابة. تأكد من الإنترنت وحاول مرة أخرى.'; }
+  if (err) { msg.textContent = err; btn.disabled = false; btn.textContent = 'دخول'; render(); return; }
+  closeModal(); render(); toast('✅ تم الدخول — وضع التعديل مفعّل');
+}
+async function doLogout() {
+  try { await sb.auth.signOut({ scope: 'local' }); } catch (e) {}
+  state.admin = null; state.user = ''; render(); toast('تم تسجيل الخروج');
+}
+
+/* ================= إضافة / تعديل / حذف درس ================= */
+function stageOptions(sel) {
+  return GROUPS.map(g => '<optgroup label="' + esc(g.name) + '">' + g.stages.map(s =>
+    '<option value="' + s.id + '"' + (s.id === sel ? ' selected' : '') + '>' + esc(s.name) + '</option>').join('') + '</optgroup>').join('');
+}
+function suggestDate(stage) {                          // الجمعة التالية لآخر درس في السنة (أو أقرب جمعة)
+  const list = BY_YEAR[stage] || [];
+  let d;
+  if (list.length) { const last = list[list.length - 1].dt; d = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 7, 12); }
+  else { d = parseISO(TODAY); while (d.getDay() !== 5) d.setDate(d.getDate() + 1); }
+  return toISO(d);
+}
+function goTo(stage, date) {
+  state.view = 'year'; state.y = stage; state.group = GROUP_OF[stage].id; state.autoYear = false;
+  if (date) { state.scrollTo = date; if (date < TODAY) state.showPast = true; }
+  saveYear(); render();
+}
+function openLessonForm(id) {
+  if (!state.admin) return;
+  const l = id ? LESSONS.filter(x => x.id === id)[0] : null;
+  if (id && !l) return;
+  const stage = l ? l.y : state.y, g = l ? l.g : '';
+  const rad = (v, label) => '<label class="rad"><input type="radio" name="gender" value="' + v + '"' + (g === v ? ' checked' : '') + '><span>' + label + '</span></label>';
+  openModal(
+    '<h3>' + (l ? '✏️ تعديل الدرس' : '➕ إضافة درس') + '</h3>' +
+    '<form id="lessonForm" data-id="' + (l ? esc(l.id) : '') + '">' +
+      '<label class="fld"><span>السنة الدراسية</span><select name="stage">' + stageOptions(stage) + '</select></label>' +
+      '<label class="fld"><span>التاريخ</span><input type="date" name="date" required value="' + (l ? l.d : suggestDate(stage)) + '"></label>' +
+      '<label class="fld"><span>عنوان الدرس</span><input type="text" name="title" required maxlength="300" value="' + (l ? esc(l.t) : '') + '"></label>' +
+      '<label class="fld"><span>الإصحاح / الآيات <em>(اختياري)</em></span><input type="text" name="ref" maxlength="300" value="' + (l ? esc(l.ref) : '') + '"></label>' +
+      '<label class="fld"><span>آية الحفظ <em>(اختياري)</em></span><textarea name="verse" rows="2" maxlength="600">' + (l ? esc(l.verse) : '') + '</textarea></label>' +
+      '<label class="fld"><span>ملاحظة أو نشاط <em>(اختياري)</em></span><textarea name="note" rows="2" maxlength="1000">' + (l ? esc(l.note) : '') + '</textarea></label>' +
+      '<div class="fld"><span>الدرس لـ</span><div class="seg">' + rad('', 'بنين وبنات') + rad('boys', 'بنين فقط') + rad('girls', 'بنات فقط') + '</div></div>' +
+      '<div class="msg" id="formMsg" role="alert"></div>' +
+      '<div class="sheet-actions"><button type="submit" class="btn-primary">💾 حفظ الدرس</button><button type="button" class="btn-ghost" data-act="closeModal">إلغاء</button></div>' +
+    '</form>');
+}
+async function submitLesson(form) {
+  const f = form.elements, msg = document.getElementById('formMsg'), btn = form.querySelector('[type=submit]');
+  const checked = form.querySelector('input[name=gender]:checked');
+  const v = { stage: f.stage.value, date: f.date.value, title: f.title.value.trim(), ref: f.ref.value.trim(),
+              verse: f.verse.value.trim(), note: f.note.value.trim(), gender: checked ? checked.value : '' };
+  if (!v.title) { msg.textContent = 'اكتب عنوان الدرس.'; return; }
+  if (!parseISO(v.date)) { msg.textContent = 'اختر تاريخاً صحيحاً.'; return; }
+  btn.disabled = true; btn.textContent = 'جاري الحفظ...'; msg.textContent = '';
+  let res;
+  try {
+    res = await sb.rpc('curriculum_save', { p_id: form.dataset.id || null, p_stage: v.stage, p_date: v.date, p_title: v.title,
+                                            p_ref: v.ref, p_verse: v.verse, p_note: v.note, p_gender: v.gender });
+  } catch (e) { res = { error: { message: 'تعذر الاتصال بالسحابة. حاول مرة أخرى.' } }; }
+  if (res.error) { msg.textContent = mapError(res.error); btn.disabled = false; btn.textContent = '💾 حفظ الدرس'; return; }
+  closeModal();
+  await fetchCloud();
+  goTo(v.stage, v.date);
+  toast('✅ تم حفظ الدرس');
+}
+async function deleteLesson(id) {
+  const l = LESSONS.filter(x => x.id === id)[0];
+  if (!l || !state.admin) return;
+  if (!confirm('حذف درس «' + l.t + '» نهائياً؟')) return;
+  let res;
+  try { res = await sb.rpc('curriculum_delete', { p_id: id }); } catch (e) { res = { error: { message: 'تعذر الاتصال بالسحابة.' } }; }
+  if (res.error) { toast('تعذر الحذف: ' + mapError(res.error)); return; }
+  await fetchCloud(); render(); toast('🗑️ تم حذف الدرس');
+}
+
+/* ================= الاستيراد من Excel / CSV ================= */
+const impState = { aoa: null, res: null };
+
+function normAr(s) {
+  return String(s === undefined || s === null ? '' : s).toLowerCase()
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/[^\u0621-\u064Aa-z0-9]+/g, ' ').trim();
+}
+const HEAD_KEYS = {};
+[
+  ['date',   ['التاريخ', 'تاريخ', 'اليوم', 'date']],
+  ['title',  ['عنوان الدرس', 'الدرس', 'العنوان', 'اسم الدرس', 'title', 'lesson']],
+  ['ref',    ['الآيات', 'الإصحاح', 'الإصحاح والآيات', 'المرجع', 'ref', 'reference']],
+  ['verse',  ['آية الحفظ', 'الحفظ', 'verse']],
+  ['note',   ['ملاحظة', 'ملاحظات', 'نشاط', 'note', 'notes']],
+  ['gender', ['لمن', 'بنين وبنات', 'النوع', 'الفئة', 'gender']],
+  ['year',   ['السنة', 'السنة الدراسية', 'الفصل', 'المرحلة', 'year', 'stage']]
+].forEach(function (p) { p[1].forEach(function (h) { HEAD_KEYS[normAr(h)] = p[0]; }); });
+
+function toWestern(s) {
+  return String(s).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+}
+function parseCellDate(v) {
+  if (v === undefined || v === null || v === '') return '';
+  if (v instanceof Date) return isNaN(v) ? '' : toISO(new Date(v.getFullYear(), v.getMonth(), v.getDate(), 12));
+  if (typeof v === 'number') {                                        // رقم تاريخ Excel
+    if (v < 20000 || v > 80000) return '';
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(v) * 86400000);
+    const iso = d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
+    return parseISO(iso) ? iso : '';
+  }
+  const s = toWestern(v).trim();
+  let m = /^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/.exec(s), y, mo, d;
+  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else if ((m = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2}|\d{4})$/.exec(s))) { d = +m[1]; mo = +m[2]; y = +m[3]; if (y < 100) y += 2000; }   // يوم/شهر/سنة (مصر)
+  else return '';
+  const iso = y + '-' + pad(mo) + '-' + pad(d);
+  return parseISO(iso) ? iso : '';
+}
+function parseGender(s) {
+  const n = normAr(s);
+  if (!n || n === 'الكل' || n === 'الاثنين' || n === 'بنين وبنات' || n === 'بنين بنات' || n === 'both' || n === 'all') return '';
+  if (n === 'بنين' || n === 'ولاد' || n === 'ذكور' || n === 'boys' || n === 'boy') return 'boys';
+  if (n === 'بنات' || n === 'اناث' || n === 'girls' || n === 'girl') return 'girls';
+  return null;
+}
+function matchStage(s) {                                                // معرّف السنة أو اسمها بصيغ مختلفة
+  const raw = String(s).trim().toLowerCase();
+  if (STAGE[raw]) return raw;
+  if (ALIAS[raw]) return ALIAS[raw];
+  const n = normAr(s);
+  for (const id in STAGE) if (normAr(STAGE[id].name) === n) return id;
+  if (n.indexOf('خريج') > -1) return 'youth';
+  if (n.indexOf('شباب') > -1) return 'grad';
+  if (n.indexOf('حضانه') > -1) return 'nursery';
+  const toks = n.split(' ').map(t => t.replace(/^ال/, ''));
+  let num = 0, letter = '';
+  const ORD = [['اول', 1], ['ثاني', 2], ['ثالث', 3], ['رابع', 4], ['خامس', 5], ['سادس', 6]];
+  toks.forEach(function (t) {
+    ORD.forEach(function (o) { if (!num && t.indexOf(o[0]) === 0) num = o[1]; });
+    if (t.indexOf('ابتدا') === 0) letter = 'p';
+    else if (t.indexOf('اعداد') === 0) letter = 'e';
+    else if (t.indexOf('ثانو') === 0) letter = 's';
+    else if (t.indexOf('جامع') === 0 || t.indexOf('فرقه') === 0) letter = 'u';
+  });
+  return (num && letter && STAGE[letter + num]) ? letter + num : '';
+}
+function detectColumns(aoa) {
+  for (let i = 0; i < Math.min(aoa.length, 6); i++) {
+    const map = {}; let hits = 0;
+    (aoa[i] || []).forEach(function (c, j) { const k = HEAD_KEYS[normAr(c)]; if (k && map[k] === undefined) { map[k] = j; hits++; } });
+    if (map.title !== undefined && hits >= 2) return { map: map, start: i + 1, found: true };
+  }
+  return { map: { date: 0, title: 1, ref: 2, verse: 3, note: 4, gender: 5 }, start: 0, found: false };
+}
+function parseSheet(aoa, defaultStage) {
+  const det = detectColumns(aoa), m = det.map, rows = [], errors = [];
+  for (let i = det.start; i < aoa.length; i++) {
+    const row = aoa[i] || [];
+    const cell = k => (m[k] === undefined ? '' : row[m[k]]);
+    const txt = k => { const v = cell(k); return (v === undefined || v === null) ? '' : String(v).trim(); };
+    if (!row.some(c => String(c === undefined || c === null ? '' : c).trim() !== '')) continue;
+    const rawDate = cell('date'), date = parseCellDate(rawDate), title = txt('title');
+    if (!det.found && i === det.start && !date) continue;               // صف عناوين غير مفهوم
+    const line = i + 1;
+    if (!date) { errors.push({ line: line, msg: 'تاريخ غير مفهوم «' + String(rawDate).trim() + '»' }); continue; }
+    if (!title) { errors.push({ line: line, msg: 'عنوان الدرس فارغ' }); continue; }
+    let stage = defaultStage;
+    if (m.year !== undefined && txt('year')) {
+      stage = matchStage(txt('year'));
+      if (!stage) { errors.push({ line: line, msg: 'سنة غير معروفة «' + txt('year') + '»' }); continue; }
+    }
+    const g = parseGender(txt('gender'));
+    if (g === null) { errors.push({ line: line, msg: 'قيمة «لمن» غير مفهومة «' + txt('gender') + '»' }); continue; }
+    const ref = txt('ref'), verse = txt('verse'), note = txt('note');
+    if (title.length > 300 || ref.length > 300 || verse.length > 600 || note.length > 1000) { errors.push({ line: line, msg: 'نص أطول من المسموح' }); continue; }
+    rows.push({ line: line, stage: stage, date: date, title: title, ref: ref, verse: verse, note: note, gender: g });
+  }
+  return { rows: rows, errors: errors, found: det.found, hasYear: m.year !== undefined };
+}
+function parseCsv(text) {
+  text = text.replace(/^\uFEFF/, '');
+  const first = text.split(/\r?\n/, 1)[0] || '';
+  const cnt = c => first.split(c).length - 1;
+  const delim = (cnt('\t') > 0 && cnt('\t') >= cnt(';') && cnt('\t') >= cnt(',')) ? '\t' : (cnt(';') > cnt(',') ? ';' : ',');
+  const rows = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charAt(i);
+    if (q) { if (ch === '"') { if (text.charAt(i + 1) === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === delim) { row.push(cur); cur = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text.charAt(i + 1) === '\n') i++; row.push(cur); cur = ''; rows.push(row); row = []; }
+    else cur += ch;
+  }
+  if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+function readFile(file, mode, enc) {
+  return new Promise(function (res, rej) {
+    const fr = new FileReader();
+    fr.onload = function () { res(fr.result); };
+    fr.onerror = function () { rej(fr.error || new Error('read')); };
+    if (mode === 'text') fr.readAsText(file, enc || 'utf-8'); else fr.readAsArrayBuffer(file);
+  });
+}
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise(function (res, rej) {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = function () { window.XLSX ? res(window.XLSX) : rej(new Error('xlsx')); };
+    s.onerror = function () { rej(new Error('xlsx')); };
+    document.head.appendChild(s);
+  });
+}
+function openImport() {
+  if (!state.admin) return;
+  impState.aoa = null; impState.res = null;
+  openModal(
+    '<h3>📥 استيراد دروس من Excel</h3>' +
+    '<p class="sub">ملف Excel أو CSV فيه صف عناوين ثم صف لكل درس.</p>' +
+    '<label class="fld"><span>السنة الدراسية <em>(تُستخدم لو لا يوجد عمود «السنة» في الملف)</em></span><select id="impStage">' + stageOptions(state.y) + '</select></label>' +
+    '<label class="fld"><span>الملف</span><input type="file" id="impFile" accept=".xlsx,.xls,.csv"></label>' +
+    '<details class="imp-help"><summary>شكل الملف المطلوب</summary><div>' +
+      'أعمدة بهذه العناوين: <b>التاريخ</b> و<b>عنوان الدرس</b> و<b>الآيات</b> و<b>آية الحفظ</b> و<b>ملاحظة</b> و<b>لمن</b> (بنين / بنات / فارغ للاثنين)، ' +
+      'وعمود اختياري <b>السنة</b> (مثل «الأول الابتدائي») لاستيراد عدة سنوات في ملف واحد. ' +
+      'التاريخ مثل 2026-11-06 أو 6/11/2026. إعادة استيراد نفس الدرس (نفس السنة واليوم والعنوان) تحدّثه ولا تكرره.' +
+      '</div><button type="button" class="link-btn" data-act="impTemplate">تنزيل ملف نموذج</button></details>' +
+    '<div id="impPreview"></div>' +
+    '<div class="msg" id="formMsg" role="alert"></div>' +
+    '<div class="sheet-actions"><button type="button" class="btn-primary" id="impGo" data-act="impGo" disabled>استيراد</button><button type="button" class="btn-ghost" data-act="closeModal">إلغاء</button></div>');
+}
+async function handleImportFile(file) {
+  const prev = document.getElementById('impPreview'), msg = document.getElementById('formMsg');
+  msg.textContent = ''; impState.aoa = null; impState.res = null;
+  document.getElementById('impGo').disabled = true;
+  if (!file) { prev.innerHTML = ''; return; }
+  prev.innerHTML = '<p class="sub">جاري قراءة الملف...</p>';
+  try {
+    if (/\.csv$/i.test(file.name)) {
+      let text = await readFile(file, 'text', 'utf-8');
+      if (text.indexOf('\uFFFD') > -1) text = await readFile(file, 'text', 'windows-1256');   // ملفات Excel العربية القديمة
+      impState.aoa = parseCsv(text);
+    } else {
+      const XLSX = await loadXLSX();
+      const wb = XLSX.read(await readFile(file, 'buffer'), { type: 'array' });
+      impState.aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
+    }
+    renderImportPreview();
+  } catch (e) {
+    prev.innerHTML = '';
+    msg.textContent = 'تعذر قراءة الملف. تأكد أنه ملف Excel أو CSV سليم (وملفات Excel تحتاج إنترنت لتحميل مكتبة القراءة).';
+  }
+}
+function renderImportPreview() {
+  if (!impState.aoa) return;
+  const res = impState.res = parseSheet(impState.aoa, document.getElementById('impStage').value);
+  const prev = document.getElementById('impPreview'), go = document.getElementById('impGo');
+  let h = '';
+  if (!res.found) h += '<p class="sub">لم نجد صف العناوين، فاعتُمد الترتيب: التاريخ، العنوان، الآيات، آية الحفظ، ملاحظة، لمن.</p>';
+  h += '<p class="imp-sum"><b>' + ad(res.rows.length) + '</b> درس جاهز للاستيراد</p>';
+  if (res.errors.length) h += '<p class="imp-sum imp-err">' + ad(res.errors.length) + ' صف به مشكلة ولن يُستورد:</p><ul class="imp-errs">' +
+    res.errors.slice(0, 8).map(e => '<li>سطر ' + ad(e.line) + ': ' + esc(e.msg) + '</li>').join('') +
+    (res.errors.length > 8 ? '<li>… و' + ad(res.errors.length - 8) + ' أخرى</li>' : '') + '</ul>';
+  if (res.rows.length) {
+    h += '<div class="imp-wrap"><table class="imp-table"><thead><tr><th>اليوم</th>' + (res.hasYear ? '<th>السنة</th>' : '') + '<th>الدرس</th></tr></thead><tbody>' +
+      res.rows.slice(0, 8).map(r => '<tr><td>' + esc(longDate(parseISO(r.date))) + '</td>' + (res.hasYear ? '<td>' + esc(STAGE[r.stage].name) + '</td>' : '') +
+        '<td>' + esc(r.title) + (r.gender ? ' <span class="tag ' + r.gender + '">' + (r.gender === 'boys' ? 'بنين' : 'بنات') + '</span>' : '') + '</td></tr>').join('') +
+      '</tbody></table></div>' + (res.rows.length > 8 ? '<p class="sub">… و' + ad(res.rows.length - 8) + ' درس آخر</p>' : '');
+  }
+  prev.innerHTML = h;
+  go.disabled = !res.rows.length;
+  go.textContent = res.rows.length ? 'استيراد ' + ad(res.rows.length) + ' درس' : 'استيراد';
+}
+async function runImport() {
+  const res = impState.res, btn = document.getElementById('impGo'), msg = document.getElementById('formMsg');
+  if (!res || !res.rows.length) return;
+  btn.disabled = true; btn.textContent = 'جاري الاستيراد...'; msg.textContent = '';
+  let inserted = 0, updated = 0, done = 0;
+  try {
+    for (let i = 0; i < res.rows.length; i += 400) {
+      const chunk = res.rows.slice(i, i + 400).map(r => ({ stage: r.stage, date: r.date, title: r.title, ref: r.ref, verse: r.verse, note: r.note, gender: r.gender }));
+      const out = await sb.rpc('curriculum_import', { p_rows: chunk });
+      if (out.error) throw out.error;
+      inserted += (out.data && out.data.inserted) || 0; updated += (out.data && out.data.updated) || 0; done += chunk.length;
+    }
+  } catch (err) {
+    msg.textContent = 'توقف الاستيراد: ' + mapError(err) + (done ? ' (تم استيراد ' + ad(done) + ' درس قبل الخطأ)' : '');
+    btn.disabled = false; btn.textContent = 'إعادة المحاولة';
+    if (done) fetchCloud().then(render);
+    return;
+  }
+  const first = res.rows[0];
+  closeModal();
+  await fetchCloud();
+  goTo(first.stage, '');
+  toast('✅ تم الاستيراد: ' + ad(inserted) + ' جديد' + (updated ? ' و' + ad(updated) + ' محدَّث' : ''));
+}
+async function downloadTemplate() {
+  try {
+    const XLSX = await loadXLSX();
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['التاريخ', 'عنوان الدرس', 'الآيات', 'آية الحفظ', 'ملاحظة', 'لمن', 'السنة'],
+      ['2026-11-06', 'عرس قانا الجليل', 'يوحنا ٢: ١-١١', '', '', '', 'الأول الابتدائي'],
+      ['2026-11-13', 'مثال لدرس للبنات فقط', '', '', 'اكتب هنا أي ملاحظة', 'بنات', 'الأول الابتدائي']
+    ]);
+    ws['!cols'] = [{ wch: 14 }, { wch: 30 }, { wch: 18 }, { wch: 30 }, { wch: 24 }, { wch: 10 }, { wch: 20 }];
+    const wb = XLSX.utils.book_new();
+    wb.Workbook = { Views: [{ RTL: true }] };
+    XLSX.utils.book_append_sheet(wb, ws, 'المنهج');
+    XLSX.writeFile(wb, 'نموذج-منهج-الكرازة.xlsx');
+  } catch (e) { toast('تعذر إنشاء الملف — تأكد من الإنترنت'); }
+}
+
+/* ================= التشغيل ================= */
+(function init() {
+  const cached = readCache();
+  setData(cached ? cached.rows : CURRICULUM_DATA);            // أول عرض فوري من نسخة الجهاز أو البيانات الاحتياطية
+  const qy = canon(qs.get('y') || '');
+  let saved = '';
+  try { saved = canon(localStorage.getItem(LS_KEY) || ''); } catch (e) {}
+  state.autoYear = !STAGE[qy] && !STAGE[saved];
+  state.y = STAGE[qy] ? qy : (STAGE[saved] ? saved : (firstYearWithData() || 'p1'));
+  state.group = GROUP_OF[state.y].id;
+  const qg = qs.get('g');
+  let pendingG = (qg === 'boys' || qg === 'girls') ? qg : '';
+  state.g = (HAS_GENDER && pendingG) ? pendingG : 'all';
+  state.view = qs.get('v') === 'day' ? 'day' : 'year';
+  state.autoDay = !parseISO(qs.get('d'));
+  state.d = state.autoDay ? defaultDay() : qs.get('d');
+  render();
+  if (sb) {
+    fetchCloud().then(function () {                           // ثم تحديث من السحابة
+      if (state.autoYear) { const f = firstYearWithData(); if (f) { state.y = f; state.group = GROUP_OF[f].id; } }
+      if (state.autoDay) state.d = defaultDay();
+      if (pendingG && HAS_GENDER && state.g === 'all') state.g = pendingG;
+      pendingG = '';
+      render();
+    });
+    loadSession().then(render);
+  }
+})();
+})();
+</script>
+</body>
+</html>
