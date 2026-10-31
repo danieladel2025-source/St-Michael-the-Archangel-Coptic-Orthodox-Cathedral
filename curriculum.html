@@ -164,6 +164,20 @@
   .day-lesson b { display:block; font-size:16.5px; font-weight:800; line-height:1.55; }
   .day-lesson em { display:block; font-style:normal; font-family:'Amiri','Scheherazade New','Traditional Arabic',serif; font-size:16px; line-height:1.7; color:#57503f; }
   .day-lesson .tag { margin-top:4px; }
+  /* ===== الدور: الدرس الذي عليه الدور في كل سنة دراسية ===== */
+  .view-tab[hidden] { display:none; }
+  .turn-sum { margin:16px 0 0; font-size:13.5px; font-weight:800; color:var(--muted); }
+  .turn-row {
+    display:grid; grid-template-columns:150px minmax(0,1fr); gap:14px; align-items:start; width:100%; text-align:start;
+    padding:13px 6px; background:none; border:0; border-bottom:1px solid rgba(181,169,138,0.45); color:var(--ink); cursor:pointer; font-family:inherit;
+  }
+  .turn-row:hover { background:rgba(41,128,185,0.06); }
+  .turn-year { font-size:13.5px; font-weight:800; color:var(--accent2); padding-top:2px; }
+  .turn-lesson b { display:block; font-size:16.5px; font-weight:800; line-height:1.55; }
+  .turn-lesson em { display:block; font-style:normal; font-family:'Amiri','Scheherazade New','Traditional Arabic',serif; font-size:16px; line-height:1.7; color:#57503f; }
+  .turn-when { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:4px; font-size:12.5px; font-weight:700; color:var(--muted); }
+  .tag.last { border:1.5px solid var(--line); color:var(--muted); }
+  .turn-none { margin-top:20px; font-size:12.5px; font-weight:700; color:var(--muted); line-height:1.9; }
   .day-rest { margin-top:16px; font-size:12.5px; font-weight:700; color:var(--muted); text-align:center; }
 
   .empty {
@@ -228,7 +242,7 @@
     .header h1 { font-size:16px; }
     .hero { padding:20px 18px 16px; }
     .lesson { grid-template-columns:56px minmax(0,1fr); gap:12px; }
-    .day-row { grid-template-columns:minmax(0,1fr); gap:2px; }
+    .day-row, .turn-row { grid-template-columns:minmax(0,1fr); gap:2px; }
   }
   @media (prefers-reduced-motion:reduce) {
     .lesson.flash { animation:none; }
@@ -269,6 +283,7 @@
 <main class="main">
   <div class="view-tabs" role="tablist" aria-label="طريقة العرض">
     <button type="button" role="tab" class="view-tab" id="tabYear" aria-controls="content" data-act="view" data-v="year">حسب السنة الدراسية</button>
+    <button type="button" role="tab" class="view-tab" id="tabTurn" aria-controls="content" data-act="view" data-v="turn" hidden>الدور</button>
     <button type="button" role="tab" class="view-tab" id="tabDay" aria-controls="content" data-act="view" data-v="day">حسب اليوم</button>
   </div>
   <div id="adminbar"></div>
@@ -418,8 +433,9 @@ function syncUrl() {
   try {
     const p = new URLSearchParams();
     if (state.view === 'day') p.set('v', 'day'), p.set('d', state.d);
+    else if (state.view === 'turn') p.set('v', 'turn');
     const yy = state.admin ? state.y : state.mine;
-    if (yy && (state.view !== 'day' || !state.admin)) p.set('y', yy);
+    if (yy && state.view !== 'turn' && (state.view !== 'day' || !state.admin)) p.set('y', yy);
     history.replaceState(null, '', location.pathname + '?' + p.toString());
   } catch (e) {}
 }
@@ -533,6 +549,56 @@ function yearHtml() {
   return h;
 }
 
+/* ================= الدور: لكل سنة دراسية الدرس الذي عليه الدور ================= */
+/* درس اليوم إن وُجد، وإلا أقرب درس قادم، وإلا آخر درس مضى */
+function turnOf(sid) {
+  const all = BY_YEAR[sid] || [];
+  if (!all.length) return null;
+  const today = all.filter(l => l.d === TODAY), upcoming = all.filter(l => l.d > TODAY), past = all.filter(l => l.d < TODAY);
+  let date, kind;
+  if (today.length) { date = TODAY; kind = 'today'; }
+  else if (upcoming.length) { date = upcoming[0].d; kind = 'next'; }
+  else { date = past[past.length - 1].d; kind = 'last'; }
+  return { sid: sid, kind: kind, date: date, dt: parseISO(date), lessons: all.filter(l => l.d === date) };
+}
+function daysFromToday(dt) {
+  const t = parseISO(TODAY);
+  return Math.round((dt - t) / 86400000);
+}
+const daysWord = n => n === 1 ? 'يوم' : n === 2 ? 'يومين' : (n <= 10 ? ad(n) + ' أيام' : ad(n) + ' يومًا');
+function whenText(kind, dt) {
+  const n = daysFromToday(dt);
+  if (kind === 'today') return 'اليوم';
+  if (kind === 'next') return n === 1 ? 'غدًا' : 'بعد ' + daysWord(n);
+  return n === -1 ? 'أمس' : 'منذ ' + daysWord(-n);
+}
+function turnHtml() {
+  let h = '<p class="print-title">منهج الكرازة — الدور</p>', withTurn = 0, missing = [];
+  let body = '';
+  GROUPS.forEach(g => {
+    const items = g.stages.map(s => turnOf(s.id)).filter(Boolean);
+    g.stages.forEach(s => { if (!countYear(s.id)) missing.push(s.name); });
+    if (!items.length) return;
+    withTurn += items.length;
+    body += '<section><h3 class="group-title">' + g.icon + ' ' + esc(g.name) + '</h3>';
+    items.forEach(t => {
+      const st = STAGE[t.sid], cop = copticShort(t.dt);
+      const tag = t.kind === 'today' ? '<span class="tag today">اليوم</span>'
+        : t.kind === 'next' ? '<span class="tag next">القادم</span>' : '<span class="tag last">آخر درس</span>';
+      body += '<button type="button" class="turn-row" data-act="open" data-y="' + t.sid + '" data-d="' + t.date + '">' +
+        '<span class="turn-year">' + esc(st.name) + '</span><span class="turn-lesson">' +
+        t.lessons.map(l => '<b>' + esc(l.t) + '</b>' + (l.ref ? '<em>' + esc(l.ref) + '</em>' : '')).join('') +
+        '<span class="turn-when">' + tag + '<span>' + longDate(t.dt) + (cop ? ' — ' + esc(cop) : '') + '</span><span>(' + whenText(t.kind, t.dt) + ')</span></span>' +
+        '</span></button>';
+    });
+    body += '</section>';
+  });
+  if (!withTurn) return h + '<div class="empty"><b>لا توجد دروس مُدخلة بعد</b>سيظهر هنا الدور في كل سنة دراسية فور إضافة المناهج.</div>';
+  h += '<p class="turn-sum">الدور الآن في ' + ad(withTurn) + ' سنة دراسية — اضغط على أي سنة لفتح منهجها عند هذا الدرس.</p>' + body;
+  if (missing.length) h += '<p class="turn-none">لم يُضَف منهج بعد: ' + esc(missing.join('، ')) + '</p>';
+  return h;
+}
+
 const CHEV_PREV = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 const CHEV_NEXT = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
 
@@ -582,12 +648,16 @@ const elPickers = document.getElementById('pickers');
 const elContent = document.getElementById('content');
 
 function render() {
+  if (state.view === 'turn' && !state.admin && state.ready) state.view = 'year';   // «الدور» للمشرف فقط (الخادم يرى دور فصله في أعلى صفحة فصله)
+  document.getElementById('tabTurn').hidden = !state.admin;
   document.getElementById('tabYear').setAttribute('aria-selected', state.view === 'year');
+  document.getElementById('tabTurn').setAttribute('aria-selected', state.view === 'turn');
   document.getElementById('tabDay').setAttribute('aria-selected', state.view === 'day');
   document.getElementById('tabYear').textContent = state.admin ? 'حسب السنة الدراسية' : 'دروس فصلي';
   elPickers.innerHTML = pickersHtml();
   document.getElementById('adminbar').innerHTML = adminBarHtml();
-  elContent.innerHTML = state.view === 'year' ? yearHtml() : dayHtml();
+  elContent.innerHTML = state.view === 'year' ? yearHtml()
+    : (state.view === 'turn' ? (state.admin ? turnHtml() : '<div class="empty"><b>جاري التحميل…</b></div>') : dayHtml());
   document.getElementById('foot').innerHTML = footHtml();
   syncUrl();
   if (state.scrollTo) {
@@ -624,7 +694,7 @@ document.addEventListener('click', function (e) {
   let focusSel = '';
   switch (act) {
     case 'view':
-      state.view = t.dataset.v === 'day' ? 'day' : 'year';
+      state.view = t.dataset.v === 'day' ? 'day' : (t.dataset.v === 'turn' && state.admin ? 'turn' : 'year');
       if (state.view === 'day' && !parseISO(state.d)) state.d = defaultDay();
       focusSel = '#' + t.id;
       break;
@@ -1160,7 +1230,7 @@ async function downloadTemplate() {
   if (state.mine) saveMine();
   state.group = GROUP_OF[state.mine || state.y].id;
   state.ready = !sb;
-  state.view = qs.get('v') === 'day' ? 'day' : 'year';
+  state.view = qs.get('v') === 'day' ? 'day' : (qs.get('v') === 'turn' ? 'turn' : 'year');
   state.autoDay = !parseISO(qs.get('d'));
   state.d = state.autoDay ? defaultDay() : qs.get('d');
   render();
