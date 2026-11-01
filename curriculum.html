@@ -102,6 +102,7 @@
     background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3); color:#fff; transition:background .2s;
   }
   .hbtn:hover { background:rgba(255,255,255,0.2); }
+  .hbtn:disabled { opacity:.6; cursor:progress; }
 
   /* ===== قائمة الدروس (على طريقة القطمارس: التاريخ بالأحمر ثم الدرس) ===== */
   .past-toggle {
@@ -164,20 +165,6 @@
   .day-lesson b { display:block; font-size:16.5px; font-weight:800; line-height:1.55; }
   .day-lesson em { display:block; font-style:normal; font-family:'Amiri','Scheherazade New','Traditional Arabic',serif; font-size:16px; line-height:1.7; color:#57503f; }
   .day-lesson .tag { margin-top:4px; }
-  /* ===== الدور: الدرس الذي عليه الدور في كل سنة دراسية ===== */
-  .view-tab[hidden] { display:none; }
-  .turn-sum { margin:16px 0 0; font-size:13.5px; font-weight:800; color:var(--muted); }
-  .turn-row {
-    display:grid; grid-template-columns:150px minmax(0,1fr); gap:14px; align-items:start; width:100%; text-align:start;
-    padding:13px 6px; background:none; border:0; border-bottom:1px solid rgba(181,169,138,0.45); color:var(--ink); cursor:pointer; font-family:inherit;
-  }
-  .turn-row:hover { background:rgba(41,128,185,0.06); }
-  .turn-year { font-size:13.5px; font-weight:800; color:var(--accent2); padding-top:2px; }
-  .turn-lesson b { display:block; font-size:16.5px; font-weight:800; line-height:1.55; }
-  .turn-lesson em { display:block; font-style:normal; font-family:'Amiri','Scheherazade New','Traditional Arabic',serif; font-size:16px; line-height:1.7; color:#57503f; }
-  .turn-when { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:4px; font-size:12.5px; font-weight:700; color:var(--muted); }
-  .tag.last { border:1.5px solid var(--line); color:var(--muted); }
-  .turn-none { margin-top:20px; font-size:12.5px; font-weight:700; color:var(--muted); line-height:1.9; }
   .day-rest { margin-top:16px; font-size:12.5px; font-weight:700; color:var(--muted); text-align:center; }
 
   .empty {
@@ -242,7 +229,7 @@
     .header h1 { font-size:16px; }
     .hero { padding:20px 18px 16px; }
     .lesson { grid-template-columns:56px minmax(0,1fr); gap:12px; }
-    .day-row, .turn-row { grid-template-columns:minmax(0,1fr); gap:2px; }
+    .day-row { grid-template-columns:minmax(0,1fr); gap:2px; }
   }
   @media (prefers-reduced-motion:reduce) {
     .lesson.flash { animation:none; }
@@ -283,7 +270,6 @@
 <main class="main">
   <div class="view-tabs" role="tablist" aria-label="طريقة العرض">
     <button type="button" role="tab" class="view-tab" id="tabYear" aria-controls="content" data-act="view" data-v="year">حسب السنة الدراسية</button>
-    <button type="button" role="tab" class="view-tab" id="tabTurn" aria-controls="content" data-act="view" data-v="turn" hidden>الدور</button>
     <button type="button" role="tab" class="view-tab" id="tabDay" aria-controls="content" data-act="view" data-v="day">حسب اليوم</button>
   </div>
   <div id="adminbar"></div>
@@ -433,9 +419,8 @@ function syncUrl() {
   try {
     const p = new URLSearchParams();
     if (state.view === 'day') p.set('v', 'day'), p.set('d', state.d);
-    else if (state.view === 'turn') p.set('v', 'turn');
     const yy = state.admin ? state.y : state.mine;
-    if (yy && state.view !== 'turn' && (state.view !== 'day' || !state.admin)) p.set('y', yy);
+    if (yy && (state.view !== 'day' || !state.admin)) p.set('y', yy);
     history.replaceState(null, '', location.pathname + '?' + p.toString());
   } catch (e) {}
 }
@@ -539,63 +524,13 @@ function yearHtml() {
   });
   h += '<div class="hero-meta"><span>' + longDate(hd) + '</span>' + (cop ? '<span>' + esc(cop) + '</span>' : '') + '</div>' +
     '<div class="hero-actions"><button type="button" class="hbtn" data-act="share">📲 مشاركة الدرس</button>' +
-    '<button type="button" class="hbtn" data-act="print">🖨️ طباعة منهج السنة</button></div></section>';
+    '<button type="button" class="hbtn" data-act="pdf">⬇️ تحميل منهج السنة (PDF)</button></div></section>';
 
   const hasFuture = today.length || upcoming.length;
   const showPast = state.showPast || !hasFuture;
   if (past.length && hasFuture) h += '<button type="button" class="past-toggle" data-act="togglePast" aria-expanded="' + showPast + '">' +
     (showPast ? 'إخفاء الدروس السابقة' : 'عرض الدروس السابقة (' + ad(past.length) + ')') + '</button>';
   h += '<div class="lessons-wrap' + (showPast ? '' : ' hide-past') + '">' + monthsHtml(all, upcoming.length ? upcoming[0].d : '') + '</div>';
-  return h;
-}
-
-/* ================= الدور: لكل سنة دراسية الدرس الذي عليه الدور ================= */
-/* درس اليوم إن وُجد، وإلا أقرب درس قادم، وإلا آخر درس مضى */
-function turnOf(sid) {
-  const all = BY_YEAR[sid] || [];
-  if (!all.length) return null;
-  const today = all.filter(l => l.d === TODAY), upcoming = all.filter(l => l.d > TODAY), past = all.filter(l => l.d < TODAY);
-  let date, kind;
-  if (today.length) { date = TODAY; kind = 'today'; }
-  else if (upcoming.length) { date = upcoming[0].d; kind = 'next'; }
-  else { date = past[past.length - 1].d; kind = 'last'; }
-  return { sid: sid, kind: kind, date: date, dt: parseISO(date), lessons: all.filter(l => l.d === date) };
-}
-function daysFromToday(dt) {
-  const t = parseISO(TODAY);
-  return Math.round((dt - t) / 86400000);
-}
-const daysWord = n => n === 1 ? 'يوم' : n === 2 ? 'يومين' : (n <= 10 ? ad(n) + ' أيام' : ad(n) + ' يومًا');
-function whenText(kind, dt) {
-  const n = daysFromToday(dt);
-  if (kind === 'today') return 'اليوم';
-  if (kind === 'next') return n === 1 ? 'غدًا' : 'بعد ' + daysWord(n);
-  return n === -1 ? 'أمس' : 'منذ ' + daysWord(-n);
-}
-function turnHtml() {
-  let h = '<p class="print-title">منهج الكرازة — الدور</p>', withTurn = 0, missing = [];
-  let body = '';
-  GROUPS.forEach(g => {
-    const items = g.stages.map(s => turnOf(s.id)).filter(Boolean);
-    g.stages.forEach(s => { if (!countYear(s.id)) missing.push(s.name); });
-    if (!items.length) return;
-    withTurn += items.length;
-    body += '<section><h3 class="group-title">' + g.icon + ' ' + esc(g.name) + '</h3>';
-    items.forEach(t => {
-      const st = STAGE[t.sid], cop = copticShort(t.dt);
-      const tag = t.kind === 'today' ? '<span class="tag today">اليوم</span>'
-        : t.kind === 'next' ? '<span class="tag next">القادم</span>' : '<span class="tag last">آخر درس</span>';
-      body += '<button type="button" class="turn-row" data-act="open" data-y="' + t.sid + '" data-d="' + t.date + '">' +
-        '<span class="turn-year">' + esc(st.name) + '</span><span class="turn-lesson">' +
-        t.lessons.map(l => '<b>' + esc(l.t) + '</b>' + (l.ref ? '<em>' + esc(l.ref) + '</em>' : '')).join('') +
-        '<span class="turn-when">' + tag + '<span>' + longDate(t.dt) + (cop ? ' — ' + esc(cop) : '') + '</span><span>(' + whenText(t.kind, t.dt) + ')</span></span>' +
-        '</span></button>';
-    });
-    body += '</section>';
-  });
-  if (!withTurn) return h + '<div class="empty"><b>لا توجد دروس مُدخلة بعد</b>سيظهر هنا الدور في كل سنة دراسية فور إضافة المناهج.</div>';
-  h += '<p class="turn-sum">الدور الآن في ' + ad(withTurn) + ' سنة دراسية — اضغط على أي سنة لفتح منهجها عند هذا الدرس.</p>' + body;
-  if (missing.length) h += '<p class="turn-none">لم يُضَف منهج بعد: ' + esc(missing.join('، ')) + '</p>';
   return h;
 }
 
@@ -648,16 +583,12 @@ const elPickers = document.getElementById('pickers');
 const elContent = document.getElementById('content');
 
 function render() {
-  if (state.view === 'turn' && !state.admin && state.ready) state.view = 'year';   // «الدور» للمشرف فقط (الخادم يرى دور فصله في أعلى صفحة فصله)
-  document.getElementById('tabTurn').hidden = !state.admin;
   document.getElementById('tabYear').setAttribute('aria-selected', state.view === 'year');
-  document.getElementById('tabTurn').setAttribute('aria-selected', state.view === 'turn');
   document.getElementById('tabDay').setAttribute('aria-selected', state.view === 'day');
   document.getElementById('tabYear').textContent = state.admin ? 'حسب السنة الدراسية' : 'دروس فصلي';
   elPickers.innerHTML = pickersHtml();
   document.getElementById('adminbar').innerHTML = adminBarHtml();
-  elContent.innerHTML = state.view === 'year' ? yearHtml()
-    : (state.view === 'turn' ? (state.admin ? turnHtml() : '<div class="empty"><b>جاري التحميل…</b></div>') : dayHtml());
+  elContent.innerHTML = state.view === 'year' ? yearHtml() : dayHtml();
   document.getElementById('foot').innerHTML = footHtml();
   syncUrl();
   if (state.scrollTo) {
@@ -694,7 +625,7 @@ document.addEventListener('click', function (e) {
   let focusSel = '';
   switch (act) {
     case 'view':
-      state.view = t.dataset.v === 'day' ? 'day' : (t.dataset.v === 'turn' && state.admin ? 'turn' : 'year');
+      state.view = t.dataset.v === 'day' ? 'day' : 'year';
       if (state.view === 'day' && !parseISO(state.d)) state.d = defaultDay();
       focusSel = '#' + t.id;
       break;
@@ -762,11 +693,10 @@ document.addEventListener('click', function (e) {
     case 'editLesson': openLessonForm(t.dataset.id); return;
     case 'delLesson': deleteLesson(t.dataset.id); return;
     case 'openImport': openImport(); return;
-    case 'impTemplate': downloadTemplate(); return;
     case 'impGo': runImport(); return;
     case 'closeModal': closeModal(); return;
     case 'share': shareHero(); return;
-    case 'print': window.print(); return;
+    case 'pdf': downloadYearPdf(); return;
     default: return;
   }
   render();
@@ -778,7 +708,6 @@ document.addEventListener('change', function (e) {
   if (!t) return;
   if (t.id === 'dayInput' && parseISO(t.value)) { state.d = t.value; state.autoDay = false; render(); }
   else if (t.id === 'impFile') handleImportFile(t.files && t.files[0]);
-  else if (t.id === 'impStage') renderImportPreview();
 });
 document.addEventListener('submit', function (e) {
   const f = e.target;
@@ -881,7 +810,7 @@ function adminBarHtml() {
   if (!state.admin) return '';
   return '<div class="admin-bar"><span class="ab-title">✏️ وضع التعديل</span><div class="ab-actions">' +
     '<button type="button" class="abtn" data-act="addLesson">➕ إضافة درس</button>' +
-    '<button type="button" class="abtn alt" data-act="openImport">📥 استيراد من Excel</button></div></div>';
+    '<button type="button" class="abtn alt" data-act="openImport">📥 استرداد ملف PDF</button></div></div>';
 }
 function footHtml() {
   let h = '';
@@ -990,195 +919,350 @@ async function deleteLesson(id) {
   await fetchCloud(); render(); toast('🗑️ تم حذف الدرس');
 }
 
-/* ================= الاستيراد من Excel / CSV ================= */
-const impState = { aoa: null, res: null };
+/* ================= تحميل منهج السنة كملف PDF مباشر (بدون نافذة الطباعة) =================
+   نرسم صفحات A4 على canvas (المتصفح نفسه يشكّل الحروف العربية ويضبط الاتجاه) ثم نحوّل كل صفحة إلى JPEG
+   ونجمعها في ملف PDF بدون أي مكتبة خارجية. ونحفظ داخل خصائص الملف نسخة مقروءة آليًا من الدروس
+   (المفاتيح CurriculumData0 و1 و2…) ليسترجعها زر «استرداد ملف PDF» بدقة كاملة. */
+const PDF_K = 2, PDF_W = 794 * PDF_K, PDF_H = 1123 * PDF_K;      // A4 بدقة ~192 نقطة/بوصة
+const PDF_KEY = 'CurriculumData', PDF_CHUNK = 4000;
+const PDF_CAIRO = "'Cairo','Segoe UI',Tahoma,sans-serif";
+const PDF_AMIRI = "'Amiri','Scheherazade New','Traditional Arabic',serif";
+const PDF_INK = '#0d1117', PDF_RED = '#c8392b', PDF_BLUE = '#2980b9', PDF_MUTED = '#6a6352', PDF_LINE = 'rgba(181,169,138,0.75)';
+const pdfFont = (w, px, fam) => w + ' ' + (px * PDF_K) + 'px ' + fam;
 
-function normAr(s) {
-  return String(s === undefined || s === null ? '' : s).toLowerCase()
-    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
-    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
-    .replace(/[^\u0621-\u064Aa-z0-9]+/g, ' ').trim();
+async function pdfFontsReady() {                         // نتأكد أن خطوط الصفحة (Cairo/Amiri) جاهزة قبل الرسم
+  const sample = 'منهج الكرازة آية الحفظ ٠١٢٣٤٥٦٧٨٩';
+  try {
+    await Promise.all(['400 30px Cairo', '600 30px Cairo', '700 30px Cairo', '900 30px Cairo', '400 30px Amiri']
+      .map(function (f) { return document.fonts.load(f, sample); }));
+    await document.fonts.ready;
+  } catch (e) {}
 }
-const HEAD_KEYS = {};
-[
-  ['date',   ['التاريخ', 'تاريخ', 'اليوم', 'date']],
-  ['title',  ['عنوان الدرس', 'الدرس', 'العنوان', 'اسم الدرس', 'title', 'lesson']],
-  ['ref',    ['الآيات', 'الإصحاح', 'الإصحاح والآيات', 'المرجع', 'ref', 'reference']],
-  ['verse',  ['آية الحفظ', 'الحفظ', 'verse']],
-  ['note',   ['ملاحظة', 'ملاحظات', 'نشاط', 'note', 'notes']],
-  ['year',   ['السنة', 'السنة الدراسية', 'الفصل', 'المرحلة', 'year', 'stage']]
-].forEach(function (p) { p[1].forEach(function (h) { HEAD_KEYS[normAr(h)] = p[0]; }); });
 
-function toWestern(s) {
-  return String(s).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
-}
-function parseCellDate(v) {
-  if (v === undefined || v === null || v === '') return '';
-  if (v instanceof Date) return isNaN(v) ? '' : toISO(new Date(v.getFullYear(), v.getMonth(), v.getDate(), 12));
-  if (typeof v === 'number') {                                        // رقم تاريخ Excel
-    if (v < 20000 || v > 80000) return '';
-    const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(v) * 86400000);
-    const iso = d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
-    return parseISO(iso) ? iso : '';
+/* توزيع الدروس على الصفحات: يرجع قائمة صفحات، وكل صفحة قائمة أوامر رسم (نص / خط) */
+function layoutPdf(st, list) {
+  const K = PDF_K, M = 56 * K, R = PDF_W - M, L = M, TOP = M, BOTTOM = PDF_H - M - 24 * K;
+  const RUN_H = 40 * K;                                   // ارتفاع الترويسة الصغيرة في الصفحات التالية
+  const mc = document.createElement('canvas').getContext('2d');
+  mc.direction = 'rtl';
+  const pages = [];
+  let ops = null, y = 0;
+  const T = (s, x, yy, f, c, a) => ops.push({ k:'t', s:s, x:x, y:yy, f:f, c:c, a:a || 'right' });
+  const Ln = (x1, y1, x2, y2, c, w) => ops.push({ k:'l', x1:x1, y1:y1, x2:x2, y2:y2, c:c, w:w });
+
+  function wrap(text, f, maxW) {                          // تقسيم النص إلى أسطر حسب العرض المتاح
+    mc.font = f;
+    const out = [];
+    String(text).split(/\r?\n/).forEach(function (par) {
+      let line = '';
+      par.split(/\s+/).filter(Boolean).forEach(function (w) {
+        const t = line ? line + ' ' + w : w;
+        if (line && mc.measureText(t).width > maxW) { out.push(line); line = w; } else line = t;
+      });
+      if (line) out.push(line);
+    });
+    return out.length ? out : [''];
   }
-  const s = toWestern(v).trim();
-  let m = /^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/.exec(s), y, mo, d;
-  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
-  else if ((m = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2}|\d{4})$/.exec(s))) { d = +m[1]; mo = +m[2]; y = +m[3]; if (y < 100) y += 2000; }   // يوم/شهر/سنة (مصر)
-  else return '';
-  const iso = y + '-' + pad(mo) + '-' + pad(d);
-  return parseISO(iso) ? iso : '';
-}
-function matchStage(s) {                                                // معرّف السنة أو اسمها بصيغ مختلفة
-  const raw = String(s).trim().toLowerCase();
-  if (STAGE[raw]) return raw;
-  if (ALIAS[raw]) return ALIAS[raw];
-  const n = normAr(s);
-  for (const id in STAGE) if (normAr(STAGE[id].name) === n) return id;
-  if (n.indexOf('خريج') > -1) return 'youth';
-  if (n.indexOf('شباب') > -1) return 'grad';
-  if (n.indexOf('حضانه') > -1) return 'nursery';
-  const toks = n.split(' ').map(t => t.replace(/^ال/, ''));
-  let num = 0, letter = '';
-  const ORD = [['اول', 1], ['ثاني', 2], ['ثالث', 3], ['رابع', 4], ['خامس', 5], ['سادس', 6]];
-  toks.forEach(function (t) {
-    ORD.forEach(function (o) { if (!num && t.indexOf(o[0]) === 0) num = o[1]; });
-    if (t.indexOf('ابتدا') === 0) letter = 'p';
-    else if (t.indexOf('اعداد') === 0) letter = 'e';
-    else if (t.indexOf('ثانو') === 0) letter = 's';
-    else if (t.indexOf('جامع') === 0 || t.indexOf('فرقه') === 0) letter = 'u';
-  });
-  return (num && letter && STAGE[letter + num]) ? letter + num : '';
-}
-function detectColumns(aoa) {
-  for (let i = 0; i < Math.min(aoa.length, 6); i++) {
-    const map = {}; let hits = 0;
-    (aoa[i] || []).forEach(function (c, j) { const k = HEAD_KEYS[normAr(c)]; if (k && map[k] === undefined) { map[k] = j; hits++; } });
-    if (map.title !== undefined && hits >= 2) return { map: map, start: i + 1, found: true };
-  }
-  return { map: { date: 0, title: 1, ref: 2, verse: 3, note: 4 }, start: 0, found: false };
-}
-function parseSheet(aoa, defaultStage) {
-  const det = detectColumns(aoa), m = det.map, rows = [], errors = [];
-  for (let i = det.start; i < aoa.length; i++) {
-    const row = aoa[i] || [];
-    const cell = k => (m[k] === undefined ? '' : row[m[k]]);
-    const txt = k => { const v = cell(k); return (v === undefined || v === null) ? '' : String(v).trim(); };
-    if (!row.some(c => String(c === undefined || c === null ? '' : c).trim() !== '')) continue;
-    const rawDate = cell('date'), date = parseCellDate(rawDate), title = txt('title');
-    if (!det.found && i === det.start && !date) continue;               // صف عناوين غير مفهوم
-    const line = i + 1;
-    if (!date) { errors.push({ line: line, msg: 'تاريخ غير مفهوم «' + String(rawDate).trim() + '»' }); continue; }
-    if (!title) { errors.push({ line: line, msg: 'عنوان الدرس فارغ' }); continue; }
-    let stage = defaultStage;
-    if (m.year !== undefined && txt('year')) {
-      stage = matchStage(txt('year'));
-      if (!stage) { errors.push({ line: line, msg: 'سنة غير معروفة «' + txt('year') + '»' }); continue; }
+  function newPage() {
+    ops = []; pages.push(ops); y = TOP;
+    if (pages.length > 1) {                               // ترويسة صغيرة في الصفحات التالية
+      T('منهج الكرازة — ' + st.name, R, y + 12 * K, pdfFont(700, 13, PDF_CAIRO), PDF_MUTED);
+      Ln(L, y + 28 * K, R, y + 28 * K, PDF_LINE, 3);
+      y += RUN_H;
     }
-    const ref = txt('ref'), verse = txt('verse'), note = txt('note');
-    if (title.length > 300 || ref.length > 300 || verse.length > 600 || note.length > 1000) { errors.push({ line: line, msg: 'نص أطول من المسموح' }); continue; }
-    rows.push({ line: line, stage: stage, date: date, title: title, ref: ref, verse: verse, note: note });
   }
-  return { rows: rows, errors: errors, found: det.found, hasYear: m.year !== undefined };
-}
-function parseCsv(text) {
-  text = text.replace(/^\uFEFF/, '');
-  const first = text.split(/\r?\n/, 1)[0] || '';
-  const cnt = c => first.split(c).length - 1;
-  const delim = (cnt('\t') > 0 && cnt('\t') >= cnt(';') && cnt('\t') >= cnt(',')) ? '\t' : (cnt(';') > cnt(',') ? ';' : ',');
-  const rows = []; let row = [], cur = '', q = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text.charAt(i);
-    if (q) { if (ch === '"') { if (text.charAt(i + 1) === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
-    else if (ch === '"') q = true;
-    else if (ch === delim) { row.push(cur); cur = ''; }
-    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text.charAt(i + 1) === '\n') i++; row.push(cur); cur = ''; rows.push(row); row = []; }
-    else cur += ch;
+  function lessonBlock(l) {
+    const dateW = 78 * K, gap = 18 * K, padV = 14 * K, bodyW = (R - dateW - gap) - L, items = [];
+    function add(str, f, c, lh, mt) {
+      wrap(str, f, bodyW).forEach(function (ln, i) { items.push({ s: ln, f: f, c: c, h: lh * K, mt: i ? 0 : mt * K }); });
+    }
+    add(l.t, pdfFont(700, 17.5, PDF_CAIRO), PDF_INK, 28, 0);
+    if (l.ref) add(l.ref, pdfFont(400, 16.5, PDF_AMIRI), '#57503f', 28, 2);
+    if (l.verse) { add('آية الحفظ', pdfFont(700, 11.5, PDF_CAIRO), PDF_MUTED, 18, 6); add(l.verse, pdfFont(400, 16, PDF_AMIRI), '#3f3a2d', 29, 0); }
+    if (l.note) add(l.note, pdfFont(400, 12.5, PDF_CAIRO), PDF_MUTED, 22, 6);
+    let bodyH = 0;
+    items.forEach(function (it) { bodyH += it.mt + it.h; });
+    return { l: l, items: items, dateW: dateW, gap: gap, padV: padV, h: padV * 2 + Math.max(bodyH, 74 * K) };
   }
-  if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
-  return rows;
+  function drawDate(b, top) {                             // عمود التاريخ (يمين الصفحة): رقم اليوم ثم اسم اليوم ثم التاريخ القبطي
+    const cx = R - b.dateW / 2, cop = copticShort(b.l.dt);
+    T(ad(b.l.dt.getDate()), cx, top + 20 * K, pdfFont(900, 29, PDF_CAIRO), PDF_RED, 'center');
+    T(AR_DAYS[b.l.dt.getDay()], cx, top + 46 * K, pdfFont(700, 12, PDF_CAIRO), PDF_MUTED, 'center');
+    if (cop) T(cop, cx, top + 62 * K, pdfFont(400, 11, PDF_CAIRO), PDF_MUTED, 'center');
+  }
+  function drawBlock(b) {
+    const bx = R - b.dateW - b.gap;
+    if (y + b.h <= BOTTOM) {                              // الدرس كله يتسع في الصفحة
+      drawDate(b, y + b.padV);
+      let yy = y + b.padV;
+      b.items.forEach(function (it) { yy += it.mt; T(it.s, bx, yy + it.h / 2, it.f, it.c); yy += it.h; });
+      y += b.h;
+    } else {                                              // درس أطول من صفحة كاملة (نادر): نقسّمه بين الصفحات
+      y += b.padV; drawDate(b, y);
+      b.items.forEach(function (it) {
+        if (y + it.mt + it.h > BOTTOM) newPage();
+        y += it.mt; T(it.s, bx, y + it.h / 2, it.f, it.c); y += it.h;
+      });
+      y += b.padV;
+    }
+    Ln(L, y, R, y, PDF_LINE, 2);
+  }
+  function drawMonth(title) {
+    const f = pdfFont(900, 18, PDF_CAIRO);
+    mc.font = f;
+    const w = mc.measureText(title).width;
+    y += 14 * K;
+    T(title, R, y + 22 * K, f, PDF_INK);
+    Ln(L, y + 22 * K, R - w - 14 * K, y + 22 * K, PDF_LINE, 4);
+    y += 44 * K;
+  }
+
+  /* ترويسة الصفحة الأولى */
+  newPage();
+  const first = list[0], last = list[list.length - 1];
+  T('كاتدرائية رئيس الملائكة الجليل ميخائيل — طنطا', R, y + 9 * K, pdfFont(600, 13, PDF_CAIRO), PDF_MUTED); y += 24 * K;
+  T('منهج الكرازة', R, y + 22 * K, pdfFont(900, 34, PDF_CAIRO), PDF_INK); y += 48 * K;
+  T(st.name, R, y + 14 * K, pdfFont(700, 22, PDF_CAIRO), PDF_BLUE); y += 34 * K;
+  T('عدد الدروس: ' + ad(list.length) + '   •   من ' + longDate(first.dt) + ' إلى ' + longDate(last.dt), R, y + 10 * K, pdfFont(400, 12.5, PDF_CAIRO), PDF_MUTED); y += 22 * K;
+  T('تاريخ التحميل: ' + longDate(parseISO(TODAY)), R, y + 10 * K, pdfFont(400, 12.5, PDF_CAIRO), PDF_MUTED); y += 26 * K;
+  Ln(L, y, R, y, PDF_INK, 6); y += 6 * K;
+
+  /* الدروس مجمّعة بالشهر (مثل العرض على الشاشة) */
+  const groups = [];
+  list.forEach(function (l) {
+    const key = l.d.slice(0, 7);
+    let g = groups[groups.length - 1];
+    if (!g || g.key !== key) { g = { key: key, dt: l.dt, rows: [] }; groups.push(g); }
+    g.rows.push(l);
+  });
+  const MONTH_H = 58 * K, ROOM = BOTTOM - (TOP + RUN_H);
+  groups.forEach(function (g) {
+    g.rows.forEach(function (l, i) {
+      const b = lessonBlock(l), need = b.h + (i === 0 ? MONTH_H : 0);
+      if (y + need > BOTTOM && need <= ROOM) newPage();   // لا نترك عنوان الشهر وحده في آخر الصفحة
+      if (i === 0) drawMonth(AR_MONTHS[g.dt.getMonth()] + ' ' + ad(g.dt.getFullYear()));
+      drawBlock(b);
+    });
+  });
+  return pages;
 }
-function readFile(file, mode, enc) {
+
+async function renderPdfPages(pages) {
+  const K = PDF_K, M = 56 * K;
+  const c = document.createElement('canvas');
+  c.width = PDF_W; c.height = PDF_H;
+  const ctx = c.getContext('2d');
+  const out = [];
+  for (let i = 0; i < pages.length; i++) {
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, PDF_W, PDF_H);
+    ctx.direction = 'rtl'; ctx.textBaseline = 'middle';
+    pages[i].forEach(function (op) {
+      if (op.k === 't') { ctx.font = op.f; ctx.fillStyle = op.c; ctx.textAlign = op.a; ctx.fillText(op.s, op.x, op.y); }
+      else { ctx.strokeStyle = op.c; ctx.lineWidth = op.w; ctx.beginPath(); ctx.moveTo(op.x1, op.y1); ctx.lineTo(op.x2, op.y2); ctx.stroke(); }
+    });
+    ctx.strokeStyle = PDF_LINE; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(M, PDF_H - M - 8 * K); ctx.lineTo(PDF_W - M, PDF_H - M - 8 * K); ctx.stroke();
+    ctx.fillStyle = PDF_MUTED; ctx.font = pdfFont(400, 11, PDF_CAIRO);
+    ctx.textAlign = 'right'; ctx.fillText('كاتدرائية رئيس الملائكة الجليل ميخائيل — طنطا', PDF_W - M, PDF_H - M + 12 * K);
+    ctx.textAlign = 'left'; ctx.fillText('صفحة ' + ad(i + 1) + ' من ' + ad(pages.length), M, PDF_H - M + 12 * K);
+    const blob = await new Promise(function (res) { c.toBlob(res, 'image/jpeg', 0.92); });
+    if (!blob) throw new Error('jpeg');
+    out.push(new Uint8Array(await blob.arrayBuffer()));
+  }
+  return out;
+}
+
+/* كتابة ملف PDF يدويًا: صفحة A4 لكل صورة + خصائص الملف (العنوان + بيانات الدروس للاسترداد) */
+function pdfHexText(s) {                                  // نص يونيكود في PDF = UTF-16BE بين < >
+  let h = 'FEFF';
+  for (let i = 0; i < s.length; i++) h += ('0000' + s.charCodeAt(i).toString(16)).slice(-4);
+  return '<' + h + '>';
+}
+function pdfPayload(st, list) {
+  const json = JSON.stringify({ v: 1, y: st.id, rows: list.map(l => ({ d: l.d, t: l.t, ref: l.ref, verse: l.verse, note: l.note })) });
+  const bytes = new TextEncoder().encode(json);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  return btoa(bin);
+}
+function buildPdf(jpegs, title, st, list) {
+  const enc = new TextEncoder(), chunks = [], offs = [];
+  let pos = 0;
+  const put = d => { const b = typeof d === 'string' ? enc.encode(d) : d; chunks.push(b); pos += b.length; };
+  const obj = id => { offs[id] = pos; put(id + ' 0 obj\n'); };
+  const n = jpegs.length, total = 3 + 3 * n;
+  const kids = [];
+  for (let i = 0; i < n; i++) kids.push((4 + 3 * i) + ' 0 R');
+  let custom = '';
+  const b64 = pdfPayload(st, list);
+  for (let i = 0, p = 0; i < b64.length; i += PDF_CHUNK, p++) custom += '/' + PDF_KEY + p + ' (' + b64.slice(i, i + PDF_CHUNK) + ')\n';
+  const now = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+
+  put('%PDF-1.4\n%âãÏÓ\n');
+  obj(1); put('<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  obj(2); put('<< /Type /Pages /Count ' + n + ' /Kids [' + kids.join(' ') + '] >>\nendobj\n');
+  obj(3); put('<< /Title ' + pdfHexText(title) + ' /Subject ' + pdfHexText(st.name) + ' /Creator (Curriculum page) /Producer (Curriculum page) /CreationDate (D:' + now + 'Z)\n' + custom + '>>\nendobj\n');
+  for (let i = 0; i < n; i++) {
+    const pg = 4 + 3 * i, ct = pg + 1, im = pg + 2;
+    const content = 'q 595.28 0 0 841.89 0 0 cm /Im0 Do Q';
+    obj(pg); put('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im0 ' + im + ' 0 R >> >> /Contents ' + ct + ' 0 R >>\nendobj\n');
+    obj(ct); put('<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream\nendobj\n');
+    obj(im); put('<< /Type /XObject /Subtype /Image /Width ' + PDF_W + ' /Height ' + PDF_H + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + jpegs[i].length + ' >>\nstream\n');
+    put(jpegs[i]); put('\nendstream\nendobj\n');
+  }
+  const xref = pos;
+  put('xref\n0 ' + (total + 1) + '\n0000000000 65535 f \n');
+  for (let id = 1; id <= total; id++) put(('0000000000' + offs[id]).slice(-10) + ' 00000 n \n');
+  put('trailer\n<< /Size ' + (total + 1) + ' /Root 1 0 R /Info 3 0 R >>\nstartxref\n' + xref + '\n%%EOF\n');
+  return new Blob(chunks, { type: 'application/pdf' });
+}
+function saveBlob(blob, name) {                            // تنزيل مباشر بدون فتح أي نافذة
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = name; a.style.display = 'none';
+  document.body.appendChild(a); a.click();
+  setTimeout(function () { a.remove(); URL.revokeObjectURL(url); }, 10000);
+}
+
+let pdfBusy = false;
+const PDF_BTN_LABEL = '⬇️ تحميل منهج السنة (PDF)';
+async function downloadYearPdf() {
+  if (pdfBusy) return;
+  const sid = state.admin ? state.y : state.mine, st = STAGE[sid], list = BY_YEAR[sid] || [];
+  if (!st || !list.length) { toast('لا توجد دروس لتحميلها'); return; }
+  pdfBusy = true;
+  const btn = document.querySelector('[data-act="pdf"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ جاري تجهيز الملف...'; }
+  try {
+    await pdfFontsReady();
+    const jpegs = await renderPdfPages(layoutPdf(st, list));
+    const blob = buildPdf(jpegs, 'منهج الكرازة — ' + st.name, st, list);
+    saveBlob(blob, 'منهج-الكرازة-' + st.name.replace(/[\\\/:*?"<>|]+/g, '').replace(/\s+/g, '-') + '.pdf');
+    toast('✅ تم تحميل ملف PDF');
+  } catch (e) {
+    console.error(e);
+    toast('تعذر تجهيز ملف PDF — حاول مرة أخرى');
+  }
+  pdfBusy = false;
+  const b2 = document.querySelector('[data-act="pdf"]');   // قد تكون الصفحة أُعيد رسمها أثناء التجهيز
+  if (b2) { b2.disabled = false; b2.textContent = PDF_BTN_LABEL; }
+}
+
+/* ================= استرداد الدروس من ملف PDF ================= */
+/* يسترد الملفات التي حُمِّلت من زر «تحميل منهج السنة (PDF)»: الدروس محفوظة داخل الملف نفسه (انظر pdfPayload) فتعود بدقة كاملة.
+   ملفات PDF الأخرى لا تُقرأ تلقائيًا لأن ترتيب النص العربي داخلها يختلف من برنامج لآخر. */
+const impState = { emb: null, res: null, tok: 0 };
+
+function readFile(file) {
   return new Promise(function (res, rej) {
     const fr = new FileReader();
     fr.onload = function () { res(fr.result); };
     fr.onerror = function () { rej(fr.error || new Error('read')); };
-    if (mode === 'text') fr.readAsText(file, enc || 'utf-8'); else fr.readAsArrayBuffer(file);
+    fr.readAsArrayBuffer(file);
   });
 }
-function loadXLSX() {
-  if (window.XLSX) return Promise.resolve(window.XLSX);
+const PDFJS_VER = '3.11.174';
+function loadPdfJs() {                                    // مكتبة قراءة PDF (تُحمَّل عند الحاجة فقط)
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  const base = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@' + PDFJS_VER + '/build/';
   return new Promise(function (res, rej) {
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    s.onload = function () { window.XLSX ? res(window.XLSX) : rej(new Error('xlsx')); };
-    s.onerror = function () { rej(new Error('xlsx')); };
+    s.src = base + 'pdf.min.js';
+    s.onload = function () {
+      if (!window.pdfjsLib) { rej(new Error('pdfjs')); return; }
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js';
+      res(window.pdfjsLib);
+    };
+    s.onerror = function () { rej(new Error('pdfjs')); };
     document.head.appendChild(s);
   });
 }
+function readEmbedded(info) {                             // بيانات الدروس المحفوظة في خصائص الملف (CurriculumData0…)
+  const custom = (info && info.Custom) || {};
+  let b64 = '';
+  for (let i = 0; typeof custom[PDF_KEY + i] === 'string'; i++) b64 += custom[PDF_KEY + i];
+  if (!b64) return null;
+  try {
+    const bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const data = JSON.parse(new TextDecoder().decode(bytes));
+    const stage = canon(data && data.y);
+    return (data && data.v === 1 && STAGE[stage] && Array.isArray(data.rows)) ? { stage: stage, rows: data.rows } : null;
+  } catch (e) { return null; }
+}
+function checkRows(emb) {                                 // نفس شروط الإدخال اليدوي: تاريخ صحيح + عنوان + حدود الأطوال
+  const rows = [], errors = [];
+  emb.rows.forEach(function (r, i) {
+    const line = i + 1, txt = k => (r && r[k] !== undefined && r[k] !== null) ? String(r[k]).trim() : '';
+    const date = txt('d'), title = txt('t'), ref = txt('ref'), verse = txt('verse'), note = txt('note');
+    if (!parseISO(date)) errors.push({ line: line, msg: 'تاريخ غير مفهوم «' + date + '»' });
+    else if (!title) errors.push({ line: line, msg: 'عنوان الدرس فارغ' });
+    else if (title.length > 300 || ref.length > 300 || verse.length > 600 || note.length > 1000) errors.push({ line: line, msg: 'نص أطول من المسموح' });
+    else rows.push({ line: line, stage: emb.stage, date: date, title: title, ref: ref, verse: verse, note: note });
+  });
+  return { rows: rows, errors: errors };
+}
+
 function openImport() {
   if (!state.admin) return;
-  impState.aoa = null; impState.res = null;
+  impState.emb = null; impState.res = null; impState.tok++;
   openModal(
-    '<h3>📥 استيراد دروس من Excel</h3>' +
-    '<p class="sub">ملف Excel أو CSV فيه صف عناوين ثم صف لكل درس.</p>' +
-    '<label class="fld"><span>السنة الدراسية <em>(تُستخدم لو لا يوجد عمود «السنة» في الملف)</em></span><select id="impStage">' + stageOptions(state.y) + '</select></label>' +
-    '<label class="fld"><span>الملف</span><input type="file" id="impFile" accept=".xlsx,.xls,.csv"></label>' +
-    '<details class="imp-help"><summary>شكل الملف المطلوب</summary><div>' +
-      'أعمدة بهذه العناوين: <b>التاريخ</b> و<b>عنوان الدرس</b> و<b>الآيات</b> و<b>آية الحفظ</b> و<b>ملاحظة</b>، ' +
-      'وعمود اختياري <b>السنة</b> (مثل «الأول الابتدائي») لاستيراد عدة سنوات في ملف واحد. ' +
-      'التاريخ مثل 2026-11-06 أو 6/11/2026. إعادة استيراد نفس الدرس (نفس السنة واليوم والعنوان) تحدّثه ولا تكرره.' +
-      '</div><button type="button" class="link-btn" data-act="impTemplate">تنزيل ملف نموذج</button></details>' +
+    '<h3>📥 استرداد دروس من ملف PDF</h3>' +
+    '<p class="sub">اختر ملف PDF سبق تحميله من زر «تحميل منهج السنة (PDF)» فيُسترد منهج سنته كاملاً كما هو.</p>' +
+    '<label class="fld"><span>الملف</span><input type="file" id="impFile" accept=".pdf,application/pdf"></label>' +
+    '<details class="imp-help"><summary>كيف يعمل الاسترداد؟</summary><div>' +
+      'الملف الذي يُحمَّل من الصفحة يحمل دروس السنة داخله (السنة والتواريخ والآيات وآية الحفظ والملاحظات)، فتعود كما كانت. ' +
+      'إعادة استرداد نفس الدرس (نفس السنة واليوم والعنوان) تحدّثه ولا تكرره. ' +
+      'ملفات PDF التي لم تُحمَّل من هذه الصفحة لا يمكن قراءة دروسها تلقائيًا.' +
+    '</div></details>' +
     '<div id="impPreview"></div>' +
     '<div class="msg" id="formMsg" role="alert"></div>' +
-    '<div class="sheet-actions"><button type="button" class="btn-primary" id="impGo" data-act="impGo" disabled>استيراد</button><button type="button" class="btn-ghost" data-act="closeModal">إلغاء</button></div>');
+    '<div class="sheet-actions"><button type="button" class="btn-primary" id="impGo" data-act="impGo" disabled>استرداد</button><button type="button" class="btn-ghost" data-act="closeModal">إلغاء</button></div>');
 }
 async function handleImportFile(file) {
-  const prev = document.getElementById('impPreview'), msg = document.getElementById('formMsg');
-  msg.textContent = ''; impState.aoa = null; impState.res = null;
+  const prev = document.getElementById('impPreview'), msg = document.getElementById('formMsg'), tok = ++impState.tok;
+  msg.textContent = ''; impState.emb = null; impState.res = null;
   document.getElementById('impGo').disabled = true;
   if (!file) { prev.innerHTML = ''; return; }
+  if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { prev.innerHTML = ''; msg.textContent = 'اختر ملفًا بصيغة PDF.'; return; }
   prev.innerHTML = '<p class="sub">جاري قراءة الملف...</p>';
+  let pdfjs;
+  try { pdfjs = await loadPdfJs(); }
+  catch (e) { if (tok === impState.tok) { prev.innerHTML = ''; msg.textContent = 'تعذر تحميل مكتبة قراءة PDF — تأكد من الإنترنت وحاول مرة أخرى.'; } return; }
+  let emb = null;
   try {
-    if (/\.csv$/i.test(file.name)) {
-      let text = await readFile(file, 'text', 'utf-8');
-      if (text.indexOf('\uFFFD') > -1) text = await readFile(file, 'text', 'windows-1256');   // ملفات Excel العربية القديمة
-      impState.aoa = parseCsv(text);
-    } else {
-      const XLSX = await loadXLSX();
-      const wb = XLSX.read(await readFile(file, 'buffer'), { type: 'array' });
-      impState.aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
-    }
-    renderImportPreview();
+    const pdf = await pdfjs.getDocument({ data: new Uint8Array(await readFile(file)) }).promise;
+    const meta = await pdf.getMetadata();
+    emb = readEmbedded(meta && meta.info);
   } catch (e) {
-    prev.innerHTML = '';
-    msg.textContent = 'تعذر قراءة الملف. تأكد أنه ملف Excel أو CSV سليم (وملفات Excel تحتاج إنترنت لتحميل مكتبة القراءة).';
+    if (tok === impState.tok) { prev.innerHTML = ''; msg.textContent = 'تعذر قراءة الملف. تأكد أنه ملف PDF سليم وغير محمي بكلمة مرور.'; }
+    return;
   }
+  if (tok !== impState.tok) return;
+  if (!emb) { prev.innerHTML = ''; msg.textContent = 'هذا الملف لم يُحمَّل من زر «تحميل منهج السنة (PDF)» في هذه الصفحة، لذلك لا يمكن استرداد دروسه.'; return; }
+  impState.emb = emb; impState.res = checkRows(emb);
+  renderImportPreview();
 }
 function renderImportPreview() {
-  if (!impState.aoa) return;
-  const res = impState.res = parseSheet(impState.aoa, document.getElementById('impStage').value);
+  const res = impState.res, emb = impState.emb;
+  if (!res || !emb) return;
   const prev = document.getElementById('impPreview'), go = document.getElementById('impGo');
-  let h = '';
-  if (!res.found) h += '<p class="sub">لم نجد صف العناوين، فاعتُمد الترتيب: التاريخ، العنوان، الآيات، آية الحفظ، ملاحظة.</p>';
-  h += '<p class="imp-sum"><b>' + ad(res.rows.length) + '</b> درس جاهز للاستيراد</p>';
-  if (res.errors.length) h += '<p class="imp-sum imp-err">' + ad(res.errors.length) + ' صف به مشكلة ولن يُستورد:</p><ul class="imp-errs">' +
+  let h = '<p class="sub">✅ ملف محمّل من هذه الصفحة — منهج «' + esc(STAGE[emb.stage].name) + '»</p>';
+  h += '<p class="imp-sum"><b>' + ad(res.rows.length) + '</b> درس جاهز للاسترداد</p>';
+  if (res.errors.length) h += '<p class="imp-sum imp-err">' + ad(res.errors.length) + ' صف به مشكلة ولن يُسترد:</p><ul class="imp-errs">' +
     res.errors.slice(0, 8).map(e => '<li>سطر ' + ad(e.line) + ': ' + esc(e.msg) + '</li>').join('') +
     (res.errors.length > 8 ? '<li>… و' + ad(res.errors.length - 8) + ' أخرى</li>' : '') + '</ul>';
   if (res.rows.length) {
-    h += '<div class="imp-wrap"><table class="imp-table"><thead><tr><th>اليوم</th>' + (res.hasYear ? '<th>السنة</th>' : '') + '<th>الدرس</th></tr></thead><tbody>' +
-      res.rows.slice(0, 8).map(r => '<tr><td>' + esc(longDate(parseISO(r.date))) + '</td>' + (res.hasYear ? '<td>' + esc(STAGE[r.stage].name) + '</td>' : '') +
-        '<td>' + esc(r.title) + '</td></tr>').join('') +
+    h += '<div class="imp-wrap"><table class="imp-table"><thead><tr><th>اليوم</th><th>الدرس</th></tr></thead><tbody>' +
+      res.rows.slice(0, 8).map(r => '<tr><td>' + esc(longDate(parseISO(r.date))) + '</td><td>' + esc(r.title) + '</td></tr>').join('') +
       '</tbody></table></div>' + (res.rows.length > 8 ? '<p class="sub">… و' + ad(res.rows.length - 8) + ' درس آخر</p>' : '');
   }
   prev.innerHTML = h;
   go.disabled = !res.rows.length;
-  go.textContent = res.rows.length ? 'استيراد ' + ad(res.rows.length) + ' درس' : 'استيراد';
+  go.textContent = res.rows.length ? 'استرداد ' + ad(res.rows.length) + ' درس' : 'استرداد';
 }
 async function runImport() {
   const res = impState.res, btn = document.getElementById('impGo'), msg = document.getElementById('formMsg');
   if (!res || !res.rows.length) return;
-  btn.disabled = true; btn.textContent = 'جاري الاستيراد...'; msg.textContent = '';
+  btn.disabled = true; btn.textContent = 'جاري الاسترداد...'; msg.textContent = '';
   let inserted = 0, updated = 0, done = 0;
   try {
     for (let i = 0; i < res.rows.length; i += 400) {
@@ -1188,7 +1272,7 @@ async function runImport() {
       inserted += (out.data && out.data.inserted) || 0; updated += (out.data && out.data.updated) || 0; done += chunk.length;
     }
   } catch (err) {
-    msg.textContent = 'توقف الاستيراد: ' + mapError(err) + (done ? ' (تم استيراد ' + ad(done) + ' درس قبل الخطأ)' : '');
+    msg.textContent = 'توقف الاسترداد: ' + mapError(err) + (done ? ' (تم استرداد ' + ad(done) + ' درس قبل الخطأ)' : '');
     btn.disabled = false; btn.textContent = 'إعادة المحاولة';
     if (done) fetchCloud().then(render);
     return;
@@ -1197,22 +1281,7 @@ async function runImport() {
   closeModal();
   await fetchCloud();
   goTo(first.stage, '');
-  toast('✅ تم الاستيراد: ' + ad(inserted) + ' جديد' + (updated ? ' و' + ad(updated) + ' محدَّث' : ''));
-}
-async function downloadTemplate() {
-  try {
-    const XLSX = await loadXLSX();
-    const ws = XLSX.utils.aoa_to_sheet([
-      ['التاريخ', 'عنوان الدرس', 'الآيات', 'آية الحفظ', 'ملاحظة', 'السنة'],
-      ['2026-11-06', 'عرس قانا الجليل', 'يوحنا ٢: ١-١١', '', '', 'الأول الابتدائي'],
-      ['2026-11-13', 'مثال لدرس آخر', '', '', 'اكتب هنا أي ملاحظة', 'الأول الابتدائي']
-    ]);
-    ws['!cols'] = [{ wch: 14 }, { wch: 30 }, { wch: 18 }, { wch: 30 }, { wch: 24 }, { wch: 20 }];
-    const wb = XLSX.utils.book_new();
-    wb.Workbook = { Views: [{ RTL: true }] };
-    XLSX.utils.book_append_sheet(wb, ws, 'المنهج');
-    XLSX.writeFile(wb, 'نموذج-منهج-الكرازة.xlsx');
-  } catch (e) { toast('تعذر إنشاء الملف — تأكد من الإنترنت'); }
+  toast('✅ تم الاسترداد: ' + ad(inserted) + ' جديد' + (updated ? ' و' + ad(updated) + ' محدَّث' : ''));
 }
 
 /* ================= التشغيل ================= */
@@ -1230,7 +1299,7 @@ async function downloadTemplate() {
   if (state.mine) saveMine();
   state.group = GROUP_OF[state.mine || state.y].id;
   state.ready = !sb;
-  state.view = qs.get('v') === 'day' ? 'day' : (qs.get('v') === 'turn' ? 'turn' : 'year');
+  state.view = qs.get('v') === 'day' ? 'day' : 'year';
   state.autoDay = !parseISO(qs.get('d'));
   state.d = state.autoDay ? defaultDay() : qs.get('d');
   render();
