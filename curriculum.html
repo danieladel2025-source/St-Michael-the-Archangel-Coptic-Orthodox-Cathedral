@@ -221,6 +221,12 @@
   .toast { position:fixed; left:50%; bottom:22px; z-index:400; max-width:90vw; padding:11px 20px; border-radius:999px; background:var(--ink); color:#fff; font-size:13.5px; font-weight:700; text-align:center; opacity:0; transform:translate(-50%, 16px); pointer-events:none; transition:opacity .25s, transform .25s; }
   .toast.show { opacity:1; transform:translate(-50%, 0); }
 
+  .pdf-cur { display:flex; flex-direction:column; gap:4px; margin-top:14px; padding:12px 14px; border:1.5px solid var(--line); border-radius:12px; background:#fff; }
+  .pdf-cur b { font-size:14px; font-weight:800; word-break:break-word; }
+  .pdf-cur span { font-size:12.5px; color:var(--muted); }
+  .pdf-cur-actions { display:flex; gap:8px; margin-top:6px; }
+  a.mini { display:inline-flex; align-items:center; text-decoration:none; }
+
   .print-title { display:none; }
   noscript { display:block; padding:24px; text-align:center; font-weight:700; }
 
@@ -500,6 +506,11 @@ function yearHtml() {
   const st = STAGE[sid];
   const all = BY_YEAR[sid] || [];
   let h = '<p class="print-title">منهج الكرازة — ' + esc(st.name) + '</p>';
+  if (!all.length && PDF_FILES[sid]) {
+    return h + '<div class="empty"><b>منهج ' + esc(st.name) + '</b>منهج هذه السنة متاح كملف PDF.<br>' +
+      '<button type="button" class="abtn" data-act="pdf">' + PDF_BTN_LABEL + '</button>' +
+      (state.admin ? '<br><button type="button" class="abtn alt" data-act="addLesson">➕ إضافة درس</button>' : '') + '</div>';
+  }
   if (!all.length) {
     return h + '<div class="empty"><b>لم يُضَف منهج ' + esc(st.name) + ' بعد</b>ستظهر دروس هذه السنة هنا فور إضافتها.' +
       (state.admin ? '<br><button type="button" class="abtn" data-act="addLesson">➕ إضافة درس</button>' : '') + '</div>';
@@ -694,6 +705,10 @@ document.addEventListener('click', function (e) {
     case 'delLesson': deleteLesson(t.dataset.id); return;
     case 'openImport': openImport(); return;
     case 'impGo': runImport(); return;
+    case 'openPdfUpload': openPdfUpload(); return;
+    case 'pdfGo': runPdfUpload(); return;
+    case 'pdfDel': deletePdf(); return;
+    case 'pdfAuto': downloadAutoPdf(); return;
     case 'closeModal': closeModal(); return;
     case 'share': shareHero(); return;
     case 'pdf': downloadYearPdf(); return;
@@ -708,6 +723,8 @@ document.addEventListener('change', function (e) {
   if (!t) return;
   if (t.id === 'dayInput' && parseISO(t.value)) { state.d = t.value; state.autoDay = false; render(); }
   else if (t.id === 'impFile') handleImportFile(t.files && t.files[0]);
+  else if (t.id === 'pdfFile') handlePdfFile(t.files && t.files[0]);
+  else if (t.id === 'pdfStage') { pdfState.stage = t.value; refreshPdfCurrent(); }
 });
 document.addEventListener('submit', function (e) {
   const f = e.target;
@@ -761,6 +778,7 @@ async function fetchCloud() {
     }
     setData(rows);
     writeCache(rows);
+    await loadPdfFiles();
     state.cloud = 'ok';
     fetching = false;
     return true;
@@ -810,6 +828,7 @@ function adminBarHtml() {
   if (!state.admin) return '';
   return '<div class="admin-bar"><span class="ab-title">✏️ وضع التعديل</span><div class="ab-actions">' +
     '<button type="button" class="abtn" data-act="addLesson">➕ إضافة درس</button>' +
+    '<button type="button" class="abtn alt" data-act="openPdfUpload">📎 رفع ملف المنهج (PDF)</button>' +
     '<button type="button" class="abtn alt" data-act="openImport">📥 استرداد ملف PDF</button></div></div>';
 }
 function footHtml() {
@@ -1124,26 +1143,178 @@ function saveBlob(blob, name) {                            // تنزيل مبا�
 
 let pdfBusy = false;
 const PDF_BTN_LABEL = '⬇️ تحميل منهج السنة (PDF)';
+/* ================= ملف PDF يرفعه المشرف (Supabase Storage) =================
+   المشرف يرفع ملف PDF لكل سنة دراسية، وزر «تحميل منهج السنة (PDF)» يُنزّل هذا الملف بعينه للخادم.
+   لو لم يُرفع ملف لتلك السنة يُجهَّز ملف تلقائي من الدروس المُدخلة كما كان. (الإعداد: curriculum_pdf_setup.sql) */
+const PDF_BUCKET = 'curriculum-pdfs', PDF_TABLE = 'curriculum_pdfs', PDF_MAX_MB = 20, PDF_MAX = PDF_MAX_MB * 1024 * 1024;
+const PDF_CACHE_KEY = 'curriculum_pdfs_cache_v1';
+const pdfState = { stage: '', file: null, tok: 0 };
+let PDF_FILES = (function () {                               // stage -> بيانات الملف المرفوع (نسخة محفوظة على الجهاز)
+  try { const c = JSON.parse(localStorage.getItem(PDF_CACHE_KEY) || 'null'); return c && typeof c === 'object' ? c : {}; } catch (e) { return {}; }
+})();
+
+const fmtSize = b => b >= 1048576 ? ad((b / 1048576).toFixed(1).replace('.', '٫')) + ' ميجا' : ad(Math.max(1, Math.round(b / 1024))) + ' كيلو';
+const cleanName = s => String(s || '').replace(/[\\\/:*?"<>|]+/g, '').trim();
+const defaultPdfName = st => 'منهج-الكرازة-' + cleanName(st.name).replace(/\s+/g, '-') + '.pdf';
+function uploadedPdfName(row, st) {
+  const n = cleanName(row.file_name);
+  return n ? (/\.pdf$/i.test(n) ? n : n + '.pdf') : defaultPdfName(st);
+}
+const pdfUrl = row => sb.storage.from(PDF_BUCKET).getPublicUrl(row.file_path).data.publicUrl;
+function setPdfFile(stage, row) {
+  if (row) PDF_FILES[stage] = row; else delete PDF_FILES[stage];
+  try { localStorage.setItem(PDF_CACHE_KEY, JSON.stringify(PDF_FILES)); } catch (e) {}
+}
+async function loadPdfFiles() {                              // كل الملفات المرفوعة (لا يرمي أخطاء: لو لم يُشغَّل ملف الإعداد نكمل بدونها)
+  if (!sb) return;
+  try {
+    const r = await sb.from(PDF_TABLE).select('stage,file_path,file_name,size_bytes,updated_at');
+    if (r.error) return;
+    const m = {};
+    (r.data || []).forEach(x => { m[canon(x.stage)] = x; });
+    PDF_FILES = m;
+    try { localStorage.setItem(PDF_CACHE_KEY, JSON.stringify(m)); } catch (e) {}
+  } catch (e) {}
+}
+async function getUploadedPdf(stage) {                       // أحدث ملف مرفوع للسنة (أو null) — يرمي خطأ لو تعذر السؤال
+  const r = await sb.from(PDF_TABLE).select('stage,file_path,file_name,size_bytes,updated_at').eq('stage', stage).maybeSingle();
+  if (r.error) throw r.error;
+  setPdfFile(stage, r.data || null);
+  return r.data || null;
+}
+function pdfErr(err) {
+  const m = String((err && err.message) || ''), code = String((err && (err.code || err.statusCode)) || '');
+  if (isMissing(err) || /bucket not found/i.test(m)) return 'لم يتم تشغيل ملف curriculum_pdf_setup.sql على Supabase بعد.';
+  if (code === '42501' || code === '403' || /row-level security|not authorized|unauthorized/i.test(m)) return 'لا توجد صلاحية لرفع الملفات لهذا الحساب — سجّل الدخول من جديد بحساب مشرف.';
+  if (code === '413' || /too large|exceeded/i.test(m)) return 'حجم الملف أكبر من المسموح (' + ad(PDF_MAX_MB) + ' ميجا).';
+  return m || 'حدث خطأ غير متوقع.';
+}
+
+async function saveGeneratedPdf(st, list) {                  // ملف تلقائي من الدروس المُدخلة
+  await pdfFontsReady();
+  const jpegs = await renderPdfPages(layoutPdf(st, list));
+  saveBlob(buildPdf(jpegs, 'منهج الكرازة — ' + st.name, st, list), defaultPdfName(st));
+}
+async function saveUploadedPdf(row, st) {                    // ملف المشرف المرفوع
+  const res = await fetch(pdfUrl(row), { cache: 'no-store' });
+  if (!res.ok) throw new Error('http ' + res.status);
+  saveBlob(new Blob([await res.arrayBuffer()], { type: 'application/pdf' }), uploadedPdfName(row, st));
+}
+
 async function downloadYearPdf() {
   if (pdfBusy) return;
   const sid = state.admin ? state.y : state.mine, st = STAGE[sid], list = BY_YEAR[sid] || [];
-  if (!st || !list.length) { toast('لا توجد دروس لتحميلها'); return; }
+  if (!st) return;
   pdfBusy = true;
   const btn = document.querySelector('[data-act="pdf"]');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ جاري تجهيز الملف...'; }
+  let up = PDF_FILES[sid] || null;
+  if (sb) { try { up = await getUploadedPdf(sid); } catch (e) {} }   // نسأل عن أحدث ملف؛ لو تعذر نستخدم آخر معلومة محفوظة
   try {
-    await pdfFontsReady();
-    const jpegs = await renderPdfPages(layoutPdf(st, list));
-    const blob = buildPdf(jpegs, 'منهج الكرازة — ' + st.name, st, list);
-    saveBlob(blob, 'منهج-الكرازة-' + st.name.replace(/[\\\/:*?"<>|]+/g, '').replace(/\s+/g, '-') + '.pdf');
-    toast('✅ تم تحميل ملف PDF');
+    if (up) { await saveUploadedPdf(up, st); toast('✅ تم تحميل ملف PDF'); }
+    else if (!list.length) toast('لا توجد دروس لتحميلها');
+    else { await saveGeneratedPdf(st, list); toast('✅ تم تحميل ملف PDF'); }
   } catch (e) {
     console.error(e);
-    toast('تعذر تجهيز ملف PDF — حاول مرة أخرى');
+    toast(up ? 'تعذر تحميل الملف — تأكد من الإنترنت وحاول مرة أخرى' : 'تعذر تجهيز ملف PDF — حاول مرة أخرى');
   }
   pdfBusy = false;
   const b2 = document.querySelector('[data-act="pdf"]');   // قد تكون الصفحة أُعيد رسمها أثناء التجهيز
   if (b2) { b2.disabled = false; b2.textContent = PDF_BTN_LABEL; }
+}
+
+/* ---- نافذة المشرف: رفع / استبدال / حذف ملف السنة ---- */
+function openPdfUpload() {
+  if (!state.admin) return;
+  pdfState.stage = state.y; pdfState.file = null;
+  openModal(
+    '<h3>📎 رفع ملف المنهج (PDF)</h3>' +
+    '<p class="sub">هذا الملف هو الذي سيُنزَّل للخادم عند الضغط على «تحميل منهج السنة (PDF)». رفع ملف جديد يستبدل القديم.</p>' +
+    '<label class="fld"><span>السنة الدراسية</span><select id="pdfStage">' + stageOptions(pdfState.stage) + '</select></label>' +
+    '<div id="pdfCurrent"></div>' +
+    '<label class="fld"><span>اختر الملف <em>(PDF حتى ' + ad(PDF_MAX_MB) + ' ميجا)</em></span><input type="file" id="pdfFile" accept=".pdf,application/pdf"></label>' +
+    '<div class="msg" id="formMsg" role="alert"></div>' +
+    '<div class="sheet-actions"><button type="button" class="btn-primary" id="pdfGo" data-act="pdfGo" disabled>⬆️ رفع الملف</button><button type="button" class="btn-ghost" data-act="closeModal">إغلاق</button></div>');
+  refreshPdfCurrent();
+}
+async function refreshPdfCurrent() {
+  const stage = pdfState.stage, tok = ++pdfState.tok;
+  const box = document.getElementById('pdfCurrent');
+  if (!box) return;
+  box.innerHTML = '<p class="sub">جاري التحقق من الملف الحالي...</p>';
+  let row = null, err = null;
+  try { row = await getUploadedPdf(stage); } catch (e) { err = e; }
+  const b2 = document.getElementById('pdfCurrent');
+  if (!b2 || tok !== pdfState.tok) return;
+  let h = '';
+  if (err) h = '<p class="sub imp-err">' + esc(pdfErr(err)) + '</p>';
+  else if (row) {
+    const dt = new Date(row.updated_at);
+    h = '<div class="pdf-cur"><b>📄 ' + esc(row.file_name) + '</b><span>' + fmtSize(row.size_bytes) + (isNaN(dt) ? '' : ' • ' + esc(longDate(dt))) + '</span>' +
+      '<div class="pdf-cur-actions"><a class="mini" href="' + esc(pdfUrl(row)) + '" target="_blank" rel="noopener">👁️ فتح</a>' +
+      '<button type="button" class="mini danger" data-act="pdfDel">🗑️ حذف الملف</button></div></div>';
+  } else h = '<p class="sub">لا يوجد ملف مرفوع لهذه السنة — الخادم يحصل الآن على ملف تلقائي من الدروس المُدخلة.</p>';
+  if (!err && (BY_YEAR[stage] || []).length) h += '<button type="button" class="link-btn" data-act="pdfAuto">⬇️ تحميل النسخة التلقائية من الدروس (للاسترداد)</button>';
+  b2.innerHTML = h;
+}
+async function handlePdfFile(file) {
+  const msg = document.getElementById('formMsg'), go = document.getElementById('pdfGo');
+  if (!msg || !go) return;
+  pdfState.file = null; go.disabled = true; msg.textContent = '';
+  if (!file) return;
+  if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { msg.textContent = 'اختر ملفًا بصيغة PDF.'; return; }
+  if (!file.size) { msg.textContent = 'الملف فارغ.'; return; }
+  if (file.size > PDF_MAX) { msg.textContent = 'حجم الملف ' + fmtSize(file.size) + ' — الحد الأقصى ' + ad(PDF_MAX_MB) + ' ميجا.'; return; }
+  try {
+    const head = new Uint8Array(await readFile(file.slice(0, 5)));
+    if (String.fromCharCode.apply(null, head) !== '%PDF-') { msg.textContent = 'هذا الملف ليس PDF سليمًا.'; return; }
+  } catch (e) { msg.textContent = 'تعذر قراءة الملف.'; return; }
+  pdfState.file = file; go.disabled = false;
+}
+async function runPdfUpload() {
+  const file = pdfState.file, stage = pdfState.stage, btn = document.getElementById('pdfGo'), msg = document.getElementById('formMsg');
+  if (!file || !state.admin || !STAGE[stage] || !btn) return;
+  btn.disabled = true; btn.textContent = 'جاري الرفع...'; msg.textContent = '';
+  const path = stage + '/' + Date.now() + '.pdf';               // اسم جديد كل مرة حتى لا يظهر الملف القديم من الكاش
+  try {
+    let old = null;
+    try { old = await getUploadedPdf(stage); } catch (e) {}
+    const up = await sb.storage.from(PDF_BUCKET).upload(path, file, { contentType: 'application/pdf', cacheControl: '3600', upsert: false });
+    if (up.error) throw up.error;
+    const db = await sb.from(PDF_TABLE).upsert({ stage: stage, file_path: path, file_name: file.name.slice(0, 200), size_bytes: file.size, updated_at: new Date().toISOString() }, { onConflict: 'stage' });
+    if (db.error) { await sb.storage.from(PDF_BUCKET).remove([path]); throw db.error; }
+    if (old && old.file_path && old.file_path !== path) await sb.storage.from(PDF_BUCKET).remove([old.file_path]);   // تنظيف القديم
+  } catch (err) {
+    msg.textContent = pdfErr(err);
+    btn.disabled = false; btn.textContent = '⬆️ رفع الملف';
+    return;
+  }
+  pdfState.file = null;
+  const inp = document.getElementById('pdfFile'); if (inp) inp.value = '';
+  btn.textContent = '⬆️ رفع الملف';
+  refreshPdfCurrent(); render();
+  toast('✅ تم رفع الملف — سيُنزَّل للخادم عند تحميل منهج السنة');
+}
+async function deletePdf() {
+  const stage = pdfState.stage, row = PDF_FILES[stage];
+  if (!state.admin || !row) return;
+  if (!confirm('حذف ملف PDF لهذه السنة؟ سيحصل الخادم بعدها على ملف تلقائي من الدروس.')) return;
+  try {
+    const r = await sb.from(PDF_TABLE).delete().eq('stage', stage);
+    if (r.error) throw r.error;
+    await sb.storage.from(PDF_BUCKET).remove([row.file_path]);
+  } catch (err) { toast('تعذر الحذف: ' + pdfErr(err)); return; }
+  setPdfFile(stage, null);
+  refreshPdfCurrent(); render(); toast('🗑️ تم حذف الملف');
+}
+async function downloadAutoPdf() {                          // للمشرف: النسخة التلقائية القابلة للاسترداد
+  if (pdfBusy) return;
+  const st = STAGE[pdfState.stage], list = BY_YEAR[pdfState.stage] || [];
+  if (!st || !list.length) { toast('لا توجد دروس مُدخلة لهذه السنة'); return; }
+  pdfBusy = true;
+  try { await saveGeneratedPdf(st, list); toast('✅ تم تحميل ملف PDF'); }
+  catch (e) { console.error(e); toast('تعذر تجهيز ملف PDF — حاول مرة أخرى'); }
+  pdfBusy = false;
 }
 
 /* ================= استرداد الدروس من ملف PDF ================= */
