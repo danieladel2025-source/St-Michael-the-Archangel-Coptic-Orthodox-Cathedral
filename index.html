@@ -3092,40 +3092,14 @@
 
   let LS_KEY        = 'absence_v2_local'; // يُستبدل باسم خاص بكل فصل بعد اختياره (انظر نظام الفصول)
 
-  let students   = [
-    {
-      name: 'إفرايم أبانوب أسعد نصيف',
-      id: '1',
-      dob: '2019-12-06',
-      school: 'على مبارك',
-      class: 'سنة اولي ابتدائي',
-      phone: '',
-      phone2: '',
-      ownPhone: '',
-      address: '',
-      extraNotes: '',
-      confessor: '',
-      photo: null
-    }
-  ];
-  let attendance = {
-    '2026-05-01': { '1': 'present' },
-    '2026-05-31': { '1': 'present' },
-    '2026-06-01': { '1': 'present' },
-    '2026-06-02': { '1': 'present' },
-    '2026-06-05': { '1': 'present' },
-    '2026-06-06': { '1': 'present' },
-    '2026-06-14': { '1': 'present' },
-    '2026-06-18': { '1': 'present' },
-    '2026-06-20': { '1': 'present' },
-    '2026-06-26': { '1': 'present' }
-  };
+  let students   = [];
+  let attendance = {};
   let sessionMeta = {}; // { 'YYYY-MM-DD': lastModifiedISOString }
   let notes      = {};
   let recitations = {}; 
   let recitationDone = {}; 
-  let confessions = { '1': 0 };
-  let massAttendance = { '1': 0 };
+  let confessions = {};
+  let massAttendance = {};
   let servants = [];
   let servantsAttendance = {};
   let editingServantId = null;
@@ -3140,6 +3114,7 @@
   let _idb = null;
   let _lastLsOk = true;
   window.addEventListener('beforeunload', e => {
+    if (window._skipLeavePrompt) return;   // المستخدم أكّد الخروج بعد تحذير فشل الرفع
     if (typeof _cloudDirty !== 'undefined' && _cloudDirty) { e.preventDefault(); e.returnValue = ''; }
   });
   let activityLog = [];        // سجل النشاط: من افتقد / من حذف (يُرفع مع نسخة الفصل)
@@ -3393,19 +3368,6 @@
     _photoUrlCache.set(key, job);
     try { return await job; }
     catch (e) { _photoUrlCache.delete(key); throw e; }   // الفشل لا يُخزَّن: تُعاد المحاولة لاحقاً
-  }
-
-  // يبدأ رفع الصورة فور اختيارها (قبل الضغط على حفظ) فيكون الرابط جاهزاً وقت الحفظ والخروج
-  function _prefetchPhotoUpload(dataUrl, kind) {
-    try {
-      if (!_isInlinePhoto(dataUrl) || !_supabaseClient || !_supabaseClient.storage || !CLOUD_CLASS_ID || _storageBroken) return;
-      _uploadPhoto(dataUrl, kind).catch(e => {
-        if (_isStorageConfigError(e)) {
-          _storageBroken = _errText(e);
-          if (!_storageWarned) { _storageWarned = true; _photoNotice('⚠️ تعذّر رفع الصور إلى التخزين السحابي (' + _storageBroken + ') — شغّل ملف supabase_photos_storage.sql في Supabase.'); }
-        }
-      });
-    } catch(e) {}
   }
 
   function _photoNotice(msg) {
@@ -4009,15 +3971,19 @@
   }
 
   // حفظ المرحلة الدراسية داخل سجل الفصل بالسحابة (دون المساس ببقية البيانات)
-  async function _pushStageToCloud(id, name, stage, gender, isNew) {
+  async function _pushStageToCloud(id, name, stage, gender) {
     if (!_supabaseClient) return false;
     try {
       const { data, error: readErr } = await _supabaseClient.rpc('get_class_record', { p_class_id: id });
-      // فشل القراءة (مثلاً Timeout لسجل ضخم) ≠ "لا يوجد سجل": لا نكتب فوق سجل موجود بنسخة فارغة أبداً
-      if (readErr && !isNew) throw readErr;
+      // فشل القراءة (timeout/شبكة) أو سجل موجود بصيغة غير مفهومة ≠ "فصل بلا سجل".
+      // سابقاً كان الخطأ يُتجاهل فيُكتب سجل فارغ فوق سجل الفصل الحقيقي ويختفي كل مخدوميه وحضورهم
+      // عند مجرد تعديل المرحلة/النوع. الآن نتوقف دون أي كتابة.
+      if (readErr) throw readErr;
       let snap = _unwrapSnap(data);
-      if (!snap && !isNew && _hasUnparsedSnapshot(data)) throw new Error('تعذّرت قراءة سجل الفصل');
-      if (!snap) snap = { students: [], servants: [], attendance: {}, notes: {}, className: name, savedAt: new Date().toISOString(), v: 2 };
+      if (!snap) {
+        if (_hasUnparsedSnapshot(data)) throw new Error('سجل الفصل في السحابة بصيغة غير مفهومة — لم يُكتب فوقه شيء');
+        snap = { students: [], servants: [], attendance: {}, notes: {}, className: name, savedAt: new Date().toISOString(), v: 2 };
+      }
       snap = { ...snap, stage: stage, gender: gender || snap.gender || '' };
       const { error } = await _supabaseClient.rpc('upsert_class_record', { p_class_id: id, p_class_name: name || snap.className || 'بدون اسم', p_data: snap });
       if (error) throw error;
@@ -4197,6 +4163,9 @@
       const merged = _mergePhotos({ ...cloudSnap }, local.idb || local.ls);
       applySnapshot(merged);
       _setCloudPhotoBase(cloudSnap);   // أساس حماية الصور: ما هو موجود فعلاً في السحابة الآن
+      // نحدّث بطاقة الفصل المحلية (المرحلة/النوع/الأعداد) من السجل الذي قرأناه للتو، حتى يظهر الفصل في تبويبه الصحيح
+      // عند الرجوع لشاشة الفصول حتى لو فشل جلب إحصاءات الفصول من السحابة
+      try { _touchChapterMeta(cloudSnap); } catch(e) {}
       if (typeof setStatus === 'function') setStatus('✅ تم تحميل بيانات الفصل من السحابة', '#1a7a4a', false);
     } else {
       _resetPhotoGuard();
@@ -4238,31 +4207,63 @@
     if (window.LessonReminder && LessonReminder.check) setTimeout(function () { try { LessonReminder.check(); } catch (e) {} }, 300);
   }
 
-  let _switching = false;
-  async function switchChapter() {
-    if (_switching) return;
-    if (!confirm('هل تريد الخروج من هذا الفصل والعودة لشاشة اختيار الفصل؟')) return;
-    _switching = true;
-    try {
-      // لا نعيد تحميل الصفحة قبل اكتمال رفع آخر التعديلات (وإلا تضيع التعديلات/الصور ويظهر الفصل بالنسخة القديمة)
-      if (_supabaseClient && CLOUD_CLASS_ID && _cloudReady && (_cloudDirty || _cloudSyncing)) {
-        clearTimeout(_cloudPushTimer);
-        if (typeof setStatus === 'function') setStatus('⟳ جاري حفظ التعديلات ورفع الصور قبل الخروج...', '#2980b9', true);
-        let tries = 0;
-        while ((_cloudDirty || _cloudSyncing) && tries++ < 12) {
-          if (_cloudSyncing) { await new Promise(r => setTimeout(r, 400)); continue; }
-          await cloudPushNow();
-        }
-        if (_cloudDirty && !confirm('⚠️ تعذّر رفع آخر التعديلات إلى السحابة (' + (_lastCloudError || 'تحقق من الإنترنت') + ').\nالخروج الآن سيُضيّع هذه التعديلات.\n\nهل تريد الخروج رغم ذلك؟')) {
-          _switching = false; return;
-        }
-      }
-    } catch(e) { console.warn(e); }
-    clearTimeout(_cloudPushTimer); clearTimeout(_cloudRetryTimer);
-    _cloudDirty = false;   // لا نُظهر تحذير المتصفح مرة ثانية
-    try { sessionStorage.removeItem(CHAPTER_SESSION_KEY); } catch(e) {}
-    location.reload();
+  // يرفع كل التعديلات المعلّقة وينتظر نجاحها قبل الخروج/التنقل. يرجع true إن لم يبقَ شيء غير محفوظ.
+  // (سابقاً كان الخروج يعيد تحميل الصفحة فوراً فيُلغي الرفع الجاري أو المنتظر — خصوصاً مع بطء الشبكة —
+  //  فتعود بيانات الفصل بدون آخر التعديلات كأنها لم تُحفظ.)
+  async function _flushBeforeLeave() {
+    if (!_supabaseClient || !CLOUD_CLASS_ID) return true;
+    if (!_cloudReady) return !_cloudDirty;
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const deadline = Date.now() + 60000;
+    for (let attempt = 0; attempt < 3 && (_cloudDirty || _cloudSyncing) && Date.now() < deadline; attempt++) {
+      clearTimeout(_cloudPushTimer); clearTimeout(_cloudRetryTimer);
+      while (_cloudSyncing && Date.now() < deadline) await sleep(120);   // لو هناك رفع جارٍ ننتظره أولاً
+      if (_cloudDirty) await Promise.race([cloudPushNow(), sleep(Math.max(1000, deadline - Date.now()))]);
+    }
+    clearTimeout(_cloudRetryTimer);
+    return !_cloudDirty && !_cloudSyncing;
   }
+
+  let _leavingPage = false;
+  // يرفع المعلّق ثم يغادر؛ إن فشل الرفع يسأل المستخدم بدل أن يُضيّع تعديلاته بصمت
+  async function _saveThenLeave(go) {
+    if (_leavingPage) return;
+    _leavingPage = true;
+    try {
+      if (typeof setStatus === 'function') setStatus('⟳ جاري حفظ آخر التعديلات قبل الخروج...', '#2980b9', true);
+      const ok = await _flushBeforeLeave();
+      if (!ok && !confirm('⚠️ تعذّر رفع آخر التعديلات إلى السحابة (الاتصال ضعيف أو الخدمة بطيئة).\n\nإن خرجت الآن قد تضيع هذه التعديلات.\n\nموافق = الخروج رغم ذلك     إلغاء = البقاء ومحاولة الحفظ لاحقاً')) {
+        if (typeof setStatus === 'function') setStatus('⚠️ لم تُحفظ آخر التعديلات بعد — ستُعاد المحاولة تلقائياً', '#c8392b', false);
+        return;
+      }
+      window._skipLeavePrompt = true;
+      go();
+    } finally {
+      _leavingPage = false;
+    }
+  }
+
+  function switchChapter() {
+    if (!confirm('هل تريد الخروج من هذا الفصل والعودة لشاشة اختيار الفصل؟')) return;
+    _saveThenLeave(() => {
+      try { sessionStorage.removeItem(CHAPTER_SESSION_KEY); } catch(e) {}
+      location.reload();
+    });
+  }
+
+  // التنقل لصفحات أخرى (المكتبة/المنهج/الدليل...) له نفس خطر ضياع رفع معلّق: نرفع أولاً ثم ننتقل
+  document.addEventListener('click', e => {
+    const a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    if ((a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+    if (!(_cloudReady && (_cloudDirty || _cloudSyncing))) return;
+    let u; try { u = new URL(a.href, location.href); } catch(err) { return; }
+    if (!/^https?:|^file:/.test(u.protocol) || u.origin !== location.origin) return;
+    if (u.pathname === location.pathname && u.hash) return;     // تنقل داخل الصفحة نفسها
+    e.preventDefault();
+    const href = a.href;
+    _saveThenLeave(() => { location.href = href; });
+  }, true);
 
   // ---- إضافة / تعديل فصل ----
   function openAddChapterModal() {
@@ -4401,9 +4402,11 @@
         _saveChapterMeta();
         _genderFilter = gender; _stageFilter = 'all';
         try { localStorage.setItem(GENDER_TAB_LS_KEY, gender); } catch(e) {}
-        await _pushStageToCloud(newId, name, stage, gender, true);
+        const stageSaved = await _pushStageToCloud(newId, name, stage, gender);
         closeChapterEditModal();
-        if (typeof showToast === 'function') showToast('✅ تم إضافة الفصل بنجاح');
+        if (typeof showToast === 'function') showToast(stageSaved
+          ? '✅ تم إضافة الفصل بنجاح'
+          : '✅ تم إنشاء الفصل — لكن تعذّر حفظ مرحلته/نوعه في السحابة الآن، وسيُحفظان عند أول حفظ داخل الفصل');
         await renderChapterGrid();
       } catch(e) {
         console.error(e);
@@ -4423,12 +4426,26 @@
         const stageChanged = stage !== _stageOf(chapterId);
         const genderChanged = gender !== _genderOf(chapterId);
         const m = _chapterMeta[chapterId] = _chapterMeta[chapterId] || {};
+        const prevMeta = { stage: m.stage, gender: m.gender, gChecked: m.gChecked, tab: _genderFilter, stageTab: _stageFilter };
         m.stage = stage; m.gender = gender; m.gChecked = true; _saveChapterMeta();
         _genderFilter = gender; _stageFilter = 'all';
         try { localStorage.setItem(GENDER_TAB_LS_KEY, gender); } catch(e) {}
         if (stageChanged || genderChanged) {
-          const okPush = await _pushStageToCloud(chapterId, name, stage, gender);
-          if (!okPush && typeof showToast === 'function') showToast('⚠️ تعذّر حفظ المرحلة/النوع في السحابة — أعد المحاولة');
+          const stageSaved = await _pushStageToCloud(chapterId, name, stage, gender);
+          if (!stageSaved) {
+            // المرحلة/النوع لا يُحفظان إلا داخل سجل الفصل في السحابة. لو فشل حفظهما نُرجع القيم المحلية؛ وإلا يبدو الفصل
+            // في تبويبه الجديد ثم يرجع لتبويبه القديم عند فتحه (لأن السحابة تحمل القيم القديمة) فيظن المستخدم أنه اختفى.
+            m.stage = prevMeta.stage; m.gender = prevMeta.gender; m.gChecked = prevMeta.gChecked; _saveChapterMeta();
+            _genderFilter = prevMeta.tab; _stageFilter = prevMeta.stageTab;
+            try { localStorage.setItem(GENDER_TAB_LS_KEY, prevMeta.tab); } catch(e) {}
+            // الاسم/كلمة السر حُفظا بالفعل: نحدّث حقل كلمة السر الحالية حتى تنجح إعادة المحاولة
+            const oldEl = document.getElementById('chapterEditOldPass'); if (oldEl) oldEl.value = pass || oldPass;
+            const newEl = document.getElementById('chapterEditPass'); if (newEl) newEl.value = '';
+            errEl.textContent = '⚠️ حُفظ الاسم/كلمة السر، لكن تعذّر حفظ المرحلة/النوع في السحابة (الاتصال ضعيف أو الخدمة بطيئة). لم تتأثر بيانات الفصل — اضغط حفظ مرة أخرى.';
+            errEl.style.display = 'block';
+            await renderChapterGrid();
+            return;
+          }
         }
         closeChapterEditModal();
         if (typeof showToast === 'function') showToast('✅ تم تحديث بيانات الفصل بنجاح');
@@ -5902,7 +5919,6 @@
     compressImage(file).then(dataUrl => {
       currentClassPhoto = dataUrl;
       updateClassPhotoUI(currentClassPhoto);
-      _prefetchPhotoUpload(dataUrl, 'class');
       save();
     }).catch(() => {
       setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
@@ -6121,7 +6137,6 @@
     compressImage(file).then(dataUrl => {
       currentPhoto = dataUrl;
       updatePhotoPreview(currentPhoto);
-      _prefetchPhotoUpload(dataUrl, 'student');
       setStatus('✅ تم تحميل الصورة', '#1a7a4a', false);
     }).catch(() => {
       setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
@@ -6992,7 +7007,6 @@
     compressImage(file).then(dataUrl => {
       currentServantPhoto = dataUrl;
       updateServantPhotoPreview(currentServantPhoto);
-      _prefetchPhotoUpload(dataUrl, 'servant');
       setStatus('✅ تم تحميل الصورة', '#1a7a4a', false);
     }).catch(() => {
       setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
