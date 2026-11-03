@@ -2008,6 +2008,7 @@
     transition: background .15s, border-color .15s;
   }
   .gender-tab small { opacity: .65; margin-right: 4px; font-weight: 700; font-size: 11px; }
+  .gender-tab.active.all   { background: var(--accent); border-color: var(--accent); color: #fff; }
   .gender-tab.active.boys  { background: var(--accent2); border-color: var(--accent2); color: #fff; }
   .gender-tab.active.girls { background: #c2185b; border-color: #c2185b; color: #fff; }
   .gender-tab.active.none  { background: #777; border-color: #777; color: #fff; }
@@ -2188,7 +2189,7 @@
       <span style="font-size:13px;font-weight:700;color:#555;">مرة على الأقل</span>
     </div>
     <div style="background:#f3e8ff;border-radius:8px;padding:6px 12px;font-size:12px;color:#6b21a8;font-weight:600;">
-      ⚙️ سيتم عرض المخدومين الذين اعترفوا <strong id="minConfPreview">أقل من 1 مرة</strong> في قائمة المتابعة
+      ⚙️ سيتم عرض المخدومين الذين اعترفوا <strong id="minConfPreview">أقل من 1 مرة</strong> في قائمة المتاب��ة
     </div>
   </div>
 
@@ -3633,9 +3634,9 @@
   const CHAPTERS_CACHE_LS_KEY = 'absence_chapters_cache_v1';
 
   async function initChapterGate() {
-    // إن كان هذا الفصل قد فُتح بالفعل خلال هذه الجلسة (نفس التبويب) لا نطلب كلمة السر مجدداً
+    // إن كان هذا الفصل قد فُتح بالفعل (محلياً أو في الجلسة) لا نطلب كلمة السر مجدداً عند الخروج وإعادة الدخول
     try {
-      const saved = sessionStorage.getItem(CHAPTER_SESSION_KEY);
+      const saved = localStorage.getItem(CHAPTER_SESSION_KEY) || sessionStorage.getItem(CHAPTER_SESSION_KEY);
       if (saved) {
         const obj = JSON.parse(saved);
         if (obj && obj.id) {
@@ -3695,8 +3696,8 @@
   try { _chapterMeta = JSON.parse(localStorage.getItem(CHAPTER_META_LS_KEY) || '{}') || {}; } catch(e) { _chapterMeta = {}; }
   let _stageFilter = 'all';
   const GENDER_TAB_LS_KEY = 'absence_gender_tab_v1';
-  let _genderFilter = 'boys';
-  try { const g = localStorage.getItem(GENDER_TAB_LS_KEY); if (g === 'boys' || g === 'girls' || g === 'none') _genderFilter = g; } catch(e) {}
+  let _genderFilter = 'all';
+  try { const g = localStorage.getItem(GENDER_TAB_LS_KEY); if (g === 'all' || g === 'boys' || g === 'girls' || g === 'none') _genderFilter = g; } catch(e) {}
   let _statsToken = 0;
   let _statsPending = new Set();
 
@@ -3718,6 +3719,7 @@
   function _genderList() {
     // الخادم (من صفحة الترحيب) يرى فصول مرحلته وفئته فقط — المشرف العام يرى الكل بحسب التبويبات
     if (window.WelcomeGate && WelcomeGate.role() === 'servant') return _chaptersCache.filter(c => WelcomeGate.chapterAllowed(String(c.chapter_id)));
+    if (_genderFilter === 'all') return _chaptersCache;
     return _chaptersCache.filter(c => _genderKey(String(c.chapter_id)) === _genderFilter);
   }
   function _libraryHref(g) { return (g === 'boys' || g === 'girls') ? './library.html?g=' + g : './library.html'; }
@@ -3742,10 +3744,14 @@
   function renderGenderTabs() {
     const box = document.getElementById('genderTabs');
     if (!box) return;
-    const cnt = { boys: 0, girls: 0, none: 0 };
-    _chaptersCache.forEach(c => { cnt[_genderKey(String(c.chapter_id))]++; });
-    if (_genderFilter === 'none' && !cnt.none) _genderFilter = 'boys';
-    let html = '<button type="button" class="gender-tab boys' + (_genderFilter === 'boys' ? ' active' : '') + '" onclick="setGenderFilter(\'boys\')">👦 بنين<small>' + cnt.boys + '</small></button>' +
+    const cnt = { all: _chaptersCache.length, boys: 0, girls: 0, none: 0 };
+    _chaptersCache.forEach(c => {
+      const k = _genderKey(String(c.chapter_id));
+      if (cnt[k] !== undefined) cnt[k]++;
+    });
+    if (_genderFilter === 'none' && !cnt.none) _genderFilter = 'all';
+    let html = '<button type="button" class="gender-tab all' + (_genderFilter === 'all' ? ' active' : '') + '" onclick="setGenderFilter(\'all\')">🌟 الكل<small>' + cnt.all + '</small></button>' +
+               '<button type="button" class="gender-tab boys' + (_genderFilter === 'boys' ? ' active' : '') + '" onclick="setGenderFilter(\'boys\')">👦 بنين<small>' + cnt.boys + '</small></button>' +
                '<button type="button" class="gender-tab girls' + (_genderFilter === 'girls' ? ' active' : '') + '" onclick="setGenderFilter(\'girls\')">👧 بنات<small>' + cnt.girls + '</small></button>';
     if (cnt.none) html += '<button type="button" class="gender-tab none' + (_genderFilter === 'none' ? ' active' : '') + '" onclick="setGenderFilter(\'none\')">📂 غير محدد<small>' + cnt.none + '</small></button>';
     box.innerHTML = html;
@@ -3834,26 +3840,26 @@
       return;
     }
 
-    const gList = _genderList();
-    if (!gList.length) {
+    const baseList = q ? _chaptersCache : _genderList();
+    if (!baseList.length && !q) {
       if (window.WelcomeGate && WelcomeGate.role() === 'servant') {
         grid.innerHTML = '<div class="chapter-grid-empty">' + (WelcomeGate.isLoading() ? '⏳ جاري البحث عن فصلك...' : '📭 لا يوجد فصل مطابق لبياناتك (' + _esc(WelcomeGate.summary()) + ') — يمكنك إضافة فصل جديد أو تغيير بياناتك من الأعلى') + '</div>';
       } else {
-        grid.innerHTML = '<div class="chapter-grid-empty">📭 ' + (_genderFilter === 'girls' ? 'لا توجد فصول بنات بعد' : (_genderFilter === 'boys' ? 'لا توجد فصول بنين بعد' : 'لا توجد فصول')) + ' — اضغط "إضافة فصل جديد"</div>';
+        grid.innerHTML = '<div class="chapter-grid-empty">📭 ' + (_genderFilter === 'girls' ? 'لا توجد فصول بنات بعد' : (_genderFilter === 'boys' ? 'لا توجد فصول بنين بعد' : 'لا توجد فصول في هذا التبويب')) + ' — اضغط "إضافة فصل جديد" أو اختر تبويب "الكل"</div>';
       }
       if (infoEl) infoEl.textContent = '';
       return;
     }
-    const list = gList.filter(c => {
+    const list = baseList.filter(c => {
       const st = _stageOf(c.chapter_id);
       const gid = st ? STAGE_INDEX[st].group.id : 'none';
-      if (_stageFilter !== 'all' && gid !== _stageFilter) return false;
+      if (!q && _stageFilter !== 'all' && gid !== _stageFilter) return false;
       if (!q) return true;
       const hay = _normAr((c.chapter_name || '') + ' ' + (st ? STAGE_INDEX[st].stage.name + ' ' + STAGE_INDEX[st].group.name : 'غير محدد'));
       return q.split(' ').every(w => hay.includes(w));
     });
 
-    if (infoEl) infoEl.textContent = (q || _stageFilter !== 'all') ? ('عدد النتائج: ' + list.length + ' من ' + gList.length) : ('إجمالي الفصول: ' + gList.length);
+    if (infoEl) infoEl.textContent = q ? ('عدد النتائج: ' + list.length + ' من ' + _chaptersCache.length) : ((_stageFilter !== 'all' || _genderFilter !== 'all') ? ('عدد النتائج: ' + list.length + ' من ' + _chaptersCache.length) : ('إجمالي الفصول: ' + list.length));
 
     if (!list.length) {
       grid.innerHTML = '<div class="chapter-grid-empty">🔎 لا توجد فصول مطابقة للبحث</div>';
@@ -3902,7 +3908,7 @@
     if (ok) {
       _saveChapterMeta(); _statsPending.clear(); renderChapterCards();
       // دالة chapters_overview لا ترجع الجنس — نجلبه من سجل الفصل لأي فصل لم نعرف جنسه بعد
-      const missing = chapters.map(c => String(c.chapter_id)).filter(id => !_genderOf(id) && !(_chapterMeta[id] && _chapterMeta[id].gChecked));
+      const missing = chapters.map(c => String(c.chapter_id)).filter(id => !_genderOf(id));
       if (missing.length) await _fillGenderFromCloud(missing, token);
       return;
     }
@@ -3965,8 +3971,10 @@
     const m = _chapterMeta[ACTIVE_CHAPTER_ID] = _chapterMeta[ACTIVE_CHAPTER_ID] || {};
     m.students = (snap.students || []).length;
     m.servants = (snap.servants || []).length;
-    if (ACTIVE_CHAPTER_STAGE) m.stage = ACTIVE_CHAPTER_STAGE;
-    if (ACTIVE_CHAPTER_GENDER) m.gender = ACTIVE_CHAPTER_GENDER;
+    const s = ACTIVE_CHAPTER_STAGE || snap.stage;
+    const g = ACTIVE_CHAPTER_GENDER || snap.gender;
+    if (s && STAGE_INDEX[s]) { m.stage = s; ACTIVE_CHAPTER_STAGE = s; }
+    if (g === 'boys' || g === 'girls') { m.gender = g; ACTIVE_CHAPTER_GENDER = g; }
     _saveChapterMeta();
   }
 
@@ -4086,7 +4094,12 @@
     LS_KEY  = 'absence_v2_local_' + chapterId;
     IDB_KEY = 'latest_' + chapterId;
 
-    try { sessionStorage.setItem(CHAPTER_SESSION_KEY, JSON.stringify({ id: chapterId, name: ACTIVE_CHAPTER_NAME })); } catch(e) {}
+    try {
+      const sessData = JSON.stringify({ id: chapterId, name: ACTIVE_CHAPTER_NAME });
+      sessionStorage.setItem(CHAPTER_SESSION_KEY, sessData);
+      localStorage.setItem(CHAPTER_SESSION_KEY, sessData);
+      if (ACTIVE_CHAPTER_GENDER) localStorage.setItem(GENDER_TAB_LS_KEY, ACTIVE_CHAPTER_GENDER);
+    } catch(e) {}
 
     const gate = document.getElementById('chapterGate');
     if (gate) gate.classList.add('gate-hide');
@@ -4245,8 +4258,16 @@
 
   function switchChapter() {
     if (!confirm('هل تريد الخروج من هذا الفصل والعودة لشاشة اختيار الفصل؟')) return;
+    if (ACTIVE_CHAPTER_GENDER) {
+      try { localStorage.setItem(GENDER_TAB_LS_KEY, ACTIVE_CHAPTER_GENDER); } catch(e) {}
+    } else {
+      try { localStorage.setItem(GENDER_TAB_LS_KEY, 'all'); } catch(e) {}
+    }
     _saveThenLeave(() => {
-      try { sessionStorage.removeItem(CHAPTER_SESSION_KEY); } catch(e) {}
+      try {
+        sessionStorage.removeItem(CHAPTER_SESSION_KEY);
+        localStorage.removeItem(CHAPTER_SESSION_KEY);
+      } catch(e) {}
       location.reload();
     });
   }
@@ -4357,7 +4378,10 @@
 
       // إن كان هذا هو الفصل المفتوح حالياً، نعود لشاشة اختيار الفصل
       if (ACTIVE_CHAPTER_ID === chapterId) {
-        try { sessionStorage.removeItem(CHAPTER_SESSION_KEY); } catch(e) {}
+        try {
+          sessionStorage.removeItem(CHAPTER_SESSION_KEY);
+          localStorage.removeItem(CHAPTER_SESSION_KEY);
+        } catch(e) {}
         location.reload();
         return;
       }
@@ -4400,6 +4424,9 @@
         }
         _chapterMeta[newId] = { stage: stage, gender: gender, gChecked: true, students: 0, servants: 0 };
         _saveChapterMeta();
+        const newObj = { chapter_id: newId, chapter_name: name, icon: icon };
+        _chaptersCache = _chaptersCache.filter(c => c.chapter_id !== newId).concat([newObj]);
+        try { localStorage.setItem(CHAPTERS_CACHE_LS_KEY, JSON.stringify(_chaptersCache)); } catch(e) {}
         _genderFilter = gender; _stageFilter = 'all';
         try { localStorage.setItem(GENDER_TAB_LS_KEY, gender); } catch(e) {}
         const stageSaved = await _pushStageToCloud(newId, name, stage, gender);
@@ -4448,13 +4475,21 @@
           }
         }
         closeChapterEditModal();
+        const ch = _chaptersCache.find(c => c.chapter_id === chapterId);
+        if (ch) { ch.chapter_name = name; ch.icon = icon; }
+        try { localStorage.setItem(CHAPTERS_CACHE_LS_KEY, JSON.stringify(_chaptersCache)); } catch(e) {}
         if (typeof showToast === 'function') showToast('✅ تم تحديث بيانات الفصل بنجاح');
         await renderChapterGrid();
         if (ACTIVE_CHAPTER_ID === chapterId) {
           ACTIVE_CHAPTER_NAME = name;
           ACTIVE_CHAPTER_STAGE = stage;
           ACTIVE_CHAPTER_GENDER = gender;
-          try { sessionStorage.setItem(CHAPTER_SESSION_KEY, JSON.stringify({ id: chapterId, name: ACTIVE_CHAPTER_NAME })); } catch(e) {}
+          try {
+            const sessData = JSON.stringify({ id: chapterId, name: ACTIVE_CHAPTER_NAME });
+            sessionStorage.setItem(CHAPTER_SESSION_KEY, sessData);
+            localStorage.setItem(CHAPTER_SESSION_KEY, sessData);
+            if (ACTIVE_CHAPTER_GENDER) localStorage.setItem(GENDER_TAB_LS_KEY, ACTIVE_CHAPTER_GENDER);
+          } catch(e) {}
           updateActiveChapterBadge();
         }
       } catch(e) {
