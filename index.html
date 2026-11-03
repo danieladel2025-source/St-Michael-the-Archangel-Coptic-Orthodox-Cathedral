@@ -2969,7 +2969,7 @@
     if (!confirm('⚠️ سيتم حذف جميع المخدومين وجميع الخدام بشكل نهائي. هل أنت متأكد؟')) return;
      if (!confirm('⚠️ تذكر ان تمتلك نسخة احتياطي(Back up )للبيانات قبل الحذف')) return;
     logActivity('delete_all', {});
-    
+    _resetPhotoGuard();
 
     students = [];
     servants = [];
@@ -3239,13 +3239,19 @@
   const UNDO_MAX = 30;
   let _isUndoingRedoing = false;
 
-  // ===== نسخة بدون صور للحفظ في localStorage (توفير المساحة) =====
-  function makeSnapshotNoPhotos() {
+  // ===== نسخة خفيفة للتراجع/الإعادة (في الذاكرة فقط) =====
+  // تحذف صور base64 الثقيلة فقط، وتُبقي روابط Storage (نصوص قصيرة) ليستعيدها التراجع كاملة
+  // (سابقاً كانت تحذف كل الصور، فكان التراجع عن حذف مخدوم يفقد صورته نهائياً)
+  function makeSnapshotLean() {
     const snap = makeSnapshot();
-    // إزالة صور المخدومين والخدام وصورة الفصل من نسخة localStorage
-    const studentsNoPhoto = snap.students.map(s => { const c = {...s}; delete c.photo; return c; });
-    const servantsNoPhoto = (snap.servants || []).map(sv => { const c = {...sv}; delete c.photo; return c; });
-    return { ...snap, students: studentsNoPhoto, servants: servantsNoPhoto, classPhoto: null, _photosStripped: true };
+    const lean = list => (list || []).map(x => { const c = { ...x }; if (_isInlinePhoto(c.photo)) delete c.photo; return c; });
+    return {
+      ...snap,
+      students: lean(snap.students),
+      servants: lean(snap.servants),
+      classPhoto: _isInlinePhoto(snap.classPhoto) ? null : (snap.classPhoto || null),
+      _photosStripped: true
+    };
   }
 
   // ===================================================
@@ -3276,9 +3282,220 @@
     return String((e && (e.message || e.details || e.hint)) || e || 'خطأ غير معروف');
   }
 
-  // true = نرفع الصور مع بيانات الفصل (السلوك القديم). لو ظهرت أخطاء Timeout/حجم كبير غيّرها إلى false
-  // (صفحة المشرفين لا تستخدم الصور). ملاحظة: مع false لن تظهر الصور على الأجهزة الأخرى.
-  const CLOUD_SYNC_PHOTOS = true;
+  // ===================================================
+  //  🖼️ الصور في Supabase Storage (بدل base64 داخل سجل الفصل)
+  //  المشكلة: صورة base64 تضيف عشرات الكيلوبايتات لكل شخص، فيتضخّم سجل الفصل إلى ميجابايتات
+  //  فتفشل المزامنة (Timeout) ويبطؤ التحميل. الحل: تُرفع الصورة مرة واحدة إلى bucket
+  //  ويُحفظ في السجل رابطها فقط. الصور القديمة (base64) تُنقل تلقائياً عند فتح الفصل.
+  //  يلزم تشغيل ملف supabase_photos_storage.sql مرة واحدة في Supabase.
+  //  إن لم يكن الـ bucket جاهزاً بعد: يبقى كل شيء يعمل كالسابق (تبقى الصورة base64) مع تنبيه.
+  // ===================================================
+  const PHOTO_BUCKET = 'chapter-photos';
+  const PHOTO_MAX_DIM = 700;
+  const PHOTO_QUALITY = 0.72;
+  const PHOTO_REENCODE_ABOVE_CHARS = 550000;   // ≈ 400KB: صور Excel المستوردة الأكبر من ذلك تُصغَّر قبل الرفع
+
+  function _isInlinePhoto(v) { return typeof v === 'string' && v.startsWith('data:image/'); }
+  function _isUrlPhoto(v)    { return typeof v === 'string' && /^https?:\/\//i.test(v); }
+  // مفتاح الخادم: sid (وللنسخ القديمة جداً id) — المخدوم: id
+  function _photoKey(kind, x) { return !x ? null : (kind === 'servant' ? (x.sid != null ? x.sid : x.id) : x.id); }
+  function _hasInlinePhotos() {
+    return (students || []).some(s => s && _isInlinePhoto(s.photo)) ||
+           (servants || []).some(s => s && _isInlinePhoto(s.photo)) ||
+           _isInlinePhoto(currentClassPhoto);
+  }
+
+  // بصمة سريعة (cyrb53 + الطول) لتمييز الصور دون الاحتفاظ بنسخة ثانية منها
+  function _hashStr(str) {
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0, ch; i < str.length; i++) {
+      ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36) + ':' + str.length;
+  }
+
+  function _dataUrlToBlob(dataUrl) {
+    const m = /^data:([^;,]+)(;base64)?,([\s\S]*)$/.exec(dataUrl);
+    if (!m) throw new Error('bad data url');
+    const bin = m[2] ? atob(m[3]) : decodeURIComponent(m[3]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: m[1] });
+  }
+
+  // إعادة ترميز الصورة إلى JPEG مصغّر (للصور الكبيرة/الأنواع غير المدعومة القادمة من استيراد Excel)
+  function _reencodeImage(dataUrl) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('image load error'));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > PHOTO_MAX_DIM || height > PHOTO_MAX_DIM) {
+          if (width >= height) { height = Math.round(height * PHOTO_MAX_DIM / width); width = PHOTO_MAX_DIM; }
+          else { width = Math.round(width * PHOTO_MAX_DIM / height); height = PHOTO_MAX_DIM; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height);   // PNG الشفاف يصير أبيض لا أسود
+        ctx.drawImage(img, 0, 0, width, height);
+        try { resolve(canvas.toDataURL('image/jpeg', PHOTO_QUALITY)); } catch (e) { reject(e); }
+      };
+      img.src = dataUrl;
+    });
+  }
+
+  const _photoUrlCache = new Map();   // بصمة base64 → رابط Storage (حتى لا تُرفع الصورة نفسها مرتين)
+  const _photoFailed = new Set();     // صور فشل رفعها لسبب يخصّها (لا نكرر المحاولة في هذه الجلسة)
+  let _storageBroken = '';            // سبب فشل في الإعداد (bucket غير موجود/صلاحيات): نتوقف عن المحاولة حتى إعادة التحميل
+  let _storageWarned = false;
+
+  function _photoFolder() {
+    return String(CLOUD_CLASS_ID || 'misc').replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80) || 'misc';
+  }
+  function _uuid() {
+    return (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+      : Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+  // أخطاء الإعداد (غير مؤقتة): bucket غير موجود أو لا صلاحية رفع
+  function _isStorageConfigError(e) {
+    const t = _errText(e).toLowerCase();
+    const sc = String((e && (e.statusCode || e.status)) || '');
+    return ['401', '403', '404'].includes(sc) || /bucket not found|row-level security|unauthorized|not authorized|forbidden/.test(t);
+  }
+
+  // يرفع صورة base64 إلى Storage ويرجع رابطها العام. المسار عشوائي ولا يتكرر، فلا حاجة لصلاحية تعديل/حذف.
+  async function _uploadPhoto(dataUrl, kind) {
+    if (!_supabaseClient || !_supabaseClient.storage) throw new Error('Storage غير متاح');
+    const key = _hashStr(dataUrl);
+    // نخزّن "وعد الرفع" نفسه: الصورة المتطابقة (أشقاء بنفس الصورة مثلاً) تُرفع مرة واحدة حتى لو طُلبت معاً
+    if (_photoUrlCache.has(key)) return _photoUrlCache.get(key);
+    const job = (async () => {
+      let src = dataUrl;
+      const mime = (/^data:([^;,]+)/.exec(dataUrl) || [])[1] || '';
+      if (!/^image\/(jpeg|png|webp)$/.test(mime) || dataUrl.length > PHOTO_REENCODE_ABOVE_CHARS) {
+        src = await _reencodeImage(dataUrl);
+      }
+      const blob = _dataUrlToBlob(src);
+      const ext = blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+      const path = _photoFolder() + '/' + kind + '_' + _uuid() + '.' + ext;
+      const bucket = _supabaseClient.storage.from(PHOTO_BUCKET);
+      const { error } = await bucket.upload(path, blob, { contentType: blob.type, cacheControl: '31536000', upsert: false });
+      if (error) throw error;
+      const url = bucket.getPublicUrl(path).data.publicUrl;
+      if (!url) throw new Error('تعذر الحصول على رابط الصورة');
+      return url;
+    })();
+    _photoUrlCache.set(key, job);
+    try { return await job; }
+    catch (e) { _photoUrlCache.delete(key); throw e; }   // الفشل لا يُخزَّن: تُعاد المحاولة لاحقاً
+  }
+
+  function _photoNotice(msg) {
+    try { if (typeof showToast === 'function') showToast(msg); else setStatus(msg, '#c8392b', false); } catch(e) {}
+  }
+
+  // ينقل كل صور base64 في الحالة الحالية إلى Storage ويستبدلها بروابطها.
+  // لا يرمي أخطاء: أي صورة تفشل تبقى base64 كما هي (لا تضيع) وتُعاد محاولتها في الرفع التالي.
+  async function _externalizePhotos() {
+    const res = { uploaded: 0, failed: 0 };
+    if (!_supabaseClient || !_supabaseClient.storage || _storageBroken) return res;
+    const jobs = [];
+    (students || []).forEach(s => { if (s && _isInlinePhoto(s.photo)) jobs.push({ kind: 'student', id: s.id, src: s.photo }); });
+    (servants || []).forEach(sv => { if (sv && _isInlinePhoto(sv.photo)) jobs.push({ kind: 'servant', id: _photoKey('servant', sv), src: sv.photo }); });
+    if (_isInlinePhoto(currentClassPhoto)) jobs.push({ kind: 'class', src: currentClassPhoto });
+    if (!jobs.length) return res;
+
+    // نستبدل فقط إن بقيت الصورة كما هي (لو غيّرها المستخدم أثناء الرفع لا نكتب فوق تغييره)
+    const apply = (job, url) => {
+      if (job.kind === 'student') {
+        const s = students.find(x => x.id === job.id);
+        if (s && s.photo === job.src) s.photo = url;
+        if (currentPhoto === job.src) currentPhoto = url;
+      } else if (job.kind === 'servant') {
+        const sv = servants.find(x => _photoKey('servant', x) === job.id);
+        if (sv && sv.photo === job.src) sv.photo = url;
+        if (currentServantPhoto === job.src) currentServantPhoto = url;
+      } else if (currentClassPhoto === job.src) {
+        currentClassPhoto = url;
+      }
+    };
+
+    let next = 0, done = 0;
+    const worker = async () => {
+      while (next < jobs.length && !_storageBroken) {
+        const job = jobs[next++];
+        const fkey = _hashStr(job.src);
+        if (_photoFailed.has(fkey)) { res.failed++; continue; }
+        try {
+          apply(job, await _uploadPhoto(job.src, job.kind));
+          res.uploaded++;
+          done++;
+          if (jobs.length > 2) setStatus('⟳ جاري نقل الصور إلى التخزين السحابي (' + done + '/' + jobs.length + ')...', '#2980b9', true);
+        } catch (e) {
+          res.failed++;
+          console.warn('تعذر رفع الصورة إلى Storage:', e);
+          if (_isStorageConfigError(e)) _storageBroken = _errText(e);
+          else if (!/failed to fetch|network|timeout|abort|load failed/i.test(_errText(e))) _photoFailed.add(fkey);
+        }
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+
+    if (_storageBroken && !_storageWarned) {
+      _storageWarned = true;
+      _photoNotice('⚠️ تعذّر رفع الصور إلى التخزين السحابي (' + _storageBroken + ') — شغّل ملف supabase_photos_storage.sql في Supabase. الصور ما زالت محفوظة كما كانت.');
+    } else if (res.uploaded > 1 && !res.failed) {
+      _photoNotice('✅ تم نقل ' + res.uploaded + ' صورة إلى التخزين السحابي');
+    }
+    return res;
+  }
+
+  // ===== حماية الصور من الضياع عند الدمج/الرفع =====
+  // نحتفظ بآخر صور معروفة في نسخة السحابة (عند التحميل وبعد كل رفع ناجح). لو ظهرت نسخة للرفع
+  // أسقطت صورة شخص ما زال موجوداً دون أن يحذفها المستخدم صراحةً، تُعاد الصورة قبل الرفع بدل مسحها من السحابة.
+  let _cloudPhotoBase = null;   // { students: Map(id→photo), servants: Map(sid→photo), classPhoto }
+  let _photoRemoved = { students: new Set(), servants: new Set(), classPhoto: false };
+
+  function _setCloudPhotoBase(snap) {
+    const mk = (list, kind) => new Map((list || []).filter(x => x && x.photo && _photoKey(kind, x) != null).map(x => [_photoKey(kind, x), x.photo]));
+    _cloudPhotoBase = { students: mk(snap && snap.students, 'student'), servants: mk(snap && snap.servants, 'servant'), classPhoto: (snap && snap.classPhoto) || null };
+    // علامات الحذف الصريح لم تعد لازمة إلا لما لا تزال صورته في السحابة (قد يكون المستخدم حذفها أثناء الرفع)
+    _photoRemoved.students.forEach(id => { if (!_cloudPhotoBase.students.has(id)) _photoRemoved.students.delete(id); });
+    _photoRemoved.servants.forEach(id => { if (!_cloudPhotoBase.servants.has(id)) _photoRemoved.servants.delete(id); });
+    if (!_cloudPhotoBase.classPhoto) _photoRemoved.classPhoto = false;
+  }
+  // يُستدعى عند أي حذف/إزالة صريحة من المستخدم (صورة أو شخص كامل)
+  function _markPhotoRemoved(kind, id) {
+    if (kind === 'class') _photoRemoved.classPhoto = true;
+    else if (id != null) _photoRemoved[kind === 'servant' ? 'servants' : 'students'].add(id);
+  }
+  function _resetPhotoGuard() { _cloudPhotoBase = null; _photoRemoved = { students: new Set(), servants: new Set(), classPhoto: false }; }
+
+  function _restoreDroppedPhotos() {
+    const b = _cloudPhotoBase;
+    if (!b) return 0;
+    let n = 0;
+    (students || []).forEach(s => {
+      if (!s || s.id == null) return;
+      if (s.photo) { _photoRemoved.students.delete(s.id); return; }
+      if (b.students.has(s.id) && !_photoRemoved.students.has(s.id)) { s.photo = b.students.get(s.id); n++; }
+    });
+    (servants || []).forEach(sv => {
+      const k = _photoKey('servant', sv);
+      if (!sv || k == null) return;
+      if (sv.photo) { _photoRemoved.servants.delete(k); return; }
+      if (b.servants.has(k) && !_photoRemoved.servants.has(k)) { sv.photo = b.servants.get(k); n++; }
+    });
+    if (currentClassPhoto) _photoRemoved.classPhoto = false;
+    else if (b.classPhoto && !_photoRemoved.classPhoto) { currentClassPhoto = b.classPhoto; n++; }
+    if (n) console.warn('حماية الدمج: أُعيدت ' + n + ' صورة كانت ستُمسح من السحابة دون حذف صريح');
+    return n;
+  }
 
   let _cloudPushTimer = null;
   let _cloudSyncing = false;
@@ -3296,9 +3513,20 @@
   // بعض إصدارات الدالة تُغلّف النتيجة داخل حقل — نفكّها بأمان
   function _unwrapSnap(d) {
     if (!d || typeof d !== 'object') return null;
-    if (d.students) return d;
+    if (Array.isArray(d)) return d.length === 1 ? _unwrapSnap(d[0]) : null;
+    if (Array.isArray(d.students)) return d;
     const inner = d.data ?? d.p_data ?? d.record ?? d.snapshot ?? d.get_class_record ?? d.payload;
-    return (inner && inner.students) ? inner : null;
+    return (inner && Array.isArray(inner.students)) ? inner : null;
+  }
+
+  // هل في رد السحابة سجل يشبه نسخة فصل لكننا لم نستطع قراءته؟
+  // (يختلف عن "لا يوجد سجل بعد": في الحالة الأولى يجب ألا نكتب فوقه نسخة فارغة أبداً)
+  function _hasUnparsedSnapshot(d) {
+    const like = o => !!o && typeof o === 'object' && !Array.isArray(o) && ['students', 'servants', 'attendance', 'savedAt', 'className'].some(k => k in o);
+    if (!d || typeof d !== 'object') return false;
+    if (Array.isArray(d)) return d.some(_hasUnparsedSnapshot);
+    if (like(d)) return true;
+    return ['data', 'p_data', 'record', 'snapshot', 'get_class_record', 'payload'].some(k => like(d[k]));
   }
 
   function scheduleCloudPush() {
@@ -3321,13 +3549,18 @@
     _cloudSyncing = true;
     const _seqAtPush = _editSeq;
     try {
-      const snap = CLOUD_SYNC_PHOTOS ? makeSnapshot() : makeSnapshotNoPhotos();
+      // 1) انقل أي صور base64 إلى Storage أولاً (تُستبدل بروابطها في الحالة الحالية) فيصير السجل خفيفاً
+      await _externalizePhotos();
+      // 2) شبكة أمان: لا نرفع نسخة أسقطت صورة موجودة في السحابة دون حذف صريح من المستخدم
+      _restoreDroppedPhotos();
+      const snap = makeSnapshot();
       const { error } = await _supabaseClient.rpc('upsert_class_record', {
         p_class_id: CLOUD_CLASS_ID,
         p_class_name: (typeof getClassName === 'function' ? getClassName() : '') || 'بدون اسم',
         p_data: snap
       });
       if (error) throw error;
+      _setCloudPhotoBase(snap);
       _lastSyncedTime = snap.savedAt || '';
       try { if (typeof _touchChapterMeta === 'function') _touchChapterMeta(snap); } catch(e) {}
       if (_seqAtPush === _editSeq) {
@@ -3884,13 +4117,20 @@
     if (typeof processPendingQrScan === 'function') setTimeout(processPendingQrScan, 400);
   }
 
-  // دمج الصور المحلية داخل نسخة السحابة (لو السحابة بلا صور)
+  // دمج صور النسخة المصدر داخل النسخة الهدف — يملأ الفراغات فقط ولا يستبدل صورة موجودة أبداً.
+  // (كان الدمج القديم يطابق الخدام بالمفتاح id بينما مفتاحهم الحقيقي sid، فيصير المفتاح undefined
+  //  وتُنسخ صورة خادم واحد إلى كل الخدام بلا صور عند التراجع/الإعادة.)
   function _mergePhotos(target, source) {
     if (!target || !source) return target;
-    const sp = new Map((source.students || []).filter(x => x && x.photo).map(x => [x.id, x.photo]));
-    const vp = new Map((source.servants || []).filter(x => x && x.photo).map(x => [x.id, x.photo]));
-    target.students = (target.students || []).map(x => (x.photo || !sp.has(x.id)) ? x : { ...x, photo: sp.get(x.id) });
-    target.servants = (target.servants || []).map(x => (x.photo || !vp.has(x.id)) ? x : { ...x, photo: vp.get(x.id) });
+    const photoMap = (list, kind) => new Map((list || [])
+      .filter(x => x && x.photo && _photoKey(kind, x) != null)
+      .map(x => [_photoKey(kind, x), x.photo]));
+    const fill = (list, map, kind) => (list || []).map(x => {
+      const k = _photoKey(kind, x);
+      return (!x || x.photo || k == null || !map.has(k)) ? x : { ...x, photo: map.get(k) };
+    });
+    target.students = fill(target.students, photoMap(source.students, 'student'), 'student');
+    target.servants = fill(target.servants, photoMap(source.servants, 'servant'), 'servant');
     if (!target.classPhoto && source.classPhoto) target.classPhoto = source.classPhoto;
     return target;
   }
@@ -3912,6 +4152,12 @@
         if (error) throw error;
         cloudOk = true;
         cloudSnap = _unwrapSnap(data);
+        // سجل موجود بصيغة لا نفهمها ≠ "فصل جديد": نعتبرها فشل قراءة حتى لا نرفع نسخة فارغة فوق بيانات سليمة
+        if (!cloudSnap && _hasUnparsedSnapshot(data)) {
+          cloudOk = false;
+          cloudErr = 'صيغة سجل الفصل في السحابة غير مفهومة — لم يُكتب فوقه أي شيء';
+          console.warn(cloudErr, data);
+        }
       } catch(e) {
         cloudErr = _errText(e);
         console.warn('تعذر قراءة بيانات الفصل من السحابة:', e);
@@ -3934,8 +4180,10 @@
     if (useCloud) {
       const merged = _mergePhotos({ ...cloudSnap }, local.idb || local.ls);
       applySnapshot(merged);
+      _setCloudPhotoBase(cloudSnap);   // أساس حماية الصور: ما هو موجود فعلاً في السحابة الآن
       if (typeof setStatus === 'function') setStatus('✅ تم تحميل بيانات الفصل من السحابة', '#1a7a4a', false);
     } else {
+      _resetPhotoGuard();
       await loadBest();
       if ((!students || !students.length) && ACTIVE_CHAPTER_NAME) {
         const inp = document.getElementById('classNameInput');
@@ -3955,6 +4203,12 @@
       scheduleCloudPush();
     } else {
       setCloudDot('on');
+    }
+
+    // ترحيل تلقائي: صور base64 القديمة → Storage، ثم يُرفع سجل خفيف للسحابة (عبر مسار الرفع العادي)
+    if (cloudOk && _hasInlinePhotos() && !_storageBroken) {
+      if (typeof setStatus === 'function') setStatus('⟳ جاري نقل الصور إلى التخزين السحابي...', '#2980b9', true);
+      scheduleCloudPush();
     }
   }
 
@@ -4165,7 +4419,7 @@
         redoStack = []; // أي تعديل جديد يلغي إمكانية الإعادة للأمام
         updateUndoRedoUI();
       }
-      _lastSnapRaw = JSON.stringify(makeSnapshotNoPhotos());   // في الذاكرة فقط
+      _lastSnapRaw = JSON.stringify(makeSnapshotLean());   // في الذاكرة فقط
     } catch(e) {}
 
     clearTimeout(_saveDebounce);
@@ -4194,7 +4448,7 @@
     try {
       const snap = _mergePhotos(JSON.parse(prevRaw), makeSnapshot());
       applySnapshot(snap);
-      _lastSnapRaw = JSON.stringify(makeSnapshotNoPhotos());
+      _lastSnapRaw = JSON.stringify(makeSnapshotLean());
       scheduleCloudPush();
       renderAll();
       calculatePastoralAnalytics();
@@ -4220,7 +4474,7 @@
     try {
       const snap = _mergePhotos(JSON.parse(nextRaw), makeSnapshot());
       applySnapshot(snap);
-      _lastSnapRaw = JSON.stringify(makeSnapshotNoPhotos());
+      _lastSnapRaw = JSON.stringify(makeSnapshotLean());
       scheduleCloudPush();
       renderAll();
       calculatePastoralAnalytics();
@@ -5506,7 +5760,7 @@
       
       const statusLabels = ATT_LABELS;
       const photoHtml = s.photo
-        ? `<img src="${s.photo}" style="width:100px;height:100px;object-fit:cover;border-radius:8px;cursor:zoom-in;display:block;" onclick="event.stopPropagation();openPhotoLightbox('${s.id}')" title="اضغط لعرض الصورة كاملة">`
+        ? `<img src="${s.photo}" loading="lazy" decoding="async" style="width:100px;height:100px;object-fit:cover;border-radius:8px;cursor:zoom-in;display:block;" onclick="event.stopPropagation();openPhotoLightbox('${s.id}')" title="اضغط لعرض الصورة كاملة">`
         : `<span style="font-size:20px;">👤</span>`;
 
       return `<tr>
@@ -5631,6 +5885,7 @@
     e.stopPropagation();
     e.preventDefault();
     if (!confirm('هل تريد حذف صورة الفصل؟')) return;
+    _markPhotoRemoved('class');
     currentClassPhoto = null;
     updateClassPhotoUI(null);
     const inp = document.getElementById('classPhotoInput');
@@ -5850,6 +6105,7 @@
     if (editingId) {
       const idx = students.findIndex(s => s.id === editingId);
       if (idx !== -1) {
+        if (students[idx].photo && !currentPhoto) _markPhotoRemoved('student', editingId);   // حذف صريح للصورة (حتى لا تعيدها حماية الدمج)
         students[idx] = { ...students[idx], name, id, dob, school, class: cls, phone, phone2, ownPhone, address, extraNotes, confessor, photo: currentPhoto, ...readMapFields('studentMapUrl') };
 
         // إذا تغيّر رقم المخدوم، نقل جميع سجلاته للرقم الجديد حتى لا يضيع تاريخ الغياب
@@ -5994,18 +6250,51 @@
     if (!s) return;
     if (!confirm(`هل أنت متأكد من حذف المخدوم "${s.name}"؟`)) return;
     logActivity('delete_student', { studentId: id, studentName: s.name });
+    _markPhotoRemoved('student', id);
     students = students.filter(x => x.id !== id);
     save();
     renderAll();
   }
 
   // =================== EXPORTS ===================
+  // ExcelJS يحتاج الصورة base64، بينما الصور المحفوظة الآن روابط Storage — نحوّلها وقت التصدير فقط
+  const _exportPhotoCache = new Map();   // رابط → base64 (يُخزَّن لتسريع التصدير المتكرر في نفس الجلسة)
+  async function _photoAsDataUrl(src) {
+    if (_isInlinePhoto(src)) return src;
+    if (!_isUrlPhoto(src)) return null;
+    if (_exportPhotoCache.has(src)) return _exportPhotoCache.get(src);
+    try {
+      const r = await fetch(src, { mode: 'cors' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const blob = await r.blob();
+      const dataUrl = await new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result);
+        fr.onerror = () => rej(fr.error || new Error('read error'));
+        fr.readAsDataURL(blob);
+      });
+      _exportPhotoCache.set(src, dataUrl);
+      return dataUrl;
+    } catch (e) {
+      console.warn('تعذر تحميل الصورة للتصدير:', src, e);
+      return null;   // يُصدَّر الصف بلا صورة بدل فشل التصدير كله
+    }
+  }
+  async function _prefetchExportPhotos(list) {
+    const urls = [...new Set((list || []).filter(_isUrlPhoto))].filter(u => !_exportPhotoCache.has(u));
+    let i = 0;
+    const worker = async () => { while (i < urls.length) await _photoAsDataUrl(urls[i++]); };
+    await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
+  }
+  function _exportPhotoData(src) { return _isInlinePhoto(src) ? src : (_exportPhotoCache.get(src) || null); }
+
   async function exportExcel() {
     try {
       if (typeof ExcelJS === 'undefined') {
         alert('⚠️ مكتبة الاكسيل لم تُحمَّل بعد. يرجى الانتظار لحظة وإعادة المحاولة.');
         return;
       }
+      await _prefetchExportPhotos([...students.map(s => s.photo), ...servants.map(s => s.photo)]);
       const date = getToday();
       if (!date) { alert('⚠️ يرجى تحديد التاريخ أولاً.'); return; }
       const className = getClassName();
@@ -6150,10 +6439,11 @@
         const rowBg = isAlt ? C.rowAlt : C.rowWhite;
 
         // تضمين صورة المخدوم إن وُجدت
-        if (s.photo) {
+        const _sPhoto = _exportPhotoData(s.photo);
+        if (_sPhoto) {
           try {
-            const base64 = s.photo.replace(/^data:image\/\w+;base64,/, '');
-            const extMatch = s.photo.match(/^data:image\/(\w+);/);
+            const base64 = _sPhoto.replace(/^data:image\/\w+;base64,/, '');
+            const extMatch = _sPhoto.match(/^data:image\/(\w+);/);
             const ext = (extMatch && extMatch[1] === 'png') ? 'png' : 'jpeg';
             const imgId = wb.addImage({ base64, extension: ext });
             ws1.addImage(imgId, {
@@ -6273,10 +6563,11 @@
         const rowBg = isAlt ? C.rowAlt : C.rowWhite;
 
         // تضمين صورة الخادم إن وُجدت
-        if (sv.photo) {
+        const _svPhoto = _exportPhotoData(sv.photo);
+        if (_svPhoto) {
           try {
-            const base64 = sv.photo.replace(/^data:image\/\w+;base64,/, '');
-            const extMatch = sv.photo.match(/^data:image\/(\w+);/);
+            const base64 = _svPhoto.replace(/^data:image\/\w+;base64,/, '');
+            const extMatch = _svPhoto.match(/^data:image\/(\w+);/);
             const ext = (extMatch && extMatch[1] === 'png') ? 'png' : 'jpeg';
             const imgId = wb.addImage({ base64, extension: ext });
             ws2.addImage(imgId, {
@@ -6731,7 +7022,10 @@
     };
     if (editingServantId) {
       const idx = servants.findIndex(x => x.sid === editingServantId);
-      if (idx !== -1) servants[idx] = { ...servants[idx], ...data };
+      if (idx !== -1) {
+        if (servants[idx].photo && !currentServantPhoto) _markPhotoRemoved('servant', editingServantId);
+        servants[idx] = { ...servants[idx], ...data };
+      }
     } else {
       servants.push({ sid: generateServantId(), ...data });
     }
@@ -6811,7 +7105,7 @@
         if ((servantsAttendance[d] || {})[sv.sid] === 'absent' && isFridayDate(d)) absentCount++;
       });
       let absentBadge = absentCount === 0 ? '<span class="servant-absent-badge s-none">✅ لا غياب</span>' : absentCount >= 3 ? '<span class="servant-absent-badge s-danger">🚨 ' + absentCount + ' غيابات</span>' : '<span class="servant-absent-badge s-warn">⚠️ ' + absentCount + ' غيابات</span>';
-      const photoHtml = sv.photo ? '<img src="' + sv.photo + '" style="width:100px;height:100px;object-fit:cover;border-radius:8px;border:2px solid #e9d5ff;cursor:zoom-in;display:block;" onclick="openServantPhotoLightbox(\'' + sv.sid + '\')">' : '<span style="font-size:36px;display:block;text-align:center;">👤</span>';
+      const photoHtml = sv.photo ? '<img src="' + sv.photo + '" loading="lazy" decoding="async" style="width:100px;height:100px;object-fit:cover;border-radius:8px;border:2px solid #e9d5ff;cursor:zoom-in;display:block;" onclick="openServantPhotoLightbox(\'' + sv.sid + '\')">' : '<span style="font-size:36px;display:block;text-align:center;">👤</span>';
 
       return '<tr>' +
         '<td><div style="width:100px;height:100px;border-radius:8px;background:#faf5ff;display:flex;align-items:center;justify-content:center;overflow:hidden;border:2px solid #e9d5ff;">' + photoHtml + '</div></td>' +
@@ -7915,6 +8209,7 @@
     if (!(await _roomAskPassword('🔐 تأكيد حذف المخدوم', 'أدخل كلمة سر الفصل لحذف "' + s.name + '".'))) return;
     logActivity('delete_student', { studentId: s.id, studentName: s.name });
     _roomPurgeStudentData(s.id);
+    _markPhotoRemoved('student', s.id);
     students = students.filter(function (x) { return String(x.id) !== String(id); });
     save();
     renderAll();
@@ -7930,6 +8225,7 @@
     var n = students.length;
     logActivity('delete_all_students', { count: n });
     students.forEach(function (s) { _roomPurgeStudentData(s.id); });
+    _resetPhotoGuard();
     students = [];
     editingId = null; viewingId = null;
     save();
