@@ -3395,6 +3395,19 @@
     catch (e) { _photoUrlCache.delete(key); throw e; }   // الفشل لا يُخزَّن: تُعاد المحاولة لاحقاً
   }
 
+  // يبدأ رفع الصورة فور اختيارها (قبل الضغط على حفظ) فيكون الرابط جاهزاً وقت الحفظ والخروج
+  function _prefetchPhotoUpload(dataUrl, kind) {
+    try {
+      if (!_isInlinePhoto(dataUrl) || !_supabaseClient || !_supabaseClient.storage || !CLOUD_CLASS_ID || _storageBroken) return;
+      _uploadPhoto(dataUrl, kind).catch(e => {
+        if (_isStorageConfigError(e)) {
+          _storageBroken = _errText(e);
+          if (!_storageWarned) { _storageWarned = true; _photoNotice('⚠️ تعذّر رفع الصور إلى التخزين السحابي (' + _storageBroken + ') — شغّل ملف supabase_photos_storage.sql في Supabase.'); }
+        }
+      });
+    } catch(e) {}
+  }
+
   function _photoNotice(msg) {
     try { if (typeof showToast === 'function') showToast(msg); else setStatus(msg, '#c8392b', false); } catch(e) {}
   }
@@ -3996,11 +4009,14 @@
   }
 
   // حفظ المرحلة الدراسية داخل سجل الفصل بالسحابة (دون المساس ببقية البيانات)
-  async function _pushStageToCloud(id, name, stage, gender) {
+  async function _pushStageToCloud(id, name, stage, gender, isNew) {
     if (!_supabaseClient) return false;
     try {
-      const { data } = await _supabaseClient.rpc('get_class_record', { p_class_id: id });
+      const { data, error: readErr } = await _supabaseClient.rpc('get_class_record', { p_class_id: id });
+      // فشل القراءة (مثلاً Timeout لسجل ضخم) ≠ "لا يوجد سجل": لا نكتب فوق سجل موجود بنسخة فارغة أبداً
+      if (readErr && !isNew) throw readErr;
       let snap = _unwrapSnap(data);
+      if (!snap && !isNew && _hasUnparsedSnapshot(data)) throw new Error('تعذّرت قراءة سجل الفصل');
       if (!snap) snap = { students: [], servants: [], attendance: {}, notes: {}, className: name, savedAt: new Date().toISOString(), v: 2 };
       snap = { ...snap, stage: stage, gender: gender || snap.gender || '' };
       const { error } = await _supabaseClient.rpc('upsert_class_record', { p_class_id: id, p_class_name: name || snap.className || 'بدون اسم', p_data: snap });
@@ -4222,8 +4238,28 @@
     if (window.LessonReminder && LessonReminder.check) setTimeout(function () { try { LessonReminder.check(); } catch (e) {} }, 300);
   }
 
-  function switchChapter() {
+  let _switching = false;
+  async function switchChapter() {
+    if (_switching) return;
     if (!confirm('هل تريد الخروج من هذا الفصل والعودة لشاشة اختيار الفصل؟')) return;
+    _switching = true;
+    try {
+      // لا نعيد تحميل الصفحة قبل اكتمال رفع آخر التعديلات (وإلا تضيع التعديلات/الصور ويظهر الفصل بالنسخة القديمة)
+      if (_supabaseClient && CLOUD_CLASS_ID && _cloudReady && (_cloudDirty || _cloudSyncing)) {
+        clearTimeout(_cloudPushTimer);
+        if (typeof setStatus === 'function') setStatus('⟳ جاري حفظ التعديلات ورفع الصور قبل الخروج...', '#2980b9', true);
+        let tries = 0;
+        while ((_cloudDirty || _cloudSyncing) && tries++ < 12) {
+          if (_cloudSyncing) { await new Promise(r => setTimeout(r, 400)); continue; }
+          await cloudPushNow();
+        }
+        if (_cloudDirty && !confirm('⚠️ تعذّر رفع آخر التعديلات إلى السحابة (' + (_lastCloudError || 'تحقق من الإنترنت') + ').\nالخروج الآن سيُضيّع هذه التعديلات.\n\nهل تريد الخروج رغم ذلك؟')) {
+          _switching = false; return;
+        }
+      }
+    } catch(e) { console.warn(e); }
+    clearTimeout(_cloudPushTimer); clearTimeout(_cloudRetryTimer);
+    _cloudDirty = false;   // لا نُظهر تحذير المتصفح مرة ثانية
     try { sessionStorage.removeItem(CHAPTER_SESSION_KEY); } catch(e) {}
     location.reload();
   }
@@ -4365,7 +4401,7 @@
         _saveChapterMeta();
         _genderFilter = gender; _stageFilter = 'all';
         try { localStorage.setItem(GENDER_TAB_LS_KEY, gender); } catch(e) {}
-        await _pushStageToCloud(newId, name, stage, gender);
+        await _pushStageToCloud(newId, name, stage, gender, true);
         closeChapterEditModal();
         if (typeof showToast === 'function') showToast('✅ تم إضافة الفصل بنجاح');
         await renderChapterGrid();
@@ -4390,7 +4426,10 @@
         m.stage = stage; m.gender = gender; m.gChecked = true; _saveChapterMeta();
         _genderFilter = gender; _stageFilter = 'all';
         try { localStorage.setItem(GENDER_TAB_LS_KEY, gender); } catch(e) {}
-        if (stageChanged || genderChanged) await _pushStageToCloud(chapterId, name, stage, gender);
+        if (stageChanged || genderChanged) {
+          const okPush = await _pushStageToCloud(chapterId, name, stage, gender);
+          if (!okPush && typeof showToast === 'function') showToast('⚠️ تعذّر حفظ المرحلة/النوع في السحابة — أعد المحاولة');
+        }
         closeChapterEditModal();
         if (typeof showToast === 'function') showToast('✅ تم تحديث بيانات الفصل بنجاح');
         await renderChapterGrid();
@@ -5863,6 +5902,7 @@
     compressImage(file).then(dataUrl => {
       currentClassPhoto = dataUrl;
       updateClassPhotoUI(currentClassPhoto);
+      _prefetchPhotoUpload(dataUrl, 'class');
       save();
     }).catch(() => {
       setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
@@ -6081,6 +6121,7 @@
     compressImage(file).then(dataUrl => {
       currentPhoto = dataUrl;
       updatePhotoPreview(currentPhoto);
+      _prefetchPhotoUpload(dataUrl, 'student');
       setStatus('✅ تم تحميل الصورة', '#1a7a4a', false);
     }).catch(() => {
       setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
@@ -6951,6 +6992,7 @@
     compressImage(file).then(dataUrl => {
       currentServantPhoto = dataUrl;
       updateServantPhotoPreview(currentServantPhoto);
+      _prefetchPhotoUpload(dataUrl, 'servant');
       setStatus('✅ تم تحميل الصورة', '#1a7a4a', false);
     }).catch(() => {
       setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
