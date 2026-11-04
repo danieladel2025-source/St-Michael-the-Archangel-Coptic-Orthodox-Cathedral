@@ -3170,8 +3170,32 @@
   async function idbSet(data) { return false; }
   async function idbGet() { return null; }
 
+  // >>> stage-fix:snap-begin
+  // المرحلة/النوع المكتوبان في سجل الفصل بالسحابة. لا نكتب قيمة فارغة أبداً إن كانت معروفة من أي مصدر:
+  // الفصل المفتوح ← بطاقة الفصل المحلية ← آخر سجل قرأناه/كتبناه في السحابة.
+  // (سجل بلا مرحلة/نوع يختفي من قائمة الخادم لأنها تُفلتر بمرحلة الفصل ونوعه، بينما المشرف العام يرى كل الفصول.)
+  function _snapStage() {
+    var raw = (typeof ACTIVE_CHAPTER_STAGE !== 'undefined' ? ACTIVE_CHAPTER_STAGE : '') || '';
+    try {
+      var id = (typeof ACTIVE_CHAPTER_ID !== 'undefined') ? ACTIVE_CHAPTER_ID : null;
+      var c = [raw, id ? _stageOf(id) : '', _cloudStageSeen];
+      for (var i = 0; i < c.length; i++) if (c[i] && STAGE_INDEX[c[i]]) return c[i];
+    } catch (e) {}
+    return raw;
+  }
+  function _snapGender() {
+    var raw = (typeof ACTIVE_CHAPTER_GENDER !== 'undefined' ? ACTIVE_CHAPTER_GENDER : '') || '';
+    try {
+      var id = (typeof ACTIVE_CHAPTER_ID !== 'undefined') ? ACTIVE_CHAPTER_ID : null;
+      var c = [raw, id ? _genderOf(id) : '', _cloudGenderSeen];
+      for (var i = 0; i < c.length; i++) if (c[i] === 'boys' || c[i] === 'girls') return c[i];
+    } catch (e) {}
+    return raw;
+  }
+  // <<< stage-fix:snap-end
+
   function makeSnapshot() {
-    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, sessionMeta, className: getClassName(), stage: (typeof ACTIVE_CHAPTER_STAGE !== 'undefined' ? ACTIVE_CHAPTER_STAGE : '') || '', gender: (typeof ACTIVE_CHAPTER_GENDER !== 'undefined' ? ACTIVE_CHAPTER_GENDER : '') || '', classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2 };
+    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, sessionMeta, className: getClassName(), stage: _snapStage(), gender: _snapGender(), classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2 };
   }
 
   function applySnapshot(snap) {
@@ -3537,6 +3561,9 @@
       });
       if (error) throw error;
       _setCloudPhotoBase(snap);
+      if (snap.stage) _cloudStageSeen = snap.stage;
+      if (snap.gender) _cloudGenderSeen = snap.gender;
+      if (snap.stage && (snap.gender === 'boys' || snap.gender === 'girls')) { try { _pendingStageDrop(CLOUD_CLASS_ID); } catch(e) {} }
       _lastSyncedTime = snap.savedAt || '';
       try { if (typeof _touchChapterMeta === 'function') _touchChapterMeta(snap); } catch(e) {}
       if (_seqAtPush === _editSeq) {
@@ -3594,6 +3621,8 @@
   let ACTIVE_CHAPTER_NAME = '';
   let ACTIVE_CHAPTER_STAGE = '';
   let ACTIVE_CHAPTER_GENDER = '';
+  let _cloudStageSeen = '';    // آخر مرحلة/نوع رأيناهما في سجل الفصل المفتوح بالسحابة (قراءةً أو كتابةً)
+  let _cloudGenderSeen = '';
   let _chaptersCache = [];
   let _pendingChapterId = null;
 
@@ -3718,10 +3747,106 @@
   function _genderKey(chapterId) { return _genderOf(chapterId) || 'none'; }
   function _genderList() {
     // الخادم (من صفحة الترحيب) يرى فصول مرحلته وفئته فقط — المشرف العام يرى الكل بحسب التبويبات
-    if (window.WelcomeGate && WelcomeGate.role() === 'servant') return _chaptersCache.filter(c => WelcomeGate.chapterAllowed(String(c.chapter_id)));
+    if (window.WelcomeGate && WelcomeGate.role() === 'servant') return _chaptersCache.filter(c => _servantSees(String(c.chapter_id)));
     if (_genderFilter === 'all') return _chaptersCache;
     return _chaptersCache.filter(c => _genderKey(String(c.chapter_id)) === _genderFilter);
   }
+  // >>> stage-fix:helpers-begin
+  // ===== فصول أنشأها هذا الخادم على هذا الجهاز + نشر المرحلة/النوع بأمان =====
+  const MY_CHAPTERS_LS_KEY = 'absence_my_chapters_v1';
+  const PENDING_STAGE_LS_KEY = 'absence_pending_stage_v1';
+  const _stageHealTried = new Set();
+  function _actorNow() { try { return (window.WelcomeGate && WelcomeGate.actor && WelcomeGate.actor()) || ''; } catch(e) { return ''; } }
+  function _myChaptersMap() {
+    try { const o = JSON.parse(localStorage.getItem(MY_CHAPTERS_LS_KEY) || '{}'); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; }
+    catch(e) { return {}; }
+  }
+  function _rememberMyChapter(id) {
+    try {
+      const o = _myChaptersMap(); o[id] = _actorNow();
+      const ids = Object.keys(o); if (ids.length > 300) ids.slice(0, ids.length - 300).forEach(k => delete o[k]);
+      localStorage.setItem(MY_CHAPTERS_LS_KEY, JSON.stringify(o));
+    } catch(e) {}
+  }
+  function _isMyChapter(id) {
+    const o = _myChaptersMap();
+    if (!Object.prototype.hasOwnProperty.call(o, id)) return false;
+    const by = o[id], now = _actorNow();
+    return !by || !now || by === now;      // نفس الخادم (أو الاسم غير معروف في أحد الطرفين)
+  }
+
+  // تطبيع نوع الخادم/الفصل إلى boys/girls (بصيغ مختلفة محتملة في بيانات صفحة الترحيب)
+  function _normGender(v) {
+    const s = _normAr(v);
+    if (!s) return '';
+    if (s === 'boys' || s === 'boy' || s === 'male' || /بنين|ولاد|ذكر/.test(s)) return 'boys';
+    if (s === 'girls' || s === 'girl' || s === 'female' || /بنات|انثي|انثى/.test(s)) return 'girls';
+    return '';
+  }
+  function _servantMatchesProfile(id) {
+    try {
+      const p = WelcomeGate.profile();
+      if (!p || !p.stage || !STAGE_INDEX[p.stage]) return false;
+      const st = _stageOf(id);
+      if (!st || st !== p.stage) return false;
+      const pg = _normGender(p.gender || p.sex || p.kind || p.category || p.type || p.group || '');
+      return !!pg && _genderOf(id) === pg;      // نوع الخادم غير معروف؟ نترك القرار لقاعدة صفحة الترحيب وحدها
+    } catch(e) { return false; }
+  }
+  // الخادم يرى: ما تسمح به صفحة الترحيب، أو فصلاً أنشأه بنفسه، أو فصلاً بنفس مرحلته ونوعه (المعروفين من بطاقة الفصل)
+  function _servantSees(id) {
+    let ok = false;
+    try { ok = !!WelcomeGate.chapterAllowed(id); } catch(e) {}
+    return ok || _isMyChapter(id) || _servantMatchesProfile(id);
+  }
+
+  function _pendingStageGet() {
+    try { const o = JSON.parse(localStorage.getItem(PENDING_STAGE_LS_KEY) || '{}'); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; }
+    catch(e) { return {}; }
+  }
+  function _pendingStageSave(o) { try { localStorage.setItem(PENDING_STAGE_LS_KEY, JSON.stringify(o)); } catch(e) {} }
+  function _pendingStageAdd(id, name, stage, gender) { const o = _pendingStageGet(); o[id] = { name: name || '', stage: stage, gender: gender }; _pendingStageSave(o); }
+  function _pendingStageDrop(id) {
+    const o = _pendingStageGet();
+    if (id && Object.prototype.hasOwnProperty.call(o, id)) { delete o[id]; _pendingStageSave(o); }
+  }
+
+  // ينشر المرحلة/النوع في سجل الفصل بالسحابة مع إعادة المحاولة؛ إن فشل نهائياً يُحفظ الطلب ويُعاد تلقائياً لاحقاً
+  async function _publishStageReliably(id, name, stage, gender) {
+    const waits = [0, 800, 2000];
+    for (let i = 0; i < waits.length; i++) {
+      if (waits[i]) await new Promise(r => setTimeout(r, waits[i]));
+      if (await _pushStageToCloud(id, name, stage, gender)) { _pendingStageDrop(id); return true; }
+    }
+    _pendingStageAdd(id, name, stage, gender);
+    return false;
+  }
+
+  let _flushingPendingStage = false;
+  async function _flushPendingStage() {
+    if (_flushingPendingStage || !_supabaseClient) return;
+    _flushingPendingStage = true;
+    const tried = new Set();
+    try {
+      for (let round = 0; round < 3; round++) {
+        const o = _pendingStageGet();
+        const ids = Object.keys(o).filter(id => !tried.has(id));
+        if (!ids.length) break;
+        for (const id of ids) {
+          tried.add(id);
+          if (typeof ACTIVE_CHAPTER_ID !== 'undefined' && ACTIVE_CHAPTER_ID === id) continue;   // الفصل المفتوح يكتبهما بنفسه مع أول رفع
+          if (!_chaptersCache.some(c => String(c.chapter_id) === id)) continue;                  // لا نُنشئ سجلاً لفصل محذوف/غير ظاهر
+          const p = o[id] || {};
+          if (p.stage && STAGE_INDEX[p.stage] && (p.gender === 'boys' || p.gender === 'girls')) {
+            await _pushStageToCloud(id, p.name, p.stage, p.gender);   // عند النجاح تمسح الدالة الطلب المعلّق
+          }
+        }
+      }
+    } finally { _flushingPendingStage = false; }
+  }
+  window.addEventListener('online', () => { try { _flushPendingStage(); } catch(e) {} });
+  // <<< stage-fix:helpers-end
+
   function _libraryHref(g) { return (g === 'boys' || g === 'girls') ? './library.html?g=' + g : './library.html'; }
   // رابط منهج الكرازة: يمرّر مرحلة الفصل ليفتح المنهج على دروس هذا الفصل مباشرة
   function _curriculumHref(stage) { return (stage && STAGE_INDEX[stage]) ? './curriculum.html?y=' + encodeURIComponent(stage) : './curriculum.html'; }
@@ -3890,6 +4015,7 @@
     const token = ++_statsToken;
     if (!_supabaseClient || !chapters.length) return;
     let ok = false;
+    const _stageMissingInCloud = [];
     try {
       const { data, error } = await _supabaseClient.rpc('chapters_overview');
       if (!error && Array.isArray(data)) {
@@ -3899,6 +4025,7 @@
           m.students = Number(r.students_count) || 0;
           m.servants = Number(r.servants_count) || 0;
           if (r.stage && STAGE_INDEX[r.stage]) m.stage = r.stage;
+          else if ('stage' in r) _stageMissingInCloud.push(id);   // السحابة بلا مرحلة لهذا الفصل
           if (r.gender === 'boys' || r.gender === 'girls') m.gender = r.gender;
         });
         ok = true;
@@ -3907,8 +4034,23 @@
     if (token !== _statsToken) return;
     if (ok) {
       _saveChapterMeta(); _statsPending.clear(); renderChapterCards();
+      // فصول أنشأناها على هذا الجهاز وسجلها في السحابة بلا مرحلة/نوع (فشل النشر أو أُفرغا بنسخة قديمة): نعيد نشرهما مرة واحدة
+      try {
+        _stageMissingInCloud.forEach(id => {
+          if (_stageHealTried.has(id)) return;
+          const m = _chapterMeta[id], ch = chapters.find(c => String(c.chapter_id) === id);
+          if (ch && m && m.stage && STAGE_INDEX[m.stage] && (m.gender === 'boys' || m.gender === 'girls')) {
+            _stageHealTried.add(id);
+            _pendingStageAdd(id, ch.chapter_name || '', m.stage, m.gender);
+          }
+        });
+        _flushPendingStage();
+      } catch(e) {}
       // دالة chapters_overview لا ترجع الجنس — نجلبه من سجل الفصل لأي فصل لم نعرف جنسه بعد
-      const missing = chapters.map(c => String(c.chapter_id)).filter(id => !_genderOf(id));
+      let missing = chapters.map(c => String(c.chapter_id)).filter(id => !_genderOf(id));
+      // الخادم لا يحتاج إلا فصول مرحلته: لا نقرأ سجلات الفصول الأخرى الثقيلة (قد تتجاوز المهلة فيتأخر ظهور فصله)
+      const _gs = _gateStage();
+      if (_gs) missing = missing.filter(id => { const st = _stageOf(id); return !st || st === _gs; });
       if (missing.length) await _fillGenderFromCloud(missing, token);
       return;
     }
@@ -3995,6 +4137,7 @@
       snap = { ...snap, stage: stage, gender: gender || snap.gender || '' };
       const { error } = await _supabaseClient.rpc('upsert_class_record', { p_class_id: id, p_class_name: name || snap.className || 'بدون اسم', p_data: snap });
       if (error) throw error;
+      try { _pendingStageDrop(id); } catch(e) {}
       return true;
     } catch(e) { console.warn('تعذر حفظ المرحلة في السحابة:', e); return false; }
   }
@@ -4014,7 +4157,7 @@
     }
 
     renderChapterCards();           // عرض فوري بالبيانات المحفوظة محلياً
-    loadChapterStats(_chaptersCache); // ثم تحديث الأعداد والمراحل من السحابة
+    loadChapterStats(_chaptersCache); try { _flushPendingStage(); } catch(e) {} // ثم تحديث الأعداد والمراحل من السحابة
   }
 
   function openChapterPasswordModal(chapterId) {
@@ -4153,6 +4296,9 @@
           cloudErr = 'صيغة سجل الفصل في السحابة غير مفهومة — لم يُكتب فوقه أي شيء';
           console.warn(cloudErr, data);
         }
+        // نتذكّر مرحلة/نوع الفصل كما هما في السحابة الآن؛ إن كانا فارغين وعرفناهما محلياً نُصلح السجل أدناه
+        _cloudStageSeen  = (cloudSnap && cloudSnap.stage && STAGE_INDEX[cloudSnap.stage]) ? cloudSnap.stage : '';
+        _cloudGenderSeen = (cloudSnap && (cloudSnap.gender === 'boys' || cloudSnap.gender === 'girls')) ? cloudSnap.gender : '';
       } catch(e) {
         cloudErr = _errText(e);
         console.warn('تعذر قراءة بيانات الفصل من السحابة:', e);
@@ -4192,11 +4338,13 @@
     // 3) السماح بالرفع فقط بعد نجاح قراءة السحابة
     _cloudDirty = false;
     _cloudReady = cloudOk;
+    // سجل السحابة بلا مرحلة/نوع بينما نعرفهما (من بطاقة الفصل المحلية): نُصلحه الآن حتى لا يختفي الفصل عن الخدام
+    const _healMeta = cloudOk && !!cloudSnap && ((!_cloudStageSeen && !!_snapStage()) || (!_cloudGenderSeen && !!_snapGender()));
     if (!cloudOk) {
       setCloudDot('err', 'تعذر قراءة السحابة: ' + cloudErr);
       if (typeof setStatus === 'function') setStatus('⚠️ لا يوجد اتصال بالسحابة — لا تُحفظ أي بيانات على هذا الجهاز، أعد المحاولة عند عودة الاتصال', '#c8392b', false);
       _cloudLoadRetryTimer = setTimeout(retryCloudLoad, 15000);
-    } else if (_cloudDirty || (!useCloud && (local.hasData || !cloudSnap))) {
+    } else if (_cloudDirty || _healMeta || (!useCloud && (local.hasData || !cloudSnap))) {
       // التعديلات المحلية أحدث من السحابة (أو الفصل جديد بلا سجل سحابي) — ارفعها
       scheduleCloudPush();
     } else {
@@ -4367,6 +4515,7 @@
 
       // حذف النسخ المحلية الخاصة بهذا الفصل
       try { localStorage.removeItem('absence_v2_local_' + chapterId); } catch(e) {}
+      try { _pendingStageDrop(chapterId); } catch(e) {}
       try {
         const _db = await openIDB();
         const tx = _db.transaction(IDB_STORE, 'readwrite');
@@ -4429,7 +4578,8 @@
         try { localStorage.setItem(CHAPTERS_CACHE_LS_KEY, JSON.stringify(_chaptersCache)); } catch(e) {}
         _genderFilter = gender; _stageFilter = 'all';
         try { localStorage.setItem(GENDER_TAB_LS_KEY, gender); } catch(e) {}
-        const stageSaved = await _pushStageToCloud(newId, name, stage, gender);
+        _rememberMyChapter(newId);
+        const stageSaved = await _publishStageReliably(newId, name, stage, gender);
         closeChapterEditModal();
         if (typeof showToast === 'function') showToast(stageSaved
           ? '✅ تم إضافة الفصل بنجاح'
