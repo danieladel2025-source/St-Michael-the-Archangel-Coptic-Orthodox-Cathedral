@@ -285,6 +285,22 @@
       ' font-family:inherit;font-weight:800;font-size:14px;cursor:pointer}',
       '#wgServModal .wgs-msg{padding:18px 8px;text-align:center;color:#666;line-height:1.8}',
       '#wgServModal .wgs-msg.err{color:#991b1b}',
+      '#wgAnnModal{position:fixed;inset:0;z-index:1000001;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;',
+      ' padding:14px;direction:rtl;font-family:"Cairo",sans-serif}',
+      '#wgAnnModal .wga-box{background:var(--paper,#f5f0e8);width:100%;max-width:480px;max-height:88vh;display:flex;flex-direction:column;',
+      ' border-radius:18px;padding:16px 14px calc(14px + env(safe-area-inset-bottom,0px));border-top:5px solid var(--gold,#d4a017);box-shadow:0 20px 60px rgba(0,0,0,.5)}',
+      '#wgAnnModal .wga-head{font-size:17px;font-weight:900;margin-bottom:10px;color:var(--ink,#0d1117)}',
+      '#wgAnnModal .wga-body{overflow-y:auto;flex:1 1 auto}',
+      '#wgAnnModal .wga-item{background:#fff;border:1px solid var(--line,#b5a98a);border-right:4px solid var(--gold,#d4a017);border-radius:12px;padding:11px 13px;margin-bottom:10px}',
+      '#wgAnnModal .wga-item.new{border-right-color:var(--accent,#c8392b)}',
+      '#wgAnnModal .wga-t{font-weight:900;font-size:15px;margin-bottom:4px;color:var(--ink,#0d1117)}',
+      '#wgAnnModal .wga-tx{font-size:14px;line-height:1.8;white-space:pre-wrap;word-break:break-word;color:#222}',
+      '#wgAnnModal .wga-tx a{color:var(--accent2,#2980b9);font-weight:700}',
+      '#wgAnnModal .wga-meta{font-size:11.5px;color:#777;margin-top:6px}',
+      '#wgAnnModal .wga-ok{margin-top:8px;width:100%;padding:12px;border:none;border-radius:12px;background:var(--green,#1a7a4a);color:#fff;',
+      ' font-family:inherit;font-size:15px;font-weight:900;cursor:pointer}',
+      '#wgAnnModal .wga-empty{padding:22px 8px;text-align:center;color:#666;line-height:1.8}',
+      '#wgUserBar .wg-btn .wg-badge{min-width:18px;padding:0 5px;border-radius:10px;background:var(--accent,#c8392b);color:#fff;font-size:11px;line-height:18px;text-align:center}',
       'body.role-servant #genderTabs,body.role-servant #stageChips{display:none !important}'
     ].join('');
     document.head.appendChild(st);
@@ -466,7 +482,7 @@
     $('wgCancel').addEventListener('click', function () {
       try { sessionStorage.removeItem(UNLOCK_KEY); } catch (e) {}
       unlocked = false; applyLock(); hide();
-      syncProfile();   // يعيد تسجيل البيانات القديمة على السيرفر
+      syncProfile().then(function () { showAnnouncements(true); });   // يعيد تسجيل البيانات القديمة على السيرفر
     });
     el.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' && e.target && e.target.tagName !== 'BUTTON') { e.preventDefault(); submit(); }
@@ -571,13 +587,14 @@
     hide();
     applyRole();
     if (typeof showToast === 'function') { try { showToast(msg); } catch (e) {} }
+    setTimeout(function () { showAnnouncements(true); }, 700);
   }
 
   /* ---------------------------- إظهار / إخفاء ---------------------------- */
   function show() {
     build();
     applyLock();
-    if (locked() && !admin && !needsPhone()) setMode('admin');
+    if (locked() && !admin && !needsInfo()) setMode('admin');
     else if (mode === 'admin' && !admin && !locked()) setMode('servant');
     el.classList.remove('wg-hide');
     document.body.style.overflow = 'hidden';
@@ -826,10 +843,12 @@
           '<button type="button" class="wg-btn" id="wgChangeBtn">' +
             (r === 'admin' ? '🚪 تسجيل الخروج' : '🔒 تغيير البيانات (للمشرف)') + '</button>' +
           (r === 'admin' ? '<button type="button" class="wg-btn" id="wgServBtn">👥 الخدام المسجّلون</button>' : '') +
-          (r === 'admin' && profile ? '<button type="button" class="wg-btn" id="wgUnlockBtn">✏️ تعديل بيانات الخادم</button>' : '');
+          (r === 'admin' && profile ? '<button type="button" class="wg-btn" id="wgUnlockBtn">✏️ تعديل بيانات الخادم</button>' : '') +
+          (r === 'servant' ? '<button type="button" class="wg-btn" id="wgAnnBtn">📢 الإعلانات <span class="wg-badge" id="wgAnnBadge" style="display:none"></span></button>' : '');
         $('wgChangeBtn').addEventListener('click', changeUser);
         if ($('wgUnlockBtn')) $('wgUnlockBtn').addEventListener('click', adminUnlockProfile);
         if ($('wgServBtn')) $('wgServBtn').addEventListener('click', openServants);
+        if ($('wgAnnBtn')) { $('wgAnnBtn').addEventListener('click', function () { showAnnouncements(false); }); updateAnnBtn(); ensureAnnLoaded(); }
       }
     }
     var hdr = document.querySelector('.header > div:last-child');
@@ -862,6 +881,106 @@
     if (typeof renderChapterCards === 'function' && typeof _chaptersCache !== 'undefined' && _chaptersCache.length) {
       try { renderChapterCards(); } catch (e) {}
     }
+  }
+
+  /* ---------------------------- إعلانات المشرف العام ---------------------------- */
+  var ANN_SEEN_KEY = 'church_ann_seen_v1';   // أرقام الإعلانات التي قرأها هذا الجهاز
+  var annList = null;                        // الإعلانات النشطة المناسبة لهذا الخادم (null = لم تُحمَّل بعد)
+  var annLoading = false, annAuto = false;   // annAuto: ظهرت النافذة التلقائية في هذه الجلسة
+
+  function annSeen() { var a = readJSON(localStorage, ANN_SEEN_KEY); return Array.isArray(a) ? a : []; }
+  function annMarkSeen(ids) {
+    var s = annSeen();
+    ids.forEach(function (id) { if (s.indexOf(id) < 0) s.push(id); });
+    writeJSON(localStorage, ANN_SEEN_KEY, s.slice(-200));
+  }
+  // الإعلان للجميع، أو لمرحلة الخادم، أو لاسم فصله
+  function annApplies(a) {
+    if (a.target_type === 'stage') return !!profile && profile.stage === a.target_value;
+    if (a.target_type === 'class') return !!profile && !!profile.class_name && normName(profile.class_name) === normName(a.target_value);
+    return true;
+  }
+  async function loadAnnouncements() {
+    if (role() !== 'servant') return [];
+    var c = anonClient();
+    if (!c) { annList = annList || []; return annList; }
+    try {
+      var r = await c.rpc('list_announcements');          // غير مثبّتة بعد → لا إعلانات
+      if (r.error || !Array.isArray(r.data)) { annList = annList || []; return annList; }
+      var now = Date.now();
+      annList = r.data.filter(function (a) {
+        return (!a.expires_at || new Date(a.expires_at).getTime() > now) && annApplies(a);
+      });
+    } catch (e) { annList = annList || []; }
+    return annList;
+  }
+  function ensureAnnLoaded() {
+    if (annList !== null || annLoading || role() !== 'servant') return;
+    annLoading = true;
+    loadAnnouncements().then(function () { annLoading = false; updateAnnBtn(); }, function () { annLoading = false; });
+  }
+  function updateAnnBtn() {
+    var b = $('wgAnnBadge');
+    if (!b) return;
+    var seen = annSeen(), n = 0;
+    (annList || []).forEach(function (a) { if (seen.indexOf(a.id) < 0) n++; });
+    b.textContent = n;
+    b.style.display = n ? 'inline-block' : 'none';
+  }
+  // نص آمن: نهرّب HTML أولاً ثم نحوّل روابط http/https فقط إلى روابط قابلة للضغط
+  function linkify(t) {
+    return esc(t).replace(/https?:\/\/(?:(?!&quot;|&#39;|&lt;|&gt;)\S)+/g, function (u) {
+      var m = u.match(/[.,،؛:!؟?)\]]+$/), tail = m ? m[0] : '';
+      if (tail) u = u.slice(0, u.length - tail.length);
+      return '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + u + '</a>' + tail;
+    });
+  }
+  function annTargetLabel(a) {
+    if (a.target_type === 'stage') return '📚 ' + (stageValid(a.target_value) ? STAGE_INDEX[a.target_value].stage.name : a.target_value);
+    if (a.target_type === 'class') return '🏫 ' + a.target_value;
+    return '📣 لكل الخدام';
+  }
+  function annDate(iso) {
+    try { return new Date(iso).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return ''; }
+  }
+  function closeAnn() { var m = $('wgAnnModal'); if (m) m.remove(); }
+
+  // auto=true: عند فتح التطبيق — الجديد فقط ومرة واحدة · auto=false: من زر «الإعلانات» — كل النشط
+  async function showAnnouncements(auto) {
+    if (role() !== 'servant') return;
+    if (el && !el.classList.contains('wg-hide')) return;       // صفحة الترحيب مفتوحة
+    if ($('wgAnnModal')) return;
+    var list = await loadAnnouncements();
+    updateAnnBtn();
+    var seen = annSeen();
+    var items = auto ? list.filter(function (a) { return seen.indexOf(a.id) < 0; }) : list;
+    if (auto) { if (!items.length || annAuto) return; annAuto = true; }
+    if ($('wgAnnModal') || (el && !el.classList.contains('wg-hide'))) return;
+    injectCss();
+    var ids = items.map(function (a) { return a.id; });
+    var m = document.createElement('div');
+    m.id = 'wgAnnModal';
+    m.setAttribute('role', 'dialog');
+    m.innerHTML =
+      '<div class="wga-box">' +
+        '<div class="wga-head">📢 ' + (auto ? 'إعلان جديد من المشرف' : 'إعلانات المشرف') + '</div>' +
+        '<div class="wga-body">' +
+          (items.length ? items.map(function (a) {
+            var isNew = seen.indexOf(a.id) < 0;
+            return '<div class="wga-item' + (isNew ? ' new' : '') + '">' +
+              (a.title ? '<div class="wga-t">' + esc(a.title) + '</div>' : '') +
+              '<div class="wga-tx">' + linkify(a.body) + '</div>' +
+              '<div class="wga-meta">' + esc(annTargetLabel(a)) + (annDate(a.created_at) ? ' • ' + esc(annDate(a.created_at)) : '') +
+                (a.expires_at ? ' • ينتهي ' + esc(annDate(a.expires_at)) : '') + '</div>' +
+            '</div>';
+          }).join('') : '<div class="wga-empty">📭 لا توجد إعلانات حالياً</div>') +
+        '</div>' +
+        '<button type="button" class="wga-ok" id="wgaOk">' + (auto ? 'تم، شكراً ✓' : 'إغلاق') + '</button>' +
+      '</div>';
+    document.body.appendChild(m);
+    function done() { annMarkSeen(ids); closeAnn(); updateAnnBtn(); }
+    $('wgaOk').addEventListener('click', done);
+    m.addEventListener('click', function (e) { if (e.target === m) done(); });
   }
 
   /* ---------------------------- ربط مع باقي النظام ---------------------------- */
@@ -898,6 +1017,7 @@
     profile: function () { return profile; },
     change: changeUser,
     locked: locked,
+    announcements: function () { return showAnnouncements(false); },
     open: show
   };
 
@@ -944,6 +1064,6 @@
   }
 
   applyRole();
-  if (!role() || forceOpen || needsPhone()) show();
-  syncProfile();
+  if (!role() || forceOpen || needsInfo()) show();
+  syncProfile().then(function () { showAnnouncements(true); });
 })();

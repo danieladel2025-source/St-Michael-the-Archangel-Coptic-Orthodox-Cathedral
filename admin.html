@@ -148,6 +148,20 @@
   .sv-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
   .sv-wrap { overflow-x:auto; background:#fff; border-radius:12px; border:1px solid var(--cream); }
   .sv-wrap table.data-table { min-width:680px; }
+  .an-form { background:#fff; border:1px solid var(--cream); border-radius:12px; padding:14px; margin-bottom:14px; display:grid; gap:10px; }
+  .an-form label { font-size:12.5px; font-weight:700; color:#555; display:block; margin-bottom:4px; }
+  .an-form input[type=text], .an-form input[type=date], .an-form select, .an-form textarea {
+    width:100%; padding:10px 12px; border:2px solid var(--line); border-radius:10px; font-family:inherit; font-size:14px; background:#fff; color:var(--ink); }
+  .an-form textarea { min-height:110px; resize:vertical; line-height:1.7; }
+  .an-form input:focus, .an-form select:focus, .an-form textarea:focus { outline:none; border-color:var(--accent2); }
+  .an-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:560px) { .an-row { grid-template-columns:1fr; } }
+  .an-item { background:#fff; border:1px solid var(--cream); border-right:5px solid var(--green); border-radius:12px; padding:12px 14px; margin-bottom:10px; }
+  .an-item.off { border-right-color:#bbb; opacity:.75; }
+  .an-item .an-t { font-weight:900; font-size:15px; margin-bottom:3px; }
+  .an-item .an-tx { font-size:13.5px; line-height:1.8; white-space:pre-wrap; word-break:break-word; }
+  .an-item .an-meta { font-size:11.5px; color:#888; margin:8px 0; display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .an-item .an-act { display:flex; gap:8px; flex-wrap:wrap; }
   .sv-phone { direction:ltr; unicode-bidi:plaintext; font-weight:700; color:var(--accent2); text-decoration:none; white-space:nowrap; }
   .sv-edit { border:none; background:var(--cream); border-radius:8px; padding:3px 8px; cursor:pointer; font-size:12px; }
   .empty-state { text-align:center; padding:70px 20px; color:#999; }
@@ -357,6 +371,7 @@
       <button class="btn btn-outline" id="navPastoral" onclick="showView('pastoral')">💙 متابعة رعوية</button>
       <button class="btn btn-outline" id="navChapters" onclick="showView('chapters')">🗂️ إدارة الفصول</button>
       <button class="btn btn-outline" id="navServants" onclick="showView('servants')">🧑‍🤝‍🧑 قائمة الخدام</button>
+      <button class="btn btn-outline" id="navAnnouncements" onclick="showView('announcements')">📢 الإعلانات</button>
       <button class="btn btn-outline" id="navPromotion" onclick="showView('promotion')">🎓 الترقية السنوية</button>
       <button class="btn btn-outline" id="navSecurity" onclick="showView('security')">🛡️ التحذيرات الأمنية<span id="securityBadge" style="display:none;background:var(--accent,#c8392b);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-right:6px;"></span></button>
       <button class="btn btn-outline" onclick="loadAllClasses()">⟳ تحديث</button>
@@ -384,6 +399,7 @@
     <div id="pastoralView" style="display:none;"></div>
     <div id="chaptersView" style="display:none;"></div>
     <div id="servantsView" style="display:none;"></div>
+    <div id="announcementsView" style="display:none;"></div>
     <div id="securityView" style="display:none;"></div>
     <div id="promotionView" style="display:none;"></div>
   </div>
@@ -922,6 +938,8 @@
     document.getElementById('pastoralView').style.display = name === 'pastoral' ? 'block' : 'none';
     document.getElementById('chaptersView').style.display = name === 'chapters' ? 'block' : 'none';
     document.getElementById('servantsView').style.display = name === 'servants' ? 'block' : 'none';
+    document.getElementById('announcementsView').style.display = name === 'announcements' ? 'block' : 'none';
+    document.getElementById('navAnnouncements').style.opacity = name === 'announcements' ? '1' : '.65';
     document.getElementById('securityView').style.display = name === 'security' ? 'block' : 'none';
     document.getElementById('promotionView').style.display = name === 'promotion' ? 'block' : 'none';
     document.getElementById('navPromotion').style.opacity = name === 'promotion' ? '1' : '.65';
@@ -933,6 +951,7 @@
     if (name === 'pastoral') renderPastoralView();
     if (name === 'chapters') loadChaptersAdmin();
     if (name === 'servants') loadServantsAdmin();
+    if (name === 'announcements') loadAnnouncementsAdmin();
     if (name === 'security') loadSecurityEvents();
     if (name === 'promotion') loadPromotionAdmin();
   }
@@ -1199,6 +1218,141 @@
     else { showToast('🗑️ تم حذف الخادم «' + nm + '»'); }
     allServants.splice(i, 1);
     renderServantsAdmin();
+  }
+
+  // ================== إعلانات المشرف العام للخدام ==================
+  let allAnnouncements = [];
+  const AN_MISSING = e => e && (e.code === 'PGRST202' || e.code === '42883' || e.code === '42P01' || /could not find|does not exist|schema cache/i.test(e.message || ''));
+  const anEl = id => document.getElementById(id);
+  const localDateStr = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+  function buildAnnouncementsForm() {
+    const wrap = anEl('announcementsView');
+    const classNames = [...new Set((allClasses || []).map(c => (c.class_name || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'));
+    const week = new Date(); week.setDate(week.getDate() + 7);
+    wrap.innerHTML = `
+      <div class="an-form" id="anForm">
+        <div style="font-weight:900;font-size:16px;">📢 إعلان جديد للخدام</div>
+        <div><label for="anTitle">العنوان (اختياري)</label>
+          <input type="text" id="anTitle" maxlength="80" placeholder="مثال: رحلة الكنيسة"></div>
+        <div><label for="anBody">نص الإعلان</label>
+          <textarea id="anBody" maxlength="1000" placeholder="اكتب الإعلان هنا... (الروابط تظهر قابلة للضغط)"></textarea></div>
+        <div class="an-row">
+          <div><label for="anTarget">يظهر لـ</label>
+            <select id="anTarget" onchange="onAnTargetChange()">
+              <option value="all">📣 كل الخدام</option>
+              <option value="stage">📚 مرحلة معيّنة</option>
+              <option value="class">🏫 فصل معيّن</option>
+            </select></div>
+          <div id="anStageBox" style="display:none;"><label for="anStage">المرحلة</label>
+            <select id="anStage">${Object.keys(STAGE_NAMES).map(k => `<option value="${escapeHtml(k)}">${escapeHtml(STAGE_NAMES[k])}</option>`).join('')}</select></div>
+          <div id="anClassBox" style="display:none;"><label for="anClass">اسم الفصل</label>
+            <input type="text" id="anClass" list="anClassList" maxlength="80" placeholder="اكتب أو اختر اسم الفصل">
+            <datalist id="anClassList">${classNames.map(n => `<option value="${escapeHtml(n)}"></option>`).join('')}</datalist></div>
+        </div>
+        <div class="an-row">
+          <div><label for="anDate">ينتهي بنهاية يوم</label>
+            <input type="date" id="anDate" value="${localDateStr(week)}" min="${localDateStr(new Date())}"></div>
+          <div style="display:flex;align-items:flex-end;"><label style="display:flex;gap:8px;align-items:center;margin:0 0 10px;">
+            <input type="checkbox" id="anNoExp" onchange="anEl('anDate').disabled=this.checked"> بدون تاريخ انتهاء</label></div>
+        </div>
+        <div><button class="btn btn-blue" id="anSend" onclick="createAnnouncement()">📤 نشر الإعلان</button></div>
+      </div>
+      <div id="anList"></div>`;
+  }
+
+  function onAnTargetChange() {
+    const t = anEl('anTarget').value;
+    anEl('anStageBox').style.display = t === 'stage' ? 'block' : 'none';
+    anEl('anClassBox').style.display = t === 'class' ? 'block' : 'none';
+  }
+
+  async function loadAnnouncementsAdmin() {
+    if (!anEl('anForm')) buildAnnouncementsForm();
+    const list = anEl('anList');
+    list.innerHTML = '<div class="empty-state"><div class="ic">⏳</div>جاري تحميل الإعلانات...</div>';
+    const { data, error } = await sb.rpc('admin_list_announcements');
+    if (error) {
+      list.innerHTML = '<div class="empty-state"><div class="ic">⚠️</div>' +
+        (AN_MISSING(error) ? 'شغّل ملف announcements.sql على Supabase أولاً.' : 'تعذر تحميل الإعلانات: ' + escapeHtml(error.message || '')) + '</div>';
+      return;
+    }
+    allAnnouncements = data || [];
+    renderAnnouncementsAdmin();
+  }
+
+  function renderAnnouncementsAdmin() {
+    const list = anEl('anList');
+    if (!list) return;
+    if (!allAnnouncements.length) { list.innerHTML = '<div class="empty-state"><div class="ic">📭</div>لا توجد إعلانات بعد.</div>'; return; }
+    const fmt = iso => { try { return new Date(iso).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return ''; } };
+    const now = Date.now();
+    list.innerHTML = allAnnouncements.map((a, i) => {
+      const active = !a.expires_at || new Date(a.expires_at).getTime() > now;
+      const target = a.target_type === 'stage' ? '📚 ' + (STAGE_NAMES[a.target_value] || a.target_value)
+                   : a.target_type === 'class' ? '🏫 ' + a.target_value : '📣 كل الخدام';
+      return `<div class="an-item ${active ? '' : 'off'}">
+        ${a.title ? `<div class="an-t">${escapeHtml(a.title)}</div>` : ''}
+        <div class="an-tx">${escapeHtml(a.body)}</div>
+        <div class="an-meta">
+          <span class="chip ${active ? 'green' : ''}">${active ? '🟢 نشط' : '⚪ منتهي'}</span>
+          <span class="chip blue">${escapeHtml(target)}</span>
+          <span>نُشر ${escapeHtml(fmt(a.created_at))}${a.created_by ? ' • ' + escapeHtml(a.created_by) : ''}</span>
+          <span>${a.expires_at ? (active ? 'ينتهي ' : 'انتهى ') + escapeHtml(fmt(a.expires_at)) : 'بدون تاريخ انتهاء'}</span>
+        </div>
+        <div class="an-act">
+          ${active ? `<button class="sv-edit" onclick="expireAnnouncement(${i})">⏹️ إنهاء الآن</button>` : ''}
+          <button class="sv-edit" style="color:var(--accent);" onclick="deleteAnnouncement(${i})">🗑️ حذف</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function createAnnouncement() {
+    const title = (anEl('anTitle').value || '').trim().slice(0, 80);
+    const body = (anEl('anBody').value || '').trim();
+    const type = anEl('anTarget').value;
+    let val = '';
+    if (type === 'stage') val = anEl('anStage').value;
+    if (type === 'class') val = (anEl('anClass').value || '').replace(/\s+/g, ' ').trim();
+    if (!body) { showToast('⚠️ اكتب نص الإعلان'); return; }
+    if (type === 'class' && !val) { showToast('⚠️ اكتب اسم الفصل'); return; }
+    let exp = null;
+    if (!anEl('anNoExp').checked) {
+      const d = anEl('anDate').value;
+      if (!d) { showToast('⚠️ اختر تاريخ الانتهاء أو فعّل «بدون تاريخ انتهاء»'); return; }
+      const dt = new Date(d + 'T23:59:59');
+      if (isNaN(dt) || dt.getTime() < Date.now()) { showToast('⚠️ تاريخ الانتهاء يجب أن يكون اليوم أو بعده'); return; }
+      exp = dt.toISOString();
+    }
+    const by = window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف';
+    const btn = anEl('anSend'); btn.disabled = true; btn.textContent = 'جاري النشر...';
+    const { error } = await sb.rpc('admin_create_announcement', {
+      p_title: title, p_body: body, p_target_type: type, p_target_value: val, p_expires: exp, p_by: by
+    });
+    btn.disabled = false; btn.textContent = '📤 نشر الإعلان';
+    if (error) { showToast(AN_MISSING(error) ? '⚠️ شغّل ملف announcements.sql على Supabase أولاً' : '⚠️ تعذر النشر: ' + (error.message || '')); return; }
+    anEl('anTitle').value = ''; anEl('anBody').value = '';
+    showToast('✅ تم نشر الإعلان — يظهر للخدام عند فتح التطبيق');
+    loadAnnouncementsAdmin();
+  }
+
+  async function expireAnnouncement(i) {
+    const a = allAnnouncements[i];
+    if (!a || !confirm('إنهاء هذا الإعلان الآن؟ سيختفي من عند الخدام.')) return;
+    const { error } = await sb.rpc('admin_expire_announcement', { p_id: a.id });
+    if (error) { showToast('⚠️ تعذر الإنهاء: ' + (error.message || '')); return; }
+    showToast('⏹️ تم إنهاء الإعلان');
+    loadAnnouncementsAdmin();
+  }
+
+  async function deleteAnnouncement(i) {
+    const a = allAnnouncements[i];
+    if (!a || !confirm('🗑️ حذف الإعلان نهائياً؟')) return;
+    const { error } = await sb.rpc('admin_delete_announcement', { p_id: a.id });
+    if (error) { showToast('⚠️ تعذر الحذف: ' + (error.message || '')); return; }
+    showToast('🗑️ تم حذف الإعلان');
+    loadAnnouncementsAdmin();
   }
 
   async function editServantClass(i) {
