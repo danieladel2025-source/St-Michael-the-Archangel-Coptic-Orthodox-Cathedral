@@ -102,6 +102,43 @@
   }
   // خادم مسجّل قبل إضافة الهاتف ولم يكتب رقمه بعد
   function needsPhone() { return !!profile && !profile.phone && !unlocked && !admin; }
+  // ---- اسم الفصل التابع له الخادم ----
+  function cleanClass(t) { return String(t || '').replace(/\s+/g, ' ').trim().slice(0, 80); }
+  function normName(t) {   // تطبيع للمقارنة (همزات/ياء/تاء مربوطة/أرقام عربية/مسافات)
+    return String(t || '').replace(/[\u064B-\u0652\u0640]/g, '')
+      .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+      .replace(/[٠-٩]/g, function (d) { return String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)); })
+      .replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+  function needsClass() { return !!profile && !profile.class_name && !unlocked && !admin; }
+  function needsInfo() { return needsPhone() || needsClass(); }
+  function chapterName(id) {
+    try {
+      var list = (typeof _chaptersCache !== 'undefined' && _chaptersCache) || [];
+      for (var i = 0; i < list.length; i++) if (String(list[i].chapter_id) === String(id)) return String(list[i].chapter_name || '');
+    } catch (e) {}
+    return '';
+  }
+  // null = الدالة غير مثبّتة على السيرفر · '' = لا يوجد اسم فصل محفوظ
+  async function getClassRemote() {
+    var c = anonClient();
+    if (!c) return null;
+    try {
+      var r = await c.rpc('get_servant_class', { p_device: deviceId() });
+      if (r.error) return null;
+      return typeof r.data === 'string' ? r.data : '';
+    } catch (e) { return null; }
+  }
+  // يرجع الاسم المحفوظ فعلياً على السيرفر (قد يختلف إن كان مقفولاً) أو الاسم المُدخل إن تعذّر الاتصال
+  async function saveClassRemote(cls) {
+    var c = anonClient();
+    if (!c) return cls;
+    try {
+      var r = await c.rpc('set_servant_class', { p_device: deviceId(), p_class: cls });
+      if (!r.error && typeof r.data === 'string' && r.data) return r.data;
+    } catch (e) {}
+    return cls;
+  }
   async function removedByAdmin() {
     var c = anonClient();
     if (!c) return false;
@@ -116,18 +153,22 @@
 
   function stageName() { return profile && stageValid(profile.stage) ? STAGE_INDEX[profile.stage].stage.name : ''; }
   function genderName() { return profile ? (profile.gender === 'girls' ? 'بنات' : 'بنين') : ''; }
-  function summary() { return profile ? (stageName() + ' - ' + genderName()) : ''; }
+  function summary() { return profile ? ((profile.class_name ? profile.class_name + ' - ' : '') + stageName() + ' - ' + genderName()) : ''; }
 
   // هل الفصل مناسب للخادم الحالي؟ (المشرف العام يرى الكل)
   function chapterAllowed(id) {
     var r = role();
     if (r === 'admin') return true;
     if (r !== 'servant') return false;
+    // الخادم الذي سجّل اسم فصله: يرى الفصل الذي يطابق اسمه فقط
+    if (profile.class_name) return normName(chapterName(id)) === normName(profile.class_name);
+    // خادم قديم بدون اسم فصل: المرحلة + الفئة كما كان
     return _genderOf(id) === profile.gender && _stageOf(id) === profile.stage;
   }
 
   // هل ما زالت بيانات الفصول (المرحلة/الجنس) قيد التحميل من السحابة؟
   function isLoading() {
+    try { if (profile && profile.class_name && typeof _chaptersCache !== 'undefined' && _chaptersCache.length) return false; } catch (e) {}
     if (Date.now() - START_TS > 20000) return false;
     if (typeof _supabaseClient === 'undefined' || !_supabaseClient) return false;
     if (typeof _statsPending !== 'undefined' && _statsPending.size) return true;
@@ -293,6 +334,10 @@
             '<button type="button" data-g="boys">👦 بنين</button>' +
             '<button type="button" data-g="girls">👧 بنات</button>' +
           '</div>' +
+          '<label for="wgClass">اسم الفصل التابع له</label>' +
+          '<input id="wgClass" type="text" list="wgClassList" autocomplete="off" maxlength="80" placeholder="اختر الفصل من القائمة أو اكتب اسمه">' +
+          '<datalist id="wgClassList"></datalist>' +
+          '<div class="wg-hint">اكتب اسم الفصل كما هو مسجّل في النظام — سيظهر لك الفصل المطابق لهذا الاسم فقط.</div>' +
           '<div id="wgNote" class="wg-warn"></div>' +
         '</div>' +
 
@@ -326,8 +371,29 @@
     showError('');
     if ($('wgSubmit')) busy(false);
   }
+  // اقتراحات أسماء الفصول (من الفصول المحمّلة) بحسب السنة والفئة المختارتين
+  function fillClassList() {
+    var dl = $('wgClassList');
+    if (!dl) return;
+    var st = $('wgStage') ? $('wgStage').value : '', seen = {}, h = '';
+    try {
+      ((typeof _chaptersCache !== 'undefined' && _chaptersCache) || []).forEach(function (c) {
+        var id = String(c.chapter_id), nm = String(c.chapter_name || '').trim();
+        if (!nm) return;
+        var cs = _stageOf(id), cg = _genderOf(id);
+        if (st && cs && cs !== st) return;
+        if (gender && cg && cg !== gender) return;
+        var k = normName(nm);
+        if (seen[k]) return;
+        seen[k] = 1;
+        h += '<option value="' + esc(nm) + '"></option>';
+      });
+    } catch (e) {}
+    dl.innerHTML = h;
+  }
   function setGender(g) {
     gender = g;
+    try { fillClassList(); } catch (e) {}
     Array.prototype.forEach.call($('wgGender').querySelectorAll('button'), function (b) {
       b.classList.toggle('sel', b.getAttribute('data-g') === g);
     });
@@ -341,7 +407,7 @@
   function busy(on, label) {
     var b = $('wgSubmit');
     b.disabled = !!on;
-    b.textContent = on ? (label || '...') : (needsPhone() ? 'حفظ الرقم ←' : (locked() && mode === 'servant' ? 'رجوع ←' : 'متابعة ←'));
+    b.textContent = on ? (label || '...') : (needsInfo() ? 'حفظ البيانات ←' : (locked() && mode === 'servant' ? 'رجوع ←' : 'متابعة ←'));
   }
 
   // يضبط حالة النموذج: مقفل / قابل للتعديل (بإذن المشرف) / تسجيل أول مرة
@@ -350,10 +416,14 @@
     $('wgName').disabled = lk;
     $('wgStage').disabled = lk;
     $('wgPhone').disabled = !!(profile && profile.phone);
+    $('wgClass').disabled = !!(profile && profile.class_name && !unlocked);
     Array.prototype.forEach.call($('wgGender').querySelectorAll('button'), function (b) { b.disabled = lk; });
-    if (needsPhone()) {
+    if (needsInfo()) {
+      var need = [];
+      if (needsPhone()) need.push('<b>رقم هاتفك</b>');
+      if (needsClass()) need.push('<b>اسم الفصل التابع له</b>');
       note.className = 'wg-warn';
-      note.innerHTML = '📞 من فضلك أدخل <b>رقم هاتفك</b> ليتمكن المشرفون من التواصل معك. بقية بياناتك مسجّلة ولا تتغيّر.';
+      note.innerHTML = '📝 من فضلك أدخل ' + need.join(' و ') + ' ليتمكن المشرفون من التواصل معك ويظهر لك فصلك. بقية بياناتك مسجّلة ولا تتغيّر.';
     } else if (lk) {
       note.className = 'wg-warn lock';
       note.innerHTML = '🔒 بياناتك مسجّلة ولا يمكن تغييرها من هنا.<br>لتغييرها اتجه إلى <b>المشرف العام</b> وسجّل دخوله من زر «نعم، مشرف عام» بالأعلى.';
@@ -366,8 +436,8 @@
     }
     $('wgCancel').hidden = !(profile && !unlocked ? true : unlocked);
     if (!role()) $('wgCancel').hidden = true;
-    $('wgSubmit').textContent = needsPhone() ? 'حفظ الرقم ←' : (lk ? 'رجوع ←' : 'متابعة ←');
-    $('wgCancel').textContent = needsPhone() ? 'لاحقاً' : 'إلغاء والعودة';
+    $('wgSubmit').textContent = needsInfo() ? 'حفظ البيانات ←' : (lk ? 'رجوع ←' : 'متابعة ←');
+    $('wgCancel').textContent = needsInfo() ? 'لاحقاً' : 'إلغاء والعودة';
   }
 
   function prefill() {
@@ -375,8 +445,10 @@
       $('wgName').value = profile.name;
       $('wgStage').value = profile.stage;
       $('wgPhone').value = profile.phone || '';
+      $('wgClass').value = profile.class_name || '';
       setGender(profile.gender);
     }
+    fillClassList();
     applyLock();
     try { $('wgEmail').value = localStorage.getItem(ADMIN_EMAIL_KEY) || ''; } catch (e) {}
   }
@@ -388,6 +460,8 @@
     Array.prototype.forEach.call($('wgGender').querySelectorAll('button'), function (b) {
       b.addEventListener('click', function () { setGender(b.getAttribute('data-g')); showError(''); });
     });
+    $('wgStage').addEventListener('change', fillClassList);
+    $('wgClass').addEventListener('focus', fillClassList);
     $('wgSubmit').addEventListener('click', submit);
     $('wgCancel').addEventListener('click', function () {
       try { sessionStorage.removeItem(UNLOCK_KEY); } catch (e) {}
@@ -418,16 +492,18 @@
   async function submit() {
     showError('');
     if (mode === 'servant') {
-      if (needsPhone()) {                 // خادم قديم: يضيف رقم هاتفه فقط
-        var ph0 = normPhone($('wgPhone').value);
-        if (!phoneValid(ph0)) return showError('من فضلك اكتب رقم هاتف صحيح');
+      if (needsInfo()) {                  // خادم قديم: يكمل رقم هاتفه و/أو اسم فصله فقط
+        var np = needsPhone(), nc = needsClass();
+        var ph0 = normPhone($('wgPhone').value), cl0 = cleanClass($('wgClass').value);
+        if (np && !phoneValid(ph0)) return showError('من فضلك اكتب رقم هاتف صحيح');
+        if (nc && cl0.length < 2) return showError('من فضلك اكتب اسم الفصل التابع له');
         busy(true, 'جاري الحفظ...');
-        await savePhoneRemote(ph0);
+        if (np) { await savePhoneRemote(ph0); profile.phone = ph0; }
+        if (nc) { profile.class_name = await saveClassRemote(cl0); }
         busy(false);
-        profile.phone = ph0;
         writeJSON(localStorage, PROFILE_KEY, profile);
         applyLock();
-        finish('✅ تم حفظ رقم هاتفك');
+        finish('✅ تم حفظ بياناتك');
         return;
       }
       if (locked()) { hide(); return; }   // مقفل: لا تغيير
@@ -438,8 +514,10 @@
       if (!phoneValid(phone)) return showError('من فضلك اكتب رقم هاتف صحيح');
       if (!stage) return showError('من فضلك اختر السنة التي ستخدم فيها');
       if (!gender) return showError('من فضلك اختر بنين أم بنات');
+      var cls = cleanClass($('wgClass').value);
+      if (cls.length < 2) return showError('من فضلك اكتب اسم الفصل التابع له');
       var stName = (STAGE_INDEX[stage] && STAGE_INDEX[stage].stage.name) || '';
-      if (!confirm('⚠️ تأكيد البيانات\n\nالاسم: ' + name + '\nالسنة: ' + stName + '\nالفئة: ' + (gender === 'girls' ? 'بنات' : 'بنين') + '\nالهاتف: ' + phone +
+      if (!confirm('⚠️ تأكيد البيانات\n\nالاسم: ' + name + '\nالسنة: ' + stName + '\nالفئة: ' + (gender === 'girls' ? 'بنات' : 'بنين') + '\nالفصل: ' + cls + '\nالهاتف: ' + phone +
         '\n\nلن تستطيع تغيير هذه البيانات بعد التأكيد إلا عن طريق المشرف العام.\nهل البيانات صحيحة؟')) return;
       var saved = { name: name, stage: stage, gender: gender, at: new Date().toISOString() };
       var c = anonClient();
@@ -458,6 +536,7 @@
       }
       if (c) await savePhoneRemote(phone);
       saved.phone = phone;
+      saved.class_name = await saveClassRemote(cls);
       profile = saved;
       name = profile.name;
       writeJSON(localStorage, PROFILE_KEY, profile);
@@ -539,6 +618,7 @@
       try {
         var r = await c.rpc('admin_unlock_servant', { p_device: deviceId() });
         if (r.error && !missingFn(r.error)) { alert('تعذر فتح القفل: ' + (r.error.message || 'خطأ غير معروف') + '\nسجّل خروج ثم ادخل كمشرف مرة أخرى.'); return; }
+        try { await c.rpc('admin_unlock_servant_class', { p_device: deviceId() }); } catch (e2) {}
       } catch (e) { alert('تعذر الاتصال بالسيرفر — تحقق من الإنترنت.'); return; }
     }
     try {
@@ -585,6 +665,17 @@
 
   function sStage(id) { return stageValid(id) ? STAGE_INDEX[id].stage.name : String(id || ''); }
   function sGender(g) { return g === 'girls' ? 'بنات' : 'بنين'; }
+  function allClassNamesHtml() {
+    var seen = {}, h = '';
+    try {
+      ((typeof _chaptersCache !== 'undefined' && _chaptersCache) || []).forEach(function (c) {
+        var nm = String(c.chapter_name || '').trim(), k = normName(nm);
+        if (!nm || seen[k]) return;
+        seen[k] = 1; h += '<option value="' + esc(nm) + '"></option>';
+      });
+    } catch (e) {}
+    return h;
+  }
 
   async function loadServants() {
     var body = $('wgsBody');
@@ -601,6 +692,14 @@
         return;
       }
       servList = r.data || [];
+      try {                                      // أسماء الفصول (دالة مستقلة — إن لم تُثبَّت تظهر القائمة بدونها)
+        var rc = await c.rpc('admin_list_servant_classes');
+        if (!rc.error && Array.isArray(rc.data)) {
+          var cm = {};
+          rc.data.forEach(function (x) { cm[x.device_id] = x.class_name || ''; });
+          servList.forEach(function (it) { it.class_name = cm[it.device_id] || ''; });
+        }
+      } catch (e3) {}
       servEdit = -1;
       renderServants();
     } catch (e) {
@@ -614,7 +713,7 @@
     var q = (($('wgsSearch') && $('wgsSearch').value) || '').trim().toLowerCase();
     var html = '', n = 0;
     servList.forEach(function (it, i) {
-      var hay = (it.name + ' ' + sStage(it.stage) + ' ' + sGender(it.gender)).toLowerCase();
+      var hay = (it.name + ' ' + sStage(it.stage) + ' ' + sGender(it.gender) + ' ' + (it.class_name || '')).toLowerCase();
       if (q && hay.indexOf(q) < 0 && i !== servEdit) return;
       n++;
       var date = '';
@@ -624,6 +723,8 @@
           '<input id="wgsEName" type="text" value="' + esc(it.name) + '" placeholder="الاسم">' +
           '<select id="wgsEStage">' + stageOptionsHtml() + '</select>' +
           '<select id="wgsEGender"><option value="boys">👦 بنين</option><option value="girls">👧 بنات</option></select>' +
+          '<input id="wgsEClass" type="text" list="wgsClassList" maxlength="80" value="' + esc(it.class_name || '') + '" placeholder="اسم الفصل التابع له">' +
+          '<datalist id="wgsClassList">' + allClassNamesHtml() + '</datalist>' +
           '<div class="wgs-row"><button type="button" class="wgs-b g" data-act="save" data-i="' + i + '">💾 حفظ</button>' +
           '<button type="button" class="wgs-b l" data-act="cancel">إلغاء</button></div></div>';
       } else {
@@ -631,6 +732,7 @@
           '<button type="button" class="wgs-b" data-act="edit" data-i="' + i + '">✏️ تعديل</button></div>' +
           '<div class="wgs-meta"><span class="wgs-chip">📚 ' + esc(sStage(it.stage)) + '</span>' +
           '<span class="wgs-chip ' + (it.gender === 'girls' ? 'girls' : 'boys') + '">' + (it.gender === 'girls' ? '👧 ' : '👦 ') + sGender(it.gender) + '</span>' +
+          (it.class_name ? '<span class="wgs-chip">🏫 ' + esc(it.class_name) + '</span>' : '') +
           (date ? '<span>سُجّل: ' + esc(date) + '</span>' : '') + '</div></div>';
       }
     });
@@ -652,7 +754,7 @@
     if (act !== 'save') return;
     var it = servList[i], c = adminClient();
     var name = $('wgsEName').value.trim().replace(/\s+/g, ' ');
-    var stage = $('wgsEStage').value, gender = $('wgsEGender').value;
+    var stage = $('wgsEStage').value, gender = $('wgsEGender').value, cls = cleanClass($('wgsEClass').value);
     if (name.length < 2) return alert('من فضلك اكتب الاسم');
     if (!stage) return alert('من فضلك اختر السنة');
     if (!c || !it) return;
@@ -667,9 +769,19 @@
       b.disabled = false; b.textContent = '💾 حفظ';
       return alert('تعذر الاتصال بالسيرفر — تحقق من الإنترنت.');
     }
-    it.name = name; it.stage = stage; it.gender = gender;
+    try {                                   // اسم الفصل (دالة مستقلة عن بقية البيانات)
+      var rcl = await c.rpc('admin_set_servant_class', { p_device: it.device_id, p_class: cls });
+      if (rcl.error) {
+        b.disabled = false; b.textContent = '💾 حفظ';
+        return alert(missingFn(rcl.error) ? 'شغّل ملف servant_class.sql على Supabase أولاً لحفظ اسم الفصل (باقي البيانات حُفظت).' : 'تعذر حفظ اسم الفصل: ' + (rcl.error.message || ''));
+      }
+    } catch (err2) {
+      b.disabled = false; b.textContent = '💾 حفظ';
+      return alert('تعذر الاتصال بالسيرفر — تحقق من الإنترنت.');
+    }
+    it.name = name; it.stage = stage; it.gender = gender; it.class_name = cls;
     if (it.device_id === deviceId()) {      // الجهاز الحالي نفسه
-      profile = { name: name, stage: stage, gender: gender, phone: (profile && profile.phone) || '', at: it.created_at };
+      profile = { name: name, stage: stage, gender: gender, phone: (profile && profile.phone) || '', class_name: cls, at: it.created_at };
       writeJSON(localStorage, PROFILE_KEY, profile);
     }
     servEdit = -1;
@@ -701,7 +813,8 @@
       if (r) {
         var chips = r === 'admin'
           ? '<span class="wg-chip admin">🛡️ مشرف عام</span><span class="wg-chip">📚 كل الفصول</span>'
-          : '<span class="wg-chip">📚 ' + esc(stageName()) + '</span>' +
+          : (profile && profile.class_name ? '<span class="wg-chip">🏫 ' + esc(profile.class_name) + '</span>' : '') +
+            '<span class="wg-chip">📚 ' + esc(stageName()) + '</span>' +
             '<span class="wg-chip ' + (isGirls ? 'girls' : 'boys') + '">' + (isGirls ? '👧 ' : '👦 ') + esc(genderName()) + '</span>';
         bar.innerHTML =
           '<div class="wg-av">' + (r === 'admin' ? '🛡️' : esc(initialOf(nm))) + '</div>' +
@@ -804,8 +917,16 @@
       if (srv && profileValid(srv)) {
         var diff = !profile || profile.name !== srv.name || profile.stage !== srv.stage || profile.gender !== srv.gender;
         var localPhone = (profile && profile.phone) || '';
+        var localClass = (profile && profile.class_name) || '';
+        var remoteClass = await getClassRemote();      // السيرفر هو المرجع (المشرف العام قد يعدّله)
         profile = srv;
         if (!profile.phone && localPhone) { profile.phone = localPhone; savePhoneRemote(localPhone); }
+        if (remoteClass) profile.class_name = remoteClass;
+        else if (localClass) {
+          profile.class_name = localClass;
+          if (remoteClass === '') saveClassRemote(localClass);   // الدالة مثبّتة والسيرفر فارغ → نرفعه
+        }
+        if ((profile.class_name || '') !== localClass) diff = true;
         writeJSON(localStorage, PROFILE_KEY, profile);
         if (diff && !admin) {
           applyRole();
@@ -817,7 +938,7 @@
         location.reload();
       } else if (profile) {                       // مسجّل محلياً فقط (خادم قديم) → نرفعه للسيرفر
         var r = await c.rpc('register_servant', { p_device: deviceId(), p_name: profile.name, p_stage: profile.stage, p_gender: profile.gender });
-        if (!r.error && r.data && profileValid(r.data)) { profile = r.data; writeJSON(localStorage, PROFILE_KEY, profile); }
+        if (!r.error && r.data && profileValid(r.data)) { var kc = profile.class_name, kp = profile.phone; profile = r.data; if (kc) profile.class_name = kc; if (!profile.phone && kp) profile.phone = kp; writeJSON(localStorage, PROFILE_KEY, profile); }
       }
     } catch (e) {}
   }

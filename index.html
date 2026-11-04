@@ -3786,6 +3786,7 @@
   function _servantMatchesProfile(id) {
     try {
       const p = WelcomeGate.profile();
+      if (p && p.class_name) return false;      // للخادم اسم فصل مسجّل → القرار لاسم الفصل فقط (في صفحة الترحيب)
       if (!p || !p.stage || !STAGE_INDEX[p.stage]) return false;
       const st = _stageOf(id);
       if (!st || st !== p.stage) return false;
