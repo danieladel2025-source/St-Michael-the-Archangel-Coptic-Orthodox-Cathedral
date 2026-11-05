@@ -1538,6 +1538,8 @@
   .followup-stat-card.done-card { background: #f0fdf4; border-color: #bbf7d0; }
   .followup-stat-card.pending-card .stat-val { color: #c0392b; }
   .followup-stat-card.pending-card { background: #fff5f5; border-color: #fca5a5; }
+  .abs-reason-sel { display:block; margin-top:6px; width:100%; min-width:120px; padding:5px 8px; border:1.5px solid #e0b4ae; border-radius:8px;
+    font-family:'Cairo',sans-serif; font-size:12px; background:#fff8f7; color:#7a2a20; cursor:pointer; }
 
   /* ===================================================== */
   /* ===============   تجاوب الهاتف المحمول   ============== */
@@ -3120,6 +3122,7 @@
   });
   let activityLog = [];        // سجل النشاط: من افتقد / من حذف (يُرفع مع نسخة الفصل)
   let followupStore = {};      // بيانات الافتقاد (في الذاكرة + تُرفع مع نسخة الفصل للسحابة)
+  let absenceReasons = {};     // سبب الغياب: absenceReasons[التاريخ][رقم المخدوم] = مفتاح السبب (يُرفع مع نسخة الفصل)
   let _lastSnapRaw = null;     // آخر حالة في الذاكرة لاستخدامها في التراجع/الإعادة
 
   // ضغط/تصغير الصورة قبل تحويلها إلى Base64 لتفادي امتلاء مساحة التخزين
@@ -3195,7 +3198,7 @@
   // <<< stage-fix:snap-end
 
   function makeSnapshot() {
-    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, sessionMeta, className: getClassName(), stage: _snapStage(), gender: _snapGender(), classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2 };
+    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, sessionMeta, className: getClassName(), stage: _snapStage(), gender: _snapGender(), classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, absenceReasons: absenceReasons, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2 };
   }
 
   function applySnapshot(snap) {
@@ -3211,6 +3214,7 @@
     servants = snap.servants || [];
     servantsAttendance = snap.servantsAttendance || {};
     followupStore = snap.followup || {};
+    absenceReasons = (snap.absenceReasons && typeof snap.absenceReasons === 'object') ? snap.absenceReasons : {};
     activityLog = Array.isArray(snap.activityLog) ? snap.activityLog : [];
     if (typeof renderActivityLog === 'function') renderActivityLog();
     if (snap.stage && typeof ACTIVE_CHAPTER_STAGE !== 'undefined') ACTIVE_CHAPTER_STAGE = snap.stage;
@@ -3610,6 +3614,58 @@
     if (document.visibilityState === 'hidden') { if (_cloudReady && _cloudDirty) cloudPushNow(); }
     else _flushCloud();
   });
+
+  // ===== شريط حالة الاتصال: يوضّح انقطاع الإنترنت ووجود تعديلات لم تُرفع بعد =====
+  (function () {
+    let bar = null, okUntil = 0, lastKey = '';
+    function ensureBar() {
+      if (bar) return bar;
+      bar = document.createElement('div');
+      bar.id = 'netStatusBar';
+      bar.setAttribute('role', 'status');
+      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483000;display:none;text-align:center;direction:rtl;' +
+        'font-family:"Cairo",sans-serif;font-size:13px;font-weight:700;line-height:1.6;color:#fff;pointer-events:none;' +
+        'padding:calc(6px + env(safe-area-inset-top,0px)) 12px 6px;box-shadow:0 2px 10px rgba(0,0,0,.25)';
+      document.body.appendChild(bar);
+      return bar;
+    }
+    function refresh() {
+      if (!document.body) return;
+      const offline = navigator.onLine === false;
+      const hasChapter = typeof CLOUD_CLASS_ID !== 'undefined' && !!CLOUD_CLASS_ID;
+      const dirty = hasChapter && typeof _cloudDirty !== 'undefined' && _cloudDirty;
+      const failing = dirty && typeof _lastCloudError !== 'undefined' && !!_lastCloudError;
+      let key = '', msg = '', bg = '';
+      if (offline) {
+        key = 'off' + (dirty ? '1' : '0') + (hasChapter ? '1' : '0');
+        bg = '#c0392b';
+        msg = !hasChapter ? '📡 لا يوجد اتصال بالإنترنت — الدخول للفصول يحتاج اتصالاً'
+            : dirty ? '📡 لا يوجد اتصال — تعديلاتك محفوظة مؤقتاً في هذه الصفحة وتُرفع تلقائياً عند عودة الإنترنت. لا تغلق الصفحة ولا تعيد تحميلها.'
+            : '📡 لا يوجد اتصال بالإنترنت — أي تعديل ستجريه يُرفع تلقائياً عند عودته، ولا تغلق الصفحة قبل ذلك.';
+      } else if (failing) {
+        key = 'fail'; bg = '#d68910';
+        msg = '⚠️ تعذر رفع آخر تعديلاتك — جاري إعادة المحاولة تلقائياً. لا تغلق الصفحة.';
+      } else if (Date.now() < okUntil) {
+        key = 'ok'; bg = '#1a7a4a';
+        msg = '✅ عاد الاتصال وتمت مزامنة تعديلاتك';
+      }
+      if (key === lastKey) return;
+      const prev = lastKey; lastKey = key;
+      if (!key) { if (bar) bar.style.display = 'none'; return; }
+      const b = ensureBar();
+      b.style.background = bg; b.textContent = msg; b.style.display = 'block';
+      if (key === 'ok') setTimeout(refresh, 3200);
+      void prev;
+    }
+    window.addEventListener('offline', refresh);
+    window.addEventListener('online', function () {
+      const dirty = typeof _cloudDirty !== 'undefined' && _cloudDirty;
+      if (dirty || lastKey.indexOf('off') === 0 || lastKey === 'fail') okUntil = Date.now() + 3000;
+      refresh();
+    });
+    setInterval(refresh, 2000);
+    document.addEventListener('DOMContentLoaded', refresh);
+  })();
 
   // ===================================================
   //  🗂️ نظام الفصول (كل فصل له اسم + كلمة سر فريدة)
@@ -6044,6 +6100,7 @@
           <button class="status-badge ${status}" onclick="cycleStatus('${s.id}')">
             ${statusLabels[status]}
           </button>
+          ${status === 'absent' ? absenceReasonSelectHtml(s.id) : ''}
         </td>
         <td>
           <input type="text" value="${recTxt}" placeholder="مثال: محفوظة, مزمور"
@@ -6178,12 +6235,40 @@
     alert('⛔ لا يمكن التعديل أو الحذف لهذه الجلسة لأن مدة الـ ٧ أيام من آخر تعديل قد انتهت.');
   }
 
+  // ----- أسباب الغياب -----
+  const ABS_REASONS = [['', 'سبب الغياب...'], ['sick', '🤒 مرض'], ['travel', '✈️ سفر'], ['exam', '📝 امتحانات'],
+                       ['family', '👨‍👩‍👧 ظروف عائلية'], ['noanswer', '📵 لا يرد'], ['other', '❓ أخرى']];
+  function absenceReasonLabel(k) { const f = k ? ABS_REASONS.find(r => r[0] === k) : null; return f ? f[1] : ''; }
+  function absenceReasonSelectHtml(id) {
+    const cur = ((absenceReasons[getToday()] || {})[id]) || '';
+    return '<select class="abs-reason-sel" title="سبب الغياب" onchange="setAbsenceReason(\'' + id + '\', this.value)">' +
+      ABS_REASONS.map(r => '<option value="' + r[0] + '"' + (r[0] === cur ? ' selected' : '') + '>' + r[1] + '</option>').join('') + '</select>';
+  }
+  function setAbsenceReason(id, val) {
+    const date = getToday();
+    if (!isSessionEditable(date)) { blockEditExpired(); renderTable(); return; }
+    if (((attendance[date] || {})[id]) !== 'absent') return;
+    if (!absenceReasons[date]) absenceReasons[date] = {};
+    if (val) absenceReasons[date][id] = val; else delete absenceReasons[date][id];
+    touchSession(date);
+    save();
+  }
+  // سبب آخر غياب مسجَّل للمخدوم (للعرض في جدول الافتقاد)
+  function lastAbsenceReasonLabel(id) {
+    const dates = Object.keys(attendance).sort().reverse();
+    for (const d of dates) {
+      if ((attendance[d] || {})[id] === 'absent') return absenceReasonLabel((absenceReasons[d] || {})[id]);
+    }
+    return '';
+  }
+
   function cycleStatus(id) {
     const date = getToday();
     if (!isSessionEditable(date)) { blockEditExpired(); return; }
     if (!attendance[date]) attendance[date] = {};
     const current = attendance[date][id] || 'none';
     attendance[date][id] = ATT_CYCLE[current] || 'present';
+    if (attendance[date][id] !== 'absent' && absenceReasons[date]) delete absenceReasons[date][id];
     touchSession(date);
     save();
     renderAll();
@@ -6194,6 +6279,7 @@
     if (!isSessionEditable(date)) { blockEditExpired(); return; }
     if (!attendance[date]) attendance[date] = {};
     students.forEach(s => { attendance[date][s.id] = status; });
+    if (status !== 'absent' && absenceReasons[date]) delete absenceReasons[date];
     touchSession(date);
     save();
     renderAll();
@@ -6357,6 +6443,10 @@
             if (attendance[d] && attendance[d][editingId] !== undefined) {
               attendance[d][id] = attendance[d][editingId];
               delete attendance[d][editingId];
+            }
+            if (absenceReasons[d] && absenceReasons[d][editingId] !== undefined) {
+              absenceReasons[d][id] = absenceReasons[d][editingId];
+              delete absenceReasons[d][editingId];
             }
           });
           // نقل الاعتراف
@@ -8350,6 +8440,7 @@
       if (recitations[d]) delete recitations[d];
       if (recitationDone[d]) delete recitationDone[d];
       if (sessionMeta[d]) delete sessionMeta[d];
+      if (absenceReasons[d]) delete absenceReasons[d];
     });
 
     save();
@@ -8412,7 +8503,7 @@
 
   // يحذف كل ما يخص مخدوماً (مباشرة أو داخل أيام/تواريخ)
   function _roomPurgeStudentData(id) {
-    [attendance, notes, recitations, recitationDone, confessions, massAttendance, followupStore].forEach(function (o) {
+    [attendance, notes, recitations, recitationDone, confessions, massAttendance, followupStore, absenceReasons].forEach(function (o) {
       if (!o || typeof o !== 'object') return;
       delete o[id];
       Object.keys(o).forEach(function (k) {
@@ -8522,6 +8613,7 @@
       case 'followup_type': return { icon: x.method === 'visit' ? '🏠' : '📱', cls: 'fu', html: 'تم تسجيل افتقاد المخدوم ' + who + m + ' بواسطة ' + by };
       case 'followup_undo': return { icon: '↩️', cls: 'fu',  html: 'تم إلغاء حالة "تم الافتقاد" للمخدوم ' + who + ' بواسطة ' + by };
       case 'delete_student': return { icon: '🗑️', cls: 'del', html: 'تم حذف المخدوم ' + who + ' بواسطة ' + by };
+      case 'transfer_student': return { icon: '🔀', cls: 'fu', html: (x.dir === 'in' ? 'انتقل المخدوم ' + who + ' إلى هذا الفصل من «' : 'تم نقل المخدوم ' + who + ' من هذا الفصل إلى «') + _esc(x.other || '') + '» بواسطة ' + by };
       case 'delete_servant': return { icon: '🗑️', cls: 'del', html: 'تم حذف الخادم ' + who + ' بواسطة ' + by };
       case 'delete_all':     return { icon: '⚠️', cls: 'del', html: 'تم حذف جميع المخدومين والخدام بواسطة ' + by };
       case 'delete_all_students': return { icon: '⚠️', cls: 'del', html: 'تم حذف جميع المخدومين' + (x.count ? ' (' + x.count + ')' : '') + ' بواسطة ' + by };
@@ -8683,6 +8775,7 @@
           <span class="followup-absence-badge ${absLevel}">
             ❌ ${s.absenceCount} ${s.absenceCount === 1 ? 'غياب' : 'غيابات'}
           </span>
+          ${(() => { const r = lastAbsenceReasonLabel(s.id); return r ? '<div style="font-size:11px;color:#666;margin-top:4px;">آخر غياب: ' + r + '</div>' : ''; })()}
         </td>
         <td>
           <span class="followup-priority-tag ${priority.cls}">${priority.label}</span>
@@ -9466,6 +9559,7 @@
     // 2) حذف سجلات الغياب فقط
     if (typeof attendance !== 'undefined') {
       for (const k in attendance) delete attendance[k];
+      for (const k in absenceReasons) delete absenceReasons[k];
     }
     if (typeof servantsAttendance !== 'undefined') {
       for (const k in servantsAttendance) delete servantsAttendance[k];

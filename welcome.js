@@ -301,6 +301,27 @@
       ' font-family:inherit;font-size:15px;font-weight:900;cursor:pointer}',
       '#wgAnnModal .wga-empty{padding:22px 8px;text-align:center;color:#666;line-height:1.8}',
       '#wgUserBar .wg-btn .wg-badge{min-width:18px;padding:0 5px;border-radius:10px;background:var(--accent,#c8392b);color:#fff;font-size:11px;line-height:18px;text-align:center}',
+      '#wgUserBar.has-team{flex-wrap:wrap}',
+      '#wgUserBar .wg-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#aaa;margin-inline-end:6px;vertical-align:middle}',
+      '#wgUserBar .wg-dot.on{background:#1fa463;box-shadow:0 0 0 3px rgba(31,164,99,.22)}',
+      '#wgUserBar .wg-chip.st-on{background:#e3f6ec;color:#17794a;border-color:#a9dfc3}',
+      '#wgUserBar .wg-chip.st-off{background:#f0f0f0;color:#777;border-color:#d8d8d8}',
+      '#wgUserBar .wg-team{flex:1 1 100%;border-top:1px dashed rgba(0,0,0,.15);padding-top:9px}',
+      '#wgUserBar .wg-team-head{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;background:none;border:none;',
+      ' font-family:inherit;font-size:13px;font-weight:900;color:var(--ink,#0d1117);cursor:pointer;padding:2px 0;text-align:right}',
+      '#wgUserBar .wg-team-head small{font-weight:800;color:#17794a}',
+      '#wgUserBar .wg-team-list{margin-top:8px;display:flex;flex-direction:column;gap:7px}',
+      '#wgUserBar .wg-mate{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:12px;padding:8px 10px}',
+      '#wgUserBar .wg-mav{flex:0 0 auto;width:34px;height:34px;border-radius:50%;background:var(--accent2,#2980b9);color:#fff;font-weight:900;',
+      ' display:flex;align-items:center;justify-content:center;font-size:14px}',
+      '#wgUserBar .wg-mi{flex:1 1 auto;min-width:0;text-align:right}',
+      '#wgUserBar .wg-mn{font-size:13.5px;font-weight:900;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '#wgUserBar .wg-ms{font-size:11.5px;color:#777;margin-top:1px}',
+      '#wgUserBar .wg-ms.on{color:#17794a;font-weight:800}',
+      '#wgUserBar .wg-mate a{flex:0 0 auto;text-decoration:none;font-size:12px;font-weight:800;padding:7px 10px;border-radius:9px;border:1px solid transparent}',
+      '#wgUserBar .wg-mate a.tel{background:#eaf3fb;color:#1f6fa5;border-color:#b9dcf3}',
+      '#wgUserBar .wg-mate a.wa{background:#dcfce7;color:#166534;border-color:#86efac}',
+      '#wgUserBar .wg-team-note{font-size:12px;color:#777;padding:6px 2px;line-height:1.7}',
       'body.role-servant #genderTabs,body.role-servant #stageChips{display:none !important}'
     ].join('');
     document.head.appendChild(st);
@@ -825,30 +846,33 @@
         bar.id = 'wgUserBar';
         card.insertBefore(bar, card.firstChild);
       }
-      bar.className = r === 'admin' ? 'admin' : (isGirls ? 'girls' : '');
+      bar.className = (r === 'admin' ? 'admin' : (isGirls ? 'girls' : '')) + (r === 'servant' ? ' has-team' : '');
       bar.style.display = r ? 'flex' : 'none';
       if (r) {
         var chips = r === 'admin'
           ? '<span class="wg-chip admin">🛡️ مشرف عام</span><span class="wg-chip">📚 كل الفصول</span>'
           : (profile && profile.class_name ? '<span class="wg-chip">🏫 ' + esc(profile.class_name) + '</span>' : '') +
             '<span class="wg-chip">📚 ' + esc(stageName()) + '</span>' +
-            '<span class="wg-chip ' + (isGirls ? 'girls' : 'boys') + '">' + (isGirls ? '👧 ' : '👦 ') + esc(genderName()) + '</span>';
+            '<span class="wg-chip ' + (isGirls ? 'girls' : 'boys') + '">' + (isGirls ? '👧 ' : '👦 ') + esc(genderName()) + '</span>' +
+            '<span class="wg-chip st-on" id="wgMeSt">🟢 متصل</span>';
         bar.innerHTML =
           '<div class="wg-av">' + (r === 'admin' ? '🛡️' : esc(initialOf(nm))) + '</div>' +
           '<div class="wg-info">' +
             '<div class="wg-hi">' + (r === 'admin' ? 'مسجّل الدخول كـ' : 'أهلاً بك 👋') + '</div>' +
-            '<div class="wg-name">' + esc(nm) + '</div>' +
+            '<div class="wg-name">' + (r === 'servant' ? '<span class="wg-dot on" id="wgMeDot"></span>' : '') + esc(nm) + '</div>' +
             '<div class="wg-chips">' + chips + '</div>' +
           '</div>' +
           '<button type="button" class="wg-btn" id="wgChangeBtn">' +
             (r === 'admin' ? '🚪 تسجيل الخروج' : '🔒 تغيير البيانات (للمشرف)') + '</button>' +
           (r === 'admin' ? '<button type="button" class="wg-btn" id="wgServBtn">👥 الخدام المسجّلون</button>' : '') +
           (r === 'admin' && profile ? '<button type="button" class="wg-btn" id="wgUnlockBtn">✏️ تعديل بيانات الخادم</button>' : '') +
-          (r === 'servant' ? '<button type="button" class="wg-btn" id="wgAnnBtn">📢 الإعلانات <span class="wg-badge" id="wgAnnBadge" style="display:none"></span></button>' : '');
+          (r === 'servant' ? '<button type="button" class="wg-btn" id="wgAnnBtn">📢 الإعلانات <span class="wg-badge" id="wgAnnBadge" style="display:none"></span></button>' : '') +
+          (r === 'servant' ? '<div class="wg-team" id="wgTeam" style="display:none"></div>' : '');
         $('wgChangeBtn').addEventListener('click', changeUser);
         if ($('wgUnlockBtn')) $('wgUnlockBtn').addEventListener('click', adminUnlockProfile);
         if ($('wgServBtn')) $('wgServBtn').addEventListener('click', openServants);
         if ($('wgAnnBtn')) { $('wgAnnBtn').addEventListener('click', function () { showAnnouncements(false); }); updateAnnBtn(); ensureAnnLoaded(); }
+        if (r === 'servant') { renderTeam(); startTeam(); }
       }
     }
     var hdr = document.querySelector('.header > div:last-child');
@@ -983,6 +1007,89 @@
     m.addEventListener('click', function (e) { if (e.target === m) done(); });
   }
 
+  /* ---------------------------- فريق الخدمة: خدام الفصل + حالة الاتصال ---------------------------- */
+  var teamList = null;          // null = لم يُحمَّل بعد (أو الميزة غير مثبّتة على السيرفر)
+  var teamOpen = false, teamTimer = null, lastPingOk = 0;
+
+  // رقم واتساب بالصيغة الدولية (مصر: 01xxxxxxxxx → 201xxxxxxxxx)
+  function waNumber(p) {
+    var d = normPhone(p), plus = d.charAt(0) === '+';
+    d = d.replace(/\D/g, '');
+    if (!d) return '';
+    if (plus) return d;
+    if (d.indexOf('00') === 0) return d.slice(2);
+    if (d.charAt(0) === '0') return '20' + d.slice(1);
+    return d;
+  }
+  function agoText(secs) {
+    if (secs < 60) return 'الآن';
+    if (secs < 3600) return 'منذ ' + Math.floor(secs / 60) + ' د';
+    if (secs < 86400) return 'منذ ' + Math.floor(secs / 3600) + ' ساعة';
+    return 'منذ ' + Math.floor(secs / 86400) + ' يوم';
+  }
+  function meOnline() {
+    return navigator.onLine !== false && (!lastPingOk || Date.now() - lastPingOk < 180000);
+  }
+  function updateMeStatus() {
+    var on = meOnline(), chip = $('wgMeSt'), dot = $('wgMeDot');
+    if (chip) { chip.className = 'wg-chip ' + (on ? 'st-on' : 'st-off'); chip.textContent = on ? '🟢 متصل' : '⚪ غير متصل'; }
+    if (dot) dot.className = 'wg-dot' + (on ? ' on' : '');
+  }
+  function renderTeam() {
+    updateMeStatus();
+    var box = $('wgTeam');
+    if (!box) return;
+    if (role() !== 'servant' || !profile || !profile.class_name || teamList === null) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = '';
+    var mates = teamList.filter(function (m) { return !m.is_me; });
+    var online = mates.filter(function (m) { return m.is_online; }).length;
+    var html = '<button type="button" class="wg-team-head" id="wgTeamHead">' +
+      '<span>👥 خدام فصلك (' + mates.length + ')</span>' +
+      '<span>' + (online ? '<small>🟢 ' + online + ' متصل</small> ' : '') + (teamOpen ? '▲' : '▼') + '</span></button>';
+    if (teamOpen) {
+      if (!mates.length) {
+        html += '<div class="wg-team-note">لا يوجد خدام آخرون مسجّلون في فصل «' + esc(profile.class_name) + '» حتى الآن.</div>';
+      } else {
+        html += '<div class="wg-team-list">' + mates.map(function (m) {
+          var wa = waNumber(m.mate_phone), tel = normPhone(m.mate_phone);
+          return '<div class="wg-mate">' +
+            '<div class="wg-mav">' + esc(initialOf(m.mate_name)) + '</div>' +
+            '<div class="wg-mi"><div class="wg-mn">' + esc(m.mate_name) + '</div>' +
+              '<div class="wg-ms' + (m.is_online ? ' on' : '') + '">' + (m.is_online ? '🟢 متصل الآن' : '⚪ آخر ظهور ' + agoText(m.secs_ago)) + '</div></div>' +
+            (tel ? '<a class="tel" href="tel:' + esc(tel) + '" title="اتصال">📞 اتصال</a>' : '') +
+            (wa ? '<a class="wa" href="https://wa.me/' + esc(wa) + '" target="_blank" rel="noopener noreferrer" title="واتساب">💬 واتس</a>' : '') +
+          '</div>';
+        }).join('') + '</div>';
+      }
+    }
+    box.innerHTML = html;
+    var h = $('wgTeamHead');
+    if (h) h.onclick = function () { teamOpen = !teamOpen; renderTeam(); };
+  }
+  // نبض كل دقيقة: يسجّل أنني متصل ويرجع قائمة خدام فصلي (استدعاء واحد)
+  async function pingTeam() {
+    if (role() !== 'servant' || !profile) return;
+    var c = anonClient();
+    if (!c) return;
+    try {
+      var r = await c.rpc('servant_ping', { p_device: deviceId(), p_name: profile.name || '', p_phone: profile.phone || '', p_stage: profile.stage || '' });
+      if (r.error) { if (missingFn(r.error)) { teamList = null; renderTeam(); } return; }
+      lastPingOk = Date.now();
+      teamList = Array.isArray(r.data) ? r.data : [];
+      renderTeam();
+    } catch (e) {}
+  }
+  function startTeam() {
+    if (role() !== 'servant') return;
+    if (!teamTimer) {
+      teamTimer = setInterval(function () { if (document.visibilityState === 'visible') pingTeam(); }, 60000);
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') pingTeam(); });
+      window.addEventListener('online', function () { pingTeam(); updateMeStatus(); });
+      window.addEventListener('offline', updateMeStatus);
+    }
+    pingTeam();
+  }
+
   /* ---------------------------- ربط مع باقي النظام ---------------------------- */
   // المشرف العام يدخل أي فصل مباشرة دون كلمة سر الفصل
   var _origOpenPass = window.openChapterPasswordModal;
@@ -1065,5 +1172,5 @@
 
   applyRole();
   if (!role() || forceOpen || needsInfo()) show();
-  syncProfile().then(function () { showAnnouncements(true); });
+  syncProfile().then(function () { showAnnouncements(true); pingTeam(); });
 })();

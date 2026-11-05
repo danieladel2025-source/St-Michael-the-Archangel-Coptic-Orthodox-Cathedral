@@ -372,6 +372,8 @@
       <button class="btn btn-outline" id="navChapters" onclick="showView('chapters')">🗂️ إدارة الفصول</button>
       <button class="btn btn-outline" id="navServants" onclick="showView('servants')">🧑‍🤝‍🧑 قائمة الخدام</button>
       <button class="btn btn-outline" id="navAnnouncements" onclick="showView('announcements')">📢 الإعلانات</button>
+      <button class="btn btn-outline" id="navReasons" onclick="showView('reasons')">📊 أسباب الغياب</button>
+      <button class="btn btn-outline" id="navDups" onclick="showView('dups')">🧬 المتكررون</button>
       <button class="btn btn-outline" id="navPromotion" onclick="showView('promotion')">🎓 الترقية السنوية</button>
       <button class="btn btn-outline" id="navSecurity" onclick="showView('security')">🛡️ التحذيرات الأمنية<span id="securityBadge" style="display:none;background:var(--accent,#c8392b);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-right:6px;"></span></button>
       <button class="btn btn-outline" onclick="loadAllClasses()">⟳ تحديث</button>
@@ -400,6 +402,8 @@
     <div id="chaptersView" style="display:none;"></div>
     <div id="servantsView" style="display:none;"></div>
     <div id="announcementsView" style="display:none;"></div>
+    <div id="reasonsView" style="display:none;"></div>
+    <div id="dupsView" style="display:none;"></div>
     <div id="securityView" style="display:none;"></div>
     <div id="promotionView" style="display:none;"></div>
   </div>
@@ -454,6 +458,7 @@
         <div class="meta" id="stuMeta">—</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-outline" id="stuTransferBtn">🔀 نقل لفصل آخر</button>
         <button class="btn btn-red" id="stuDeleteBtn">🗑️ حذف المخدوم</button>
         <button class="close-btn" onclick="closeStudentModal()">✕</button>
       </div>
@@ -940,6 +945,10 @@
     document.getElementById('servantsView').style.display = name === 'servants' ? 'block' : 'none';
     document.getElementById('announcementsView').style.display = name === 'announcements' ? 'block' : 'none';
     document.getElementById('navAnnouncements').style.opacity = name === 'announcements' ? '1' : '.65';
+    document.getElementById('reasonsView').style.display = name === 'reasons' ? 'block' : 'none';
+    document.getElementById('navReasons').style.opacity = name === 'reasons' ? '1' : '.65';
+    document.getElementById('dupsView').style.display = name === 'dups' ? 'block' : 'none';
+    document.getElementById('navDups').style.opacity = name === 'dups' ? '1' : '.65';
     document.getElementById('securityView').style.display = name === 'security' ? 'block' : 'none';
     document.getElementById('promotionView').style.display = name === 'promotion' ? 'block' : 'none';
     document.getElementById('navPromotion').style.opacity = name === 'promotion' ? '1' : '.65';
@@ -952,6 +961,8 @@
     if (name === 'chapters') loadChaptersAdmin();
     if (name === 'servants') loadServantsAdmin();
     if (name === 'announcements') loadAnnouncementsAdmin();
+    if (name === 'reasons') renderReasonsAdmin();
+    if (name === 'dups') renderDupsAdmin();
     if (name === 'security') loadSecurityEvents();
     if (name === 'promotion') loadPromotionAdmin();
   }
@@ -1214,10 +1225,237 @@
       alert(missing ? 'شغّل ملف servant_phone.sql المحدّث على Supabase أولًا.' : 'تعذر الحذف: ' + (error.message || ''));
       return;
     }
+    try { await sb.rpc('admin_remove_presence', { p_device: s.device_id }); } catch (e) {}   // يختفي من قائمة زملائه (servant_team.sql)
     if (data === false) { showToast('هذا الخادم محذوف بالفعل'); }
     else { showToast('🗑️ تم حذف الخادم «' + nm + '»'); }
     allServants.splice(i, 1);
     renderServantsAdmin();
+  }
+
+  // ================== تحليل أسباب الغياب ==================
+  const ABS_REASONS_ADMIN = { sick: '🤒 مرض', travel: '✈️ سفر', exam: '📝 امتحانات', family: '👨‍👩‍👧 ظروف عائلية', noanswer: '📵 لا يرد', other: '❓ أخرى' };
+  let reasonsRange = '30';
+
+  function setReasonsRange(v) { reasonsRange = v; renderReasonsAdmin(); }
+
+  function renderReasonsAdmin() {
+    const wrap = document.getElementById('reasonsView');
+    if (!wrap) return;
+    let cutoff = '';
+    if (reasonsRange !== 'all') { const d = new Date(); d.setDate(d.getDate() - parseInt(reasonsRange, 10)); cutoff = localDateStr(d); }
+
+    const totals = {}; let absent = 0, withReason = 0;
+    const perClass = [];
+    (allClasses || []).forEach(c => {
+      const d = c.data || {}, att = d.attendance || {}, rs = d.absenceReasons || {};
+      const row = { name: c.class_name || 'بدون اسم', total: 0, rec: 0, by: {} };
+      Object.keys(att).forEach(date => {
+        if (cutoff && date < cutoff) return;
+        Object.keys(att[date] || {}).forEach(id => {
+          if (att[date][id] !== 'absent') return;
+          row.total++; absent++;
+          const k = (rs[date] || {})[id];
+          if (k && ABS_REASONS_ADMIN[k]) { row.rec++; withReason++; row.by[k] = (row.by[k] || 0) + 1; totals[k] = (totals[k] || 0) + 1; }
+        });
+      });
+      if (row.total) perClass.push(row);
+    });
+    perClass.sort((a, b) => b.total - a.total);
+
+    const keys = Object.keys(ABS_REASONS_ADMIN).sort((a, b) => (totals[b] || 0) - (totals[a] || 0));
+    const max = Math.max(1, ...keys.map(k => totals[k] || 0));
+    const pct = absent ? Math.round(withReason / absent * 100) : 0;
+
+    wrap.innerHTML = `
+      <div class="an-form" style="margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+          <div style="font-weight:900;font-size:16px;">📊 أسباب الغياب في كل الفصول</div>
+          <select onchange="setReasonsRange(this.value)" style="padding:8px 12px;border:2px solid var(--line);border-radius:10px;font-family:inherit;">
+            ${[['30', 'آخر ٣٠ يوماً'], ['90', 'آخر ٩٠ يوماً'], ['365', 'آخر سنة'], ['all', 'كل الفترة']].map(o => `<option value="${o[0]}" ${o[0] === reasonsRange ? 'selected' : ''}>${o[1]}</option>`).join('')}
+          </select>
+        </div>
+        <div class="an-row">
+          <div class="stu-stat-card"><div class="num">${absent}</div><div class="lbl">إجمالي الغيابات</div></div>
+          <div class="stu-stat-card"><div class="num">${pct}%</div><div class="lbl">سُجِّل سببها (${withReason})</div></div>
+        </div>
+        ${withReason ? keys.map(k => `
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:3px;"><span>${ABS_REASONS_ADMIN[k]}</span><span>${totals[k] || 0}</span></div>
+            <div style="height:10px;background:#eee;border-radius:6px;"><div style="width:${Math.round((totals[k] || 0) / max * 100)}%;height:100%;background:var(--accent);border-radius:6px;"></div></div>
+          </div>`).join('') : '<div class="empty-state" style="padding:16px;"><div class="ic">📭</div>لا توجد أسباب مسجّلة في هذه الفترة. يظهر اختيار السبب للخادم أسفل زر «غائب» في كشف الحضور.</div>'}
+      </div>
+      ${perClass.length ? `<div class="sv-wrap"><table class="data-table"><thead><tr><th>الفصل</th><th>الغيابات</th><th>سُجِّل سببها</th><th>التوزيع</th></tr></thead><tbody>
+        ${perClass.map(r => `<tr><td style="font-weight:700;">${escapeHtml(r.name)}</td><td>${r.total}</td><td>${r.rec}</td>
+          <td>${Object.keys(r.by).sort((a, b) => r.by[b] - r.by[a]).map(k => `<span class="chip">${ABS_REASONS_ADMIN[k]} ${r.by[k]}</span>`).join(' ') || '<span style="color:#aaa;">—</span>'}</td></tr>`).join('')}
+      </tbody></table></div>` : ''}`;
+  }
+
+  // ================== كشف الأسماء المتكررة والأرقام المشتركة (إخوة) ==================
+  function normNameAr(t) {
+    return String(t || '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+      .replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+  function normPhoneKey(p) {
+    const dg = String(p || '').replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x)).replace(/\D/g, '');
+    return dg.length >= 9 ? dg.slice(-10) : '';
+  }
+
+  function renderDupsAdmin() {
+    const wrap = document.getElementById('dupsView');
+    if (!wrap) return;
+    const all = [];
+    (allClasses || []).forEach(c => ((c.data || {}).students || []).forEach(s => all.push({ s, classId: c.class_id, className: c.class_name || 'بدون اسم' })));
+
+    const byName = new Map();
+    all.forEach(x => {
+      const k = normNameAr(x.s.name);
+      if (!k || k.split(' ').length < 2) return;       // اسم من كلمة واحدة يعطي تطابقات خاطئة كثيرة
+      if (!byName.has(k)) byName.set(k, []);
+      byName.get(k).push(x);
+    });
+    const nameGroups = [...byName.values()].filter(g => g.length > 1).sort((a, b) => b.length - a.length);
+
+    const byPhone = new Map();
+    all.forEach(x => {
+      new Set([x.s.phone, x.s.phone2, x.s.ownPhone].map(normPhoneKey).filter(Boolean)).forEach(k => {
+        if (!byPhone.has(k)) byPhone.set(k, []);
+        byPhone.get(k).push(x);
+      });
+    });
+    const phoneGroups = [...byPhone.entries()].filter(([, g]) => g.length > 1).sort((a, b) => b[1].length - a[1].length);
+
+    const member = x => `
+      <div class="gsearch-result" onclick="openDetail('${escapeHtml(x.classId)}'); setTimeout(()=>openStudentModal('${escapeHtml(String(x.s.id))}'), 150)">
+        <div><div class="name">${escapeHtml(x.s.name || '')}</div>
+        <div class="cls">📚 ${escapeHtml(x.className)} • رقم ${escapeHtml(String(x.s.id))}${x.s.phone ? ' • 📞 ' + escapeHtml(x.s.phone) : ''}</div></div>
+        <span class="chip blue">فتح ←</span>
+      </div>`;
+    const cap = (arr, n) => arr.slice(0, n);
+
+    wrap.innerHTML = `
+      <div class="an-form" style="margin-bottom:14px;">
+        <div style="font-weight:900;font-size:16px;">🧬 الأسماء المتكررة (${nameGroups.length})</div>
+        <div style="font-size:12.5px;color:#666;line-height:1.7;">نفس الاسم (بعد توحيد الهمزات والتاء والياء) في أكثر من سجل — إما مخدوم مسجَّل مرتين، أو انتقل بين فصلين ولم يُحذف من القديم. افتح الاسم ثم انقله أو احذف المكرر.</div>
+        ${nameGroups.length ? cap(nameGroups, 60).map(g => `<div style="border:1px solid var(--cream);border-radius:12px;padding:8px;">${g.map(member).join('')}</div>`).join('')
+          : '<div class="empty-state" style="padding:14px;"><div class="ic">✅</div>لا توجد أسماء متكررة.</div>'}
+      </div>
+      <div class="an-form">
+        <div style="font-weight:900;font-size:16px;">👨‍👩‍👧 أرقام هاتف مشتركة (${phoneGroups.length})</div>
+        <div style="font-size:12.5px;color:#666;line-height:1.7;">أكثر من مخدوم برقم هاتف واحد — غالباً إخوة، فيكفي افتقادهم في اتصال واحد. وإن كان الاسم نفسه فراجع القائمة أعلاه.</div>
+        ${phoneGroups.length ? cap(phoneGroups, 60).map(([k, g]) => `<div style="border:1px solid var(--cream);border-radius:12px;padding:8px;">
+            <div style="font-size:12px;color:#888;margin:0 4px 4px;">📞 ${escapeHtml(k)} — ${g.length} مخدومين</div>${g.map(member).join('')}</div>`).join('')
+          : '<div class="empty-state" style="padding:14px;"><div class="ic">—</div>لا توجد أرقام مشتركة.</div>'}
+      </div>`;
+  }
+
+  // ================== نقل مخدوم إلى فصل آخر بكل سجله ==================
+  const TRANSFER_KEYS = ['attendance', 'notes', 'recitations', 'recitationDone', 'confessions', 'massAttendance', 'followup', 'absenceReasons'];
+
+  // ينقل كل ما يخص المخدوم (مباشرة o[id] أو داخل التواريخ o[date][id]) من نسخة الفصل المصدر إلى الهدف
+  function moveStudentRecords(src, dst, oldId, newId) {
+    const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+    TRANSFER_KEYS.forEach(k => {
+      const o = src[k];
+      if (!o || typeof o !== 'object') return;
+      if (has(o, oldId)) { dst[k] = dst[k] || {}; dst[k][newId] = o[oldId]; delete o[oldId]; }
+      Object.keys(o).forEach(key => {
+        const v = o[key];
+        if (v && typeof v === 'object' && !Array.isArray(v) && has(v, oldId)) {
+          dst[k] = dst[k] || {}; dst[k][key] = dst[k][key] || {};
+          dst[k][key][newId] = v[oldId]; delete v[oldId];
+        }
+      });
+    });
+  }
+
+  function transferStudentDialog(studentId) {
+    const cls = currentDetailClass;
+    if (!cls) return;
+    const s = ((cls.data || {}).students || []).find(x => x.id === studentId);
+    if (!s) return;
+    const opts = (allClasses || []).filter(c => c.class_id !== cls.class_id)
+      .sort((a, b) => (a.class_name || '').localeCompare(b.class_name || '', 'ar'))
+      .map(c => `<option value="${escapeHtml(c.class_id)}">${escapeHtml(c.class_name || 'بدون اسم')}</option>`).join('');
+    const old = document.getElementById('transferOverlay'); if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'transferOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl;';
+    ov.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:18px;font-family:inherit;">
+      <div style="font-weight:900;font-size:16px;margin-bottom:6px;">🔀 نقل «${escapeHtml(s.name || '')}»</div>
+      <div style="font-size:12.5px;color:#666;margin-bottom:12px;line-height:1.7;">من فصل «${escapeHtml(cls.class_name || '—')}» إلى الفصل الذي تختاره، مع كل سجله: الحضور والاعتراف والقداس والافتقاد والملاحظات وأسباب الغياب.</div>
+      <select id="transferTarget" style="width:100%;padding:10px;border:2px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;">
+        <option value="">— اختر الفصل —</option>${opts}</select>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button class="btn btn-blue" id="transferGo" style="flex:1;">نقل</button>
+        <button class="btn btn-outline" onclick="document.getElementById('transferOverlay').remove()">إلغاء</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    document.getElementById('transferGo').onclick = () => {
+      const t = document.getElementById('transferTarget').value;
+      if (!t) { showToast('⚠️ اختر الفصل أولاً'); return; }
+      transferStudentAdmin(studentId, t);
+    };
+  }
+
+  async function transferStudentAdmin(studentId, targetId) {
+    const src = currentDetailClass;
+    if (!src || targetId === src.class_id) return;
+    const tgt = (allClasses || []).find(c => c.class_id === targetId);
+    if (!tgt) return;
+    const btn = document.getElementById('transferGo');
+    if (btn) { btn.disabled = true; btn.textContent = 'جاري النقل...'; }
+    const fail = m => { if (btn) { btn.disabled = false; btn.textContent = 'نقل'; } showToast(m); };
+
+    // أحدث نسخة من السحابة للفصلين حتى لا نكتب فوق تعديلات الخدام
+    const [rs, rt] = await Promise.all([
+      sb.from('class_records').select('data').eq('class_id', src.class_id).single(),
+      sb.from('class_records').select('data').eq('class_id', targetId).single()
+    ]);
+    if (rs.error || !rs.data || rt.error || !rt.data) { fail('⚠️ تعذر قراءة بيانات الفصلين: ' + ((rs.error || rt.error || {}).message || '')); return; }
+    const sd = rs.data.data || {}, td = rt.data.data || {};
+    const st = (sd.students || []).find(x => x.id === studentId);
+    if (!st) { fail('هذا المخدوم لم يعد موجوداً في الفصل'); return; }
+    if (!Array.isArray(td.students)) td.students = [];
+
+    if (td.students.some(x => normNameAr(x.name) === normNameAr(st.name)) &&
+        !confirm('⚠️ يوجد في الفصل الهدف مخدوم بنفس الاسم «' + (st.name || '') + '». هل تريد المتابعة؟')) { fail('تم الإلغاء'); return; }
+
+    // رقم المخدوم: نبقيه إن كان غير مستخدم في الفصل الهدف، وإلا نضيف له لاحقة
+    let newId = st.id;
+    if (td.students.some(x => x.id === newId)) {
+      let n = 1; while (td.students.some(x => x.id === String(st.id) + '-' + n)) n++;
+      newId = String(st.id) + '-' + n;
+    }
+
+    moveStudentRecords(sd, td, studentId, newId);
+    td.students.push({ ...st, id: newId });
+    sd.students = (sd.students || []).filter(x => x.id !== studentId);
+
+    const by = (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف') + ' (مشرف عام)';
+    const now = new Date().toISOString();
+    [[sd, 'out', tgt.class_name, studentId], [td, 'in', src.class_name, newId]].forEach(([d, dir, other, id]) => {
+      if (!Array.isArray(d.activityLog)) d.activityLog = [];
+      d.activityLog.push({ t: 'transfer_student', dir, other: other || '', by, at: now, studentId: id, studentName: st.name });
+      if (d.activityLog.length > 300) d.activityLog = d.activityLog.slice(-300);
+    });
+
+    const write = (id, d) => sb.from('class_records').update({ data: d, updated_at: now }).eq('class_id', id).select('class_id');
+    // نكتب الفصل الهدف أولاً: لو فشل ما بعده يبقى المخدوم في فصله (لا فقد بيانات)، وأسوأ حالة نسخة مكررة
+    const w1 = await write(targetId, td);
+    if (w1.error || !w1.data || !w1.data.length) { fail('تعذر الكتابة في الفصل الهدف: ' + (w1.error ? w1.error.message : 'الحساب لا يملك صلاحية تعديل بيانات الفصل (شغّل ملف delete_student_policy.sql على Supabase).')); return; }
+    tgt.data = td; tgt.updated_at = now;
+    const w2 = await write(src.class_id, sd);
+    if (w2.error || !w2.data || !w2.data.length) {
+      alert('⚠️ تم نسخ «' + (st.name || '') + '» إلى الفصل الجديد، لكن تعذر حذفه من الفصل القديم (' + (w2.error ? w2.error.message : 'بدون صلاحية') + ').\nاحذفه من الفصل القديم يدوياً حتى لا يتكرر.');
+      renderClassGrid(); return;
+    }
+    src.data = sd; src.updated_at = now;
+    const ov = document.getElementById('transferOverlay'); if (ov) ov.remove();
+    closeStudentModal();
+    renderStudentsPanel(sd);
+    renderAttendancePanel(sd);
+    renderClassGrid();
+    showToast('🔀 تم نقل «' + (st.name || '') + '» إلى «' + (tgt.class_name || 'الفصل الجديد') + '»');
   }
 
   // ================== إعلانات المشرف العام للخدام ==================
@@ -1482,6 +1720,7 @@
 
     document.getElementById('stuTitle').textContent = s.name || 'بدون اسم';
     document.getElementById('stuDeleteBtn').onclick = () => deleteStudentAdmin(s.id);
+    document.getElementById('stuTransferBtn').onclick = () => transferStudentDialog(s.id);
     document.getElementById('stuMeta').textContent = 'فصل: ' + (currentDetailClass.class_name || '—');
 
     const photoHtml = s.photo
@@ -1523,7 +1762,9 @@
         ${dates.map(date => {
           const st = attendance[date][s.id];
           const [label, color] = statusLabel[st] || [st, '#888'];
-          return `<tr><td style="font-weight:700;">${date}</td><td style="color:${color};font-weight:700;">${label}</td></tr>`;
+          const rk = st === 'absent' ? ((d.absenceReasons || {})[date] || {})[s.id] : '';
+          const rl = rk && ABS_REASONS_ADMIN[rk] ? ` <span style="font-weight:400;color:#777;font-size:12px;">— ${ABS_REASONS_ADMIN[rk]}</span>` : '';
+          return `<tr><td style="font-weight:700;">${date}</td><td style="color:${color};font-weight:700;">${label}${rl}</td></tr>`;
         }).join('')}
       </tbody></table></div>`;
     }
@@ -1551,7 +1792,7 @@
 
     d.students = (d.students || []).filter(x => x.id !== studentId);
     // حذف كل ما يخص المخدوم (سواء كان مفتاحه مباشرًا أو داخل تاريخ/يوم)
-    ['attendance', 'notes', 'recitations', 'recitationDone', 'confessions', 'massAttendance', 'followup'].forEach(k => {
+    ['attendance', 'notes', 'recitations', 'recitationDone', 'confessions', 'massAttendance', 'followup', 'absenceReasons'].forEach(k => {
       const o = d[k];
       if (!o || typeof o !== 'object') return;
       delete o[studentId];

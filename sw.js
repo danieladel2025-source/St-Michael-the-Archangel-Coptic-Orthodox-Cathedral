@@ -1,5 +1,5 @@
 // ===== Service Worker: نظام تسجيل غياب ومتابعة المخدومين — كاتدرائية رئيس الملائكة الجليل ميخائيل - طنطا =====
-const CACHE_VERSION = 'church-attendance-v37'; // رفع الإصدار يجبر الأجهزة على جلب الملفات المُحدّثة
+const CACHE_VERSION = 'church-attendance-v38'; // رفع الإصدار يجبر الأجهزة على جلب الملفات المُحدّثة
 const CACHE_NAME = CACHE_VERSION;
 
 // الملفات الأساسية التي يتم تخزينها مسبقًا (App Shell)
@@ -25,16 +25,43 @@ const PRECACHE_URLS = [
   './icons/icon-512.png'
 ];
 
+// مكتبات ملفات خارجية (CDN) يحتاجها التطبيق ليعمل بدون إنترنت.
+// السبب: وسم <script src="https://cdn..."> بلا crossorigin يعطي رداً "معتماً" (opaque) حالته 0،
+// فلا يُخزَّن أبداً بشرط status === 200 — فكانت مكتبة Supabase والخطوط لا تُحمَّل عند فتح التطبيق بلا إنترنت.
+// الحل: نجلبها نحن بوضع CORS (هذه الخوادم تدعمه) فيصير الرد قابلاً للتخزين.
+const CDN_HOSTS = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+const CDN_PRECACHE = [
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+  'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4',
+  'https://cdn.jsdelivr.net/npm/jsqr@1.4.0',
+  'https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap'
+];
+
+function fetchCdn(url) {
+  return fetch(url, { mode: 'cors', credentials: 'omit' }).then((res) => {
+    if (res && res.status === 200) {
+      const copy = res.clone();
+      caches.open(CACHE_NAME).then((cache) => cache.put(url, copy));
+    }
+    return res;
+  });
+}
+
 // ----- التثبيت: تخزين الملفات الأساسية (فشل ملف واحد لا يُفشل التثبيت كله) -----
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) =>
-        Promise.all(
-          PRECACHE_URLS.map((url) =>
+        Promise.all([
+          ...PRECACHE_URLS.map((url) =>
             cache.add(url).catch((err) => console.warn('تعذر تخزين:', url, err))
+          ),
+          ...CDN_PRECACHE.map((url) =>
+            fetchCdn(url).catch((err) => console.warn('تعذر تخزين مكتبة خارجية:', url, err))
           )
-        )
+        ])
       )
       .then(() => self.skipWaiting())
   );
@@ -66,6 +93,18 @@ self.addEventListener('fetch', (event) => {
   if (url.hostname.endsWith('supabase.co') || url.hostname.endsWith('supabase.in')) return;
   // خرائط جوجل المضمّنة تذهب للشبكة مباشرة
   if (url.hostname === 'google.com' || url.hostname.endsWith('.google.com')) return;
+
+  // مكتبات CDN والخطوط: من الكاش فوراً (تعمل بدون إنترنت) مع تحديث في الخلفية، وإن لم تُخزَّن بعد نجلبها بوضع CORS
+  if (CDN_HOSTS.includes(url.hostname)) {
+    event.respondWith(
+      caches.match(req.url).then((cached) => {
+        const net = fetchCdn(req.url).catch(() => null);
+        if (cached) { event.waitUntil(net); return cached; }
+        return net.then((res) => res || fetch(req)).catch(() => Response.error());
+      })
+    );
+    return;
+  }
 
   // ملفات الموقع نفسه (html/js/css/json): الشبكة أولاً ثم الكاش، لتظهر التحديثات من أول فتح بدل إعادة التحميل عدة مرات
   const isAppFile = url.origin === self.location.origin &&
