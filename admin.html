@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- ===== التحديث التلقائي: يخفي شاشة البداية/الاختيار/الدخول مؤقتاً أثناء إعادة التحميل التلقائي فقط ===== -->
+<script>
+(function(){try{var m=JSON.parse(sessionStorage.getItem('auto_refresh_marker_v1')||'null');
+if(m&&Date.now()-m.t<30000){var c=document.documentElement.classList;c.add('ar-r');
+if(m.inChapter)c.add('ar-r-chapter');if(m.inDash)c.add('ar-r-dash');}}catch(e){}})();
+</script>
+<style>
+html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScreen{display:none!important}
+</style>
 <title>لوحة المشرفين — كاتدرائية رئيس الملائكة الجليل ميخائيل - طنطا</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -377,6 +386,7 @@
       <button class="btn btn-outline" id="navPromotion" onclick="showView('promotion')">🎓 الترقية السنوية</button>
       <button class="btn btn-outline" id="navSecurity" onclick="showView('security')">🛡️ التحذيرات الأمنية<span id="securityBadge" style="display:none;background:var(--accent,#c8392b);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-right:6px;"></span></button>
       <button class="btn btn-outline" onclick="loadAllClasses()">⟳ تحديث</button>
+      <button class="btn btn-outline" data-ar-toggle></button>
       <button class="btn btn-red" onclick="deleteAllClasses()">🗑️ حذف كل الفصول</button>
       <button class="btn btn-red" onclick="doLogout()">خروج</button>
     </div>
@@ -1895,5 +1905,6 @@
     getName: function () { return 'مشرف'; }
   });
 </script>
+<script src="./auto-refresh.js"></script>
 </body>
 </html>

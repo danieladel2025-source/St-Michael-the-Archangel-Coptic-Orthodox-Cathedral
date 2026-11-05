@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- ===== التحديث التلقائي: يخفي شاشة البداية/الاختيار/الدخول مؤقتاً أثناء إعادة التحميل التلقائي فقط ===== -->
+<script>
+(function(){try{var m=JSON.parse(sessionStorage.getItem('auto_refresh_marker_v1')||'null');
+if(m&&Date.now()-m.t<30000){var c=document.documentElement.classList;c.add('ar-r');
+if(m.inChapter)c.add('ar-r-chapter');if(m.inDash)c.add('ar-r-dash');}}catch(e){}})();
+</script>
+<style>
+html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScreen{display:none!important}
+</style>
 <title>نظام تسجيل غياب ومتابعة مخدومين وخدام كاتدرائية رئيس الملائكة الجليل ميخائيل -طنطا</title>
 
 <!-- ===== PWA: Manifest ===== -->
@@ -1789,6 +1798,7 @@
       <a id="libLinkGate" href="./library.html" title="الانتقال إلى المكتبة الروحية" style="display:inline-flex;align-items:center;gap:6px;background:rgba(41,128,185,0.1);border:1px solid rgba(41,128,185,0.35);color:var(--accent2);text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📚 المكتبة الروحية</a>
       <a id="curLinkGate" href="./curriculum.html" title="الانتقال إلى منهج الكرازة" style="display:inline-flex;align-items:center;gap:6px;background:rgba(26,122,74,0.1);border:1px solid rgba(26,122,74,0.35);color:#1a7a4a;text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📜 منهج الكرازة</a>
       <a href="./admin.html" title="الانتقال إلى لوحة المشرفين" style="display:inline-flex;align-items:center;gap:6px;background:rgba(200,57,43,0.1);border:1px solid rgba(200,57,43,0.35);color:var(--accent);text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">🔒 لوحة المشرفين</a>
+      <button type="button" data-ar-toggle style="background:rgba(13,17,23,0.06);border:1px solid rgba(13,17,23,0.25);color:var(--ink,#0d1117);font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;cursor:pointer;"></button>
     </div>
     <div class="gate-header">
       <div class="gate-icon">⛪</div>
@@ -2106,6 +2116,8 @@
     <a id="libLinkHeader" href="./library.html" title="الانتقال إلى المكتبة الروحية" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📚 المكتبة الروحية</a>
     <a id="curLinkHeader" href="./curriculum.html" title="منهج الكرازة لهذا الفصل" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">📜 منهج الكرازة</a>
     <a href="./admin.html" title="الانتقال إلى لوحة المشرفين" style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;text-decoration:none;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px;transition:background 0.2s;">🔒 لوحة المشرفين</a>
+    <button type="button" class="switch-chapter-btn" data-ar-toggle></button>
+    <button type="button" class="switch-chapter-btn" data-ar-now title="تحديث الصفحة الآن (بعد التأكد من حفظ آخر التعديلات)">↻ تحديث الآن</button>
     <button type="button" class="switch-chapter-btn" id="activeChapterBadge" onclick="switchChapter()" title="تبديل الفصل">📂 تبديل الفصل</button>
   </div>
 </div>
@@ -10451,6 +10463,7 @@
 <script src="./lesson-reminder.js"></script>
 <script src="./live-chat.js"></script>
 <script src="./push-client.js"></script>
+<script src="./auto-refresh.js"></script>
 <script>
   // ===== 💬 الشات المباشر (للخدام) — غرفة الفصل + الغرفة العامة =====
   LiveChat.init({
