@@ -1164,6 +1164,13 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     u1:'الفرقة الأولى (جامعة)', u2:'الفرقة الثانية (جامعة)', u3:'الفرقة الثالثة (جامعة)', u4:'الفرقة الرابعة (جامعة)', u5:'الفرقة الخامسة فأعلى (جامعة)',
     grad:'اجتماع شباب(بيك هنقدر)', youth:'خريجين'
   };
+  // الصفات: خادم / أمين مساعد / أمين خدمة (ملف servant_roles.sql) — الأمينان يريان كل فصول مرحلتهما لفئتهما ويعدّلان فصلهما فقط
+  const GROUP_NAMES = { kg:'الحضانة ورياض الأطفال', prim:'المرحلة الابتدائية', prep:'المرحلة الإعدادية', sec:'المرحلة الثانوية', uni:'المرحلة الجامعية', grad:'الشباب والخريجين' };
+  const STAGE_TO_GROUP = { nursery:'kg', kg1:'kg', kg2:'kg', p1:'prim', p2:'prim', p3:'prim', p4:'prim', p5:'prim', p6:'prim', e1:'prep', e2:'prep', e3:'prep',
+    s1:'sec', s2:'sec', s3:'sec', u1:'uni', u2:'uni', u3:'uni', u4:'uni', u5:'uni', grad:'grad', youth:'grad' };
+  const ROLE_NAMES = { servant:'خادم', assistant:'أمين مساعد', coordinator:'أمين خدمة' };
+  let rolesAvail = false;
+  const isSecRole = s => !!s && (s.role_type === 'assistant' || s.role_type === 'coordinator') && !!GROUP_NAMES[s.stage_group];
   let allServants = [];
 
   async function loadServantsAdmin() {
@@ -1184,6 +1191,19 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         allServants.forEach(s => { s.class_name = cm[s.device_id] || ''; });
       }
     } catch (e) {}
+    rolesAvail = false;
+    try {      // الصفات (servant_roles.sql)
+      const rr = await sb.rpc('admin_list_servant_roles');
+      if (!rr.error && Array.isArray(rr.data)) {
+        rolesAvail = true;
+        const rm = {}; rr.data.forEach(x => { rm[x.device_id] = x; });
+        allServants.forEach(s => {
+          const x = rm[s.device_id];
+          s.role_type = x && (x.role_type === 'assistant' || x.role_type === 'coordinator') ? x.role_type : 'servant';
+          s.stage_group = s.role_type === 'servant' ? '' : ((x && x.stage_group) || '');
+        });
+      }
+    } catch (e) {}
     renderServantsAdmin();
   }
 
@@ -1196,7 +1216,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
     const rows = allServants
       .map((s, i) => ({ s, i }))
-      .filter(({ s }) => !q || (s.name + ' ' + stageOf(s.stage) + ' ' + genderOf(s.gender) + ' ' + (s.class_name || '') + ' ' + (s.phone || '')).toLowerCase().includes(q));
+      .filter(({ s }) => !q || (s.name + ' ' + stageOf(s.stage) + ' ' + genderOf(s.gender) + ' ' + (s.class_name || '') + ' ' + (s.phone || '') + ' ' + (isSecRole(s) ? ROLE_NAMES[s.role_type] + ' ' + GROUP_NAMES[s.stage_group] : '')).toLowerCase().includes(q));
     const noPhone = allServants.filter(s => !s.phone).length;
 
     let html = `<div class="sv-bar">
@@ -1208,11 +1228,13 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       html += '<div class="empty-state"><div class="ic">📭</div>' + (allServants.length ? 'لا توجد نتائج مطابقة.' : 'لا يوجد خدام مسجّلون بعد.') + '</div>';
     } else {
       html += `<div class="sv-wrap"><table class="data-table"><thead><tr>
-        <th>#</th><th>الاسم</th><th>الفصل</th><th>اسم الفصل التابع له</th><th>رقم الهاتف</th><th></th></tr></thead><tbody>
+        <th>#</th><th>الاسم</th><th>الفصل / المرحلة</th><th>الصفة</th><th>اسم الفصل التابع له</th><th>رقم الهاتف</th><th></th></tr></thead><tbody>
         ${rows.map(({ s, i }, n) => `<tr>
           <td>${n + 1}</td>
           <td style="font-weight:700;">${escapeHtml(s.name || '')}</td>
-          <td>${escapeHtml(stageOf(s.stage))} <span class="chip ${s.gender === 'girls' ? '' : 'blue'}">${genderOf(s.gender)}</span></td>
+          <td>${escapeHtml(isSecRole(s) ? GROUP_NAMES[s.stage_group] : stageOf(s.stage))} <span class="chip ${s.gender === 'girls' ? '' : 'blue'}">${genderOf(s.gender)}</span></td>
+          <td>${isSecRole(s) ? '<span class="chip" style="background:' + (s.role_type === 'coordinator' ? '#fdf0d5;color:#8a5a06' : '#f3e8fb;color:#6c2d85') + ';">' + (s.role_type === 'coordinator' ? '⭐ ' : '🧑‍💼 ') + ROLE_NAMES[s.role_type] + '</span>' : '<span style="color:#888;">خادم</span>'}
+              <button class="sv-edit" title="تعيين أمين خدمة / أمين مساعد" onclick="editServantRole(${i})">🎖️</button></td>
           <td>${s.class_name ? '🏫 ' + escapeHtml(s.class_name) : '<span style="color:#aaa;">— لم يُسجَّل —</span>'}
               <button class="sv-edit" title="تعديل اسم الفصل" onclick="editServantClass(${i})">✏️</button></td>
           <td>${s.phone ? `<a class="sv-phone" href="tel:${escapeHtml(s.phone)}">📞 ${escapeHtml(s.phone)}</a>` : '<span style="color:#aaa;">— لم يُسجَّل —</span>'}
@@ -1236,6 +1258,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       return;
     }
     try { await sb.rpc('admin_remove_presence', { p_device: s.device_id }); } catch (e) {}   // يختفي من قائمة زملائه (servant_team.sql)
+    try { await sb.rpc('admin_unlock_servant_role', { p_device: s.device_id }); } catch (e) {}   // يحذف صفته (servant_roles.sql)
     if (data === false) { showToast('هذا الخادم محذوف بالفعل'); }
     else { showToast('🗑️ تم حذف الخادم «' + nm + '»'); }
     allServants.splice(i, 1);
@@ -1618,6 +1641,63 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     s.class_name = cls;
     renderServantsAdmin();
     showToast('✅ تم حفظ اسم الفصل');
+  }
+
+  function closeRoleEditor() { const o = document.getElementById('roleEditOverlay'); if (o) o.remove(); }
+
+  // المشرف العام يعيّن أمين الخدمة / الأمين المساعد لمرحلة محددة (لفئة الخادم: بنين أو بنات)
+  function editServantRole(i) {
+    const s = allServants[i];
+    if (!s) return;
+    if (!rolesAvail) { showToast('⚠️ شغّل ملف servant_roles.sql على Supabase أولاً'); return; }
+    closeRoleEditor();
+    const curRole = isSecRole(s) ? s.role_type : 'servant';
+    const curGroup = isSecRole(s) ? s.stage_group : (STAGE_TO_GROUP[s.stage] || '');
+    const g = s.gender === 'girls' ? '👧 بنات' : '👦 بنين';
+    const ov = document.createElement('div');
+    ov.id = 'roleEditOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl;font-family:inherit';
+    const sel = 'width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid #b5a98a;border-radius:10px;font-family:inherit;font-size:15px;background:#fff;margin:6px 0 12px';
+    ov.innerHTML = `<div style="background:var(--paper);border-top:5px solid var(--gold);border-radius:16px;padding:16px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.45)">
+      <div style="font-weight:900;font-size:16px;margin-bottom:4px;">🎖️ صفة ${escapeHtml(s.name || '')}</div>
+      <div style="font-size:12.5px;color:#666;line-height:1.8;margin-bottom:12px;">الفئة: <b>${g}</b><br>
+        «أمين الخدمة» و«الأمين المساعد» لهما نفس الصلاحيات: يرى كل فصول المرحلة لفئته فقط (عرض فقط)، ويعدّل بيانات فصله هو فقط.</div>
+      <label style="font-weight:800;font-size:13px;">الصفة</label>
+      <select id="reRole" style="${sel}">
+        ${Object.keys(ROLE_NAMES).map(k => `<option value="${k}"${k === curRole ? ' selected' : ''}>${ROLE_NAMES[k]}</option>`).join('')}
+      </select>
+      <div id="reGroupWrap">
+        <label style="font-weight:800;font-size:13px;">المرحلة المسؤول عنها</label>
+        <select id="reGroup" style="${sel}">
+          <option value="">— اختر المرحلة —</option>
+          ${Object.keys(GROUP_NAMES).map(k => `<option value="${k}"${k === curGroup ? ' selected' : ''}>${GROUP_NAMES[k]}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button id="reSave" style="flex:1;padding:11px;border:none;border-radius:10px;background:#1a7a4a;color:#fff;font-family:inherit;font-weight:900;font-size:14px;cursor:pointer;">💾 حفظ</button>
+        <button id="reCancel" style="flex:1;padding:11px;border:none;border-radius:10px;background:#ddd;color:#333;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;">إلغاء</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    const roleSel = ov.querySelector('#reRole'), grpWrap = ov.querySelector('#reGroupWrap'), grpSel = ov.querySelector('#reGroup');
+    const sync = () => { grpWrap.style.display = roleSel.value === 'servant' ? 'none' : ''; };
+    roleSel.addEventListener('change', sync); sync();
+    ov.addEventListener('click', e => { if (e.target === ov) closeRoleEditor(); });
+    ov.querySelector('#reCancel').onclick = closeRoleEditor;
+    ov.querySelector('#reSave').onclick = async () => {
+      const role = roleSel.value, grp = role === 'servant' ? '' : grpSel.value;
+      if (role !== 'servant' && !grp) { alert('من فضلك اختر المرحلة المسؤول عنها'); return; }
+      if (role === 'coordinator') {          // تنبيه: يوجد أمين خدمة آخر لنفس المرحلة والفئة
+        const dup = allServants.find(o => o !== s && o.role_type === 'coordinator' && o.stage_group === grp && o.gender === s.gender);
+        if (dup && !confirm('يوجد بالفعل أمين خدمة (' + GROUP_NAMES[grp] + ' - ' + (s.gender === 'girls' ? 'بنات' : 'بنين') + '): «' + (dup.name || '') + '».\nهل تريد تعيين «' + (s.name || '') + '» أمين خدمة أيضاً؟')) return;
+      }
+      const btn = ov.querySelector('#reSave'); btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+      const { error } = await sb.rpc('admin_set_servant_role', { p_device: s.device_id, p_role: role, p_group: grp });
+      if (error) { btn.disabled = false; btn.textContent = '💾 حفظ'; showToast('⚠️ تعذر الحفظ: ' + (error.message || '')); return; }
+      s.role_type = role; s.stage_group = grp;
+      closeRoleEditor();
+      renderServantsAdmin();
+      showToast(role === 'servant' ? '✅ تم تحويله إلى خادم' : '✅ تم تعيين ' + (s.name || '') + ' ' + ROLE_NAMES[role] + ' — ' + GROUP_NAMES[grp]);
+    };
   }
 
   async function editServantPhone(i) {

@@ -3,6 +3,9 @@
    ---------------------------------------------------------------------
    • الخادم: يكتب اسمه + السنة (المرحلة الدراسية) + بنين/بنات
              → تظهر له الفصول المطابقة فقط.
+   • أمين الخدمة / الأمين المساعد: يختار مرحلة (ابتدائي مثلاً) + بنين/بنات + اسم فصله
+             → يرى كل فصول المرحلة لتلك الفئة (عرض فقط)، ويعدّل بيانات فصله هو فقط.
+   • زر «صلاحياتي» يشرح لكل مستخدم ما يستطيعه وما لا يستطيعه.
    • المشرف العام: يجيب "نعم" ثم يدخل البريد وكلمة المرور (نفس لوحة المشرفين)
              → يرى كل الفصول ويدخلها دون كلمة سر الفصل.
    • الاسم يُستخدم في سجل النشاط (افتقاد / حذف مخدوم).
@@ -66,8 +69,35 @@
            stageValid(p.stage) && (p.gender === 'boys' || p.gender === 'girls');
   }
 
+  /* ---------------------- الصفات: خادم / أمين مساعد / أمين خدمة ---------------------- */
+  var ROLE_NAMES = { servant: 'خادم', assistant: 'أمين مساعد', coordinator: 'أمين خدمة' };
+  function groupList() { return (typeof STAGE_GROUPS !== 'undefined' && STAGE_GROUPS) || []; }
+  function groupById(id) {
+    var l = groupList();
+    for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i];
+    return null;
+  }
+  function groupValid(id) { return !!groupById(id); }
+  function groupName(id) { var g = groupById(id); return g ? g.name : ''; }
+  function groupIdOfStage(stageId) { return stageValid(stageId) ? STAGE_INDEX[stageId].group.id : ''; }
+  function firstStageOfGroup(id) { var g = groupById(id); return (g && g.stages && g.stages.length) ? g.stages[0].id : ''; }
+  function roleTypeOf(p) { return (p && (p.role_type === 'assistant' || p.role_type === 'coordinator')) ? p.role_type : 'servant'; }
+  function isSecProfile(p) { return !!p && roleTypeOf(p) !== 'servant' && groupValid(p.stage_group); }
+  // يضمن أن role_type / stage_group متسقان (أمين بلا مرحلة صالحة يُعامل كخادم)
+  function normProfile(p) {
+    if (!p) return p;
+    p.role_type = roleTypeOf(p);
+    if (p.role_type === 'servant') p.stage_group = '';
+    else {
+      if (!groupValid(p.stage_group)) p.stage_group = groupIdOfStage(p.stage);
+      if (!groupValid(p.stage_group)) { p.role_type = 'servant'; p.stage_group = ''; }
+    }
+    return p;
+  }
+
   var profile = readJSON(localStorage, PROFILE_KEY);
   if (!profileValid(profile)) profile = null;
+  else normProfile(profile);
   var admin = readJSON(sessionStorage, ADMIN_KEY);
   if (!(admin && admin.email)) admin = null;
 
@@ -82,10 +112,15 @@
   function locked() { return !!profile && !unlocked; }
 
   var mode = 'servant';   // الوضع المختار داخل النموذج
+  var rtype = 'servant';  // الصفة المختارة داخل النموذج: servant | assistant | coordinator
   var gender = '';
   var el = null;
 
   function role() { return admin ? 'admin' : (profile ? 'servant' : ''); }
+  // الصفة الدقيقة: admin | servant | assistant | coordinator
+  function roleType() { return admin ? 'admin' : (profile ? roleTypeOf(profile) : ''); }
+  function isSecretary() { return !admin && isSecProfile(profile); }
+  function roleLabel() { return admin ? 'مشرف عام' : (profile ? ROLE_NAMES[roleTypeOf(profile)] : ''); }
   function adminName() { return (admin && (admin.name || String(admin.email || '').split('@')[0])) || 'المشرف'; }
   function actor() {
     if (admin) return adminName() + ' (مشرف عام)';
@@ -117,6 +152,8 @@
       var list = (typeof _chaptersCache !== 'undefined' && _chaptersCache) || [];
       for (var i = 0; i < list.length; i++) if (String(list[i].chapter_id) === String(id)) return String(list[i].chapter_name || '');
     } catch (e) {}
+    // قائمة الفصول لم تُحمَّل بعد (فتح تلقائي لآخر فصل): نستخدم اسم الفصل المفتوح
+    try { if (typeof ACTIVE_CHAPTER_ID !== 'undefined' && ACTIVE_CHAPTER_ID && String(ACTIVE_CHAPTER_ID) === String(id) && ACTIVE_CHAPTER_NAME) return String(ACTIVE_CHAPTER_NAME); } catch (e2) {}
     return '';
   }
   // null = الدالة غير مثبّتة على السيرفر · '' = لا يوجد اسم فصل محفوظ
@@ -139,6 +176,26 @@
     } catch (e) {}
     return cls;
   }
+  // null = الدالة غير مثبّتة (servant_roles.sql) · {} = لا توجد صفة محفوظة · {role_type, stage_group}
+  async function getRoleRemote() {
+    var c = anonClient();
+    if (!c) return null;
+    try {
+      var r = await c.rpc('get_servant_role', { p_device: deviceId() });
+      if (r.error) return null;
+      return (r.data && typeof r.data === 'object') ? r.data : {};
+    } catch (e) { return null; }
+  }
+  // أول تسجيل فقط: لو للجهاز صفة محفوظة يرجع السيرفر الصفة المحفوظة (لا تُستبدل)
+  async function saveRoleRemote(rt, grp) {
+    var c = anonClient();
+    if (!c) return null;
+    try {
+      var r = await c.rpc('set_servant_role', { p_device: deviceId(), p_role: rt, p_group: grp || '' });
+      if (r.error) return null;
+      return (r.data && typeof r.data === 'object') ? r.data : null;
+    } catch (e) { return null; }
+  }
   async function removedByAdmin() {
     var c = anonClient();
     if (!c) return false;
@@ -151,24 +208,66 @@
     try { await c.rpc('set_servant_phone', { p_device: deviceId(), p_phone: phone }); } catch (e) {}
   }
 
-  function stageName() { return profile && stageValid(profile.stage) ? STAGE_INDEX[profile.stage].stage.name : ''; }
+  function stageName() {
+    if (isSecProfile(profile)) return groupName(profile.stage_group);   // الأمين: اسم المرحلة (مثل «المرحلة الابتدائية»)
+    return profile && stageValid(profile.stage) ? STAGE_INDEX[profile.stage].stage.name : '';
+  }
   function genderName() { return profile ? (profile.gender === 'girls' ? 'بنات' : 'بنين') : ''; }
-  function summary() { return profile ? ((profile.class_name ? profile.class_name + ' - ' : '') + stageName() + ' - ' + genderName()) : ''; }
+  function summary() {
+    if (!profile) return '';
+    if (isSecProfile(profile)) return roleLabel() + ' ' + stageName() + ' - ' + genderName() + (profile.class_name ? ' (فصلك: ' + profile.class_name + ')' : '');
+    return (profile.class_name ? profile.class_name + ' - ' : '') + stageName() + ' - ' + genderName();
+  }
 
   // هل الفصل مناسب للخادم الحالي؟ (المشرف العام يرى الكل)
   function chapterAllowed(id) {
     var r = role();
     if (r === 'admin') return true;
     if (r !== 'servant') return false;
+    // أمين الخدمة / الأمين المساعد: كل فصول مرحلته لفئته (بنين أو بنات) — ولا يرى الفئة الأخرى
+    if (isSecProfile(profile)) {
+      if (ownClass(id)) return true;
+      var cs = _stageOf(id), cg = _genderOf(id);
+      return !!cs && groupIdOfStage(cs) === profile.stage_group && cg === profile.gender;
+    }
     // الخادم الذي سجّل اسم فصله: يرى الفصل الذي يطابق اسمه فقط
     if (profile.class_name) return normName(chapterName(id)) === normName(profile.class_name);
     // خادم قديم بدون اسم فصل: المرحلة + الفئة كما كان
     return _genderOf(id) === profile.gender && _stageOf(id) === profile.stage;
   }
 
+  // فصل المستخدم نفسه (الذي حدّده عند التسجيل)
+  function ownClass(id) {
+    return !!profile && !!profile.class_name && normName(chapterName(id)) === normName(profile.class_name);
+  }
+  function myCreatedChapter(id) {
+    try { return typeof _isMyChapter === 'function' && !!_isMyChapter(String(id)); } catch (e) { return false; }
+  }
+  // هل المرحلة (السنة) داخل نطاق هذا المستخدم؟ (يُستخدم لتقليل قراءة سجلات الفصول من السحابة)
+  function stageInScope(stageId) {
+    if (admin || !profile) return true;
+    if (isSecProfile(profile)) return groupIdOfStage(stageId) === profile.stage_group;
+    return stageId === profile.stage;
+  }
+  // التعديل: المشرف العام كل الفصول · الأمين فصله فقط (وما أنشأه بنفسه) · الخادم كما كان (فصله)
+  function canEditChapter(id) {
+    id = String(id);
+    if (admin) return true;
+    if (!profile) return false;
+    if (isSecProfile(profile)) return ownClass(id) || myCreatedChapter(id);
+    return true;
+  }
+  // وسم يظهر على بطاقة الفصل للأمناء فقط
+  function chapterTag(id) {
+    if (!isSecretary()) return '';
+    return ownClass(String(id))
+      ? '<div class="chapter-card-tag own">⭐ فصلك</div>'
+      : (canEditChapter(id) ? '' : '<div class="chapter-card-tag view">👁️ عرض فقط</div>');
+  }
+
   // هل ما زالت بيانات الفصول (المرحلة/الجنس) قيد التحميل من السحابة؟
   function isLoading() {
-    try { if (profile && profile.class_name && typeof _chaptersCache !== 'undefined' && _chaptersCache.length) return false; } catch (e) {}
+    try { if (profile && profile.class_name && !isSecProfile(profile) && typeof _chaptersCache !== 'undefined' && _chaptersCache.length) return false; } catch (e) {}
     if (Date.now() - START_TS > 20000) return false;
     if (typeof _supabaseClient === 'undefined' || !_supabaseClient) return false;
     if (typeof _statsPending !== 'undefined' && _statsPending.size) return true;
@@ -322,7 +421,46 @@
       '#wgUserBar .wg-mate a.tel{background:#eaf3fb;color:#1f6fa5;border-color:#b9dcf3}',
       '#wgUserBar .wg-mate a.wa{background:#dcfce7;color:#166534;border-color:#86efac}',
       '#wgUserBar .wg-team-note{font-size:12px;color:#777;padding:6px 2px;line-height:1.7}',
-      'body.role-servant #genderTabs,body.role-servant #stageChips{display:none !important}'
+      'body.role-servant #genderTabs,body.role-servant #stageChips{display:none !important}',
+      /* اختيار الصفة */
+      '#welcomeGate .wg-seg.three{gap:7px}',
+      '#welcomeGate .wg-seg.three button{font-size:13px;padding:11px 3px;line-height:1.35}',
+      '#welcomeGate .wg-seg button.sel[data-r="assistant"]{background:#7d3c98;border-color:#7d3c98}',
+      '#welcomeGate .wg-seg button.sel[data-r="coordinator"]{background:#b9770e;border-color:#b9770e}',
+      '#wgUserBar .wg-chip.role{background:#f3e8fb;color:#6c2d85;border-color:#d9b8ea}',
+      '#wgUserBar .wg-chip.role.coordinator{background:#fdf0d5;color:#8a5a06;border-color:#f0cf72}',
+      '#wgUserBar .wg-chip.role.servant{background:#eef2f6;color:#445}',
+      '.chapter-card-tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 10px;border-radius:20px;margin:2px 0 4px}',
+      '.chapter-card-tag.own{background:#fdf0d5;color:#8a5a06;border:1px solid #f0cf72}',
+      '.chapter-card-tag.view{background:#eef2f6;color:#556;border:1px solid #cfd8e1}',
+      /* زر صلاحياتي في الهيدر */
+      '#wgHeaderPerm{display:inline-flex !important;align-items:center;gap:5px;padding:4px 12px !important;border-radius:30px !important;',
+      ' background:rgba(212,160,23,.22) !important;border:1px solid rgba(212,160,23,.7) !important;font-weight:800;font-size:12.5px}',
+      /* شريط وضع العرض فقط */
+      '#wgReadOnlyBar{display:none;direction:rtl;font-family:"Cairo",sans-serif;background:#fff3cd;color:#6b4e00;border-bottom:2px solid #f0cf72;',
+      ' padding:9px 14px;text-align:center;font-size:13px;font-weight:800;line-height:1.7}',
+      '#wgReadOnlyBar button{margin-inline-start:8px;border:none;border-radius:9px;padding:4px 12px;background:#0d1117;color:#fff;',
+      ' font-family:inherit;font-size:12px;font-weight:800;cursor:pointer}',
+      /* نافذة صلاحياتي */
+      '#wgPermModal{position:fixed;inset:0;z-index:1000002;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;',
+      ' padding:14px;direction:rtl;font-family:"Cairo",sans-serif}',
+      '#wgPermModal .wgp-box{background:var(--paper,#f5f0e8);width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;',
+      ' border-radius:18px;padding:16px 14px calc(14px + env(safe-area-inset-bottom,0px));border-top:5px solid var(--gold,#d4a017);box-shadow:0 20px 60px rgba(0,0,0,.5)}',
+      '#wgPermModal .wgp-head{font-size:17px;font-weight:900;color:var(--ink,#0d1117);margin-bottom:2px}',
+      '#wgPermModal .wgp-sub{font-size:12.5px;color:#666;margin-bottom:10px;line-height:1.7}',
+      '#wgPermModal .wgp-body{overflow-y:auto;flex:1 1 auto}',
+      '#wgPermModal .wgp-now{background:#fff;border:1px solid var(--line,#b5a98a);border-right:4px solid var(--accent2,#2980b9);border-radius:12px;',
+      ' padding:9px 12px;margin-bottom:10px;font-size:13.5px;font-weight:800;line-height:1.7}',
+      '#wgPermModal .wgp-now.ro{border-right-color:#d4a017;background:#fff8e1}',
+      '#wgPermModal ul{list-style:none;margin:0 0 6px;padding:0}',
+      '#wgPermModal li{display:flex;gap:8px;align-items:flex-start;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:11px;',
+      ' padding:9px 11px;margin-bottom:7px;font-size:13.5px;line-height:1.75;color:#222}',
+      '#wgPermModal li .ic{flex:0 0 auto;font-size:16px;line-height:1.5}',
+      '#wgPermModal li.ok{border-right:4px solid #1a7a4a}',
+      '#wgPermModal li.view{border-right:4px solid #d4a017}',
+      '#wgPermModal li.no{border-right:4px solid #c8392b}',
+      '#wgPermModal .wgp-ok{margin-top:8px;width:100%;padding:12px;border:none;border-radius:12px;background:var(--green,#1a7a4a);color:#fff;',
+      ' font-family:inherit;font-size:15px;font-weight:900;cursor:pointer}'
     ].join('');
     document.head.appendChild(st);
   }
@@ -360,21 +498,28 @@
         '</div>' +
 
         '<div id="wgServant">' +
+          '<label>صفتك في الخدمة</label>' +
+          '<div class="wg-seg three" id="wgRoleType">' +
+            '<button type="button" data-r="servant" class="sel">🙋 خادم</button>' +
+            '<button type="button" data-r="assistant">🧑‍💼 أمين مساعد</button>' +
+            '<button type="button" data-r="coordinator">⭐ أمين خدمة</button>' +
+          '</div>' +
+          '<div class="wg-hint" id="wgRoleHint"></div>' +
           '<label for="wgName">اسمك</label>' +
           '<input id="wgName" type="text" autocomplete="name" placeholder="اكتب اسمك">' +
           '<label for="wgPhone">أدخل رقم هاتفك</label>' +
           '<input id="wgPhone" type="tel" dir="ltr" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="مثال: 01012345678">' +
-          '<label for="wgStage">السنة التي ستخدم فيها</label>' +
-          '<select id="wgStage">' + stageOptionsHtml() + '</select>' +
+          '<label for="wgStage" id="wgStageLbl">السنة التي ستخدم فيها</label>' +
+          '<select id="wgStage" data-kind="s">' + stageOptionsHtml() + '</select>' +
           '<label>الفئة</label>' +
           '<div class="wg-seg" id="wgGender">' +
             '<button type="button" data-g="boys">👦 بنين</button>' +
             '<button type="button" data-g="girls">👧 بنات</button>' +
           '</div>' +
-          '<label for="wgClass">اسم الفصل التابع له</label>' +
+          '<label for="wgClass" id="wgClassLbl">اسم الفصل التابع له</label>' +
           '<input id="wgClass" type="text" list="wgClassList" autocomplete="off" maxlength="80" placeholder="اختر الفصل من القائمة أو اكتب اسمه">' +
           '<datalist id="wgClassList"></datalist>' +
-          '<div class="wg-hint">اكتب اسم الفصل كما هو مسجّل في النظام — سيظهر لك الفصل المطابق لهذا الاسم فقط.</div>' +
+          '<div class="wg-hint" id="wgClassHint">اكتب اسم الفصل كما هو مسجّل في النظام — سيظهر لك الفصل المطابق لهذا الاسم فقط.</div>' +
           '<div id="wgNote" class="wg-warn"></div>' +
         '</div>' +
 
@@ -408,17 +553,46 @@
     showError('');
     if ($('wgSubmit')) busy(false);
   }
-  // اقتراحات أسماء الفصول (من الفصول المحمّلة) بحسب السنة والفئة المختارتين
+  function groupOptionsHtml() {
+    var h = '<option value="">— اختر المرحلة المسؤول عنها —</option>';
+    groupList().forEach(function (g) { h += '<option value="' + esc(g.id) + '">' + esc((g.icon ? g.icon + ' ' : '') + g.name) + '</option>'; });
+    return h;
+  }
+  // اختيار الصفة: خادم (سنة دراسية) أو أمين مساعد / أمين خدمة (مرحلة كاملة)
+  function setRoleType(r) {
+    if (r !== 'assistant' && r !== 'coordinator') r = 'servant';
+    rtype = r;
+    var sec = r !== 'servant', sel = $('wgStage'), kind = sec ? 'g' : 's';
+    Array.prototype.forEach.call($('wgRoleType').querySelectorAll('button'), function (b) {
+      b.classList.toggle('sel', b.getAttribute('data-r') === r);
+    });
+    if (sel.getAttribute('data-kind') !== kind) {
+      var prev = sel.value;
+      sel.innerHTML = sec ? groupOptionsHtml() : stageOptionsHtml();
+      sel.setAttribute('data-kind', kind);
+      sel.value = sec ? (groupValid(prev) ? prev : groupIdOfStage(prev)) : '';
+    }
+    $('wgStageLbl').textContent = sec ? 'المرحلة المسؤول عنها' : 'السنة التي ستخدم فيها';
+    $('wgClassLbl').textContent = sec ? 'اسم فصلك (الفصل الذي تعدّل بياناته)' : 'اسم الفصل التابع له';
+    $('wgClassHint').textContent = sec
+      ? 'اكتب اسم فصلك كما هو مسجّل — هذا هو الفصل الوحيد الذي تعدّل بياناته. بقية فصول مرحلتك ستظهر لك للعرض فقط.'
+      : 'اكتب اسم الفصل كما هو مسجّل في النظام — سيظهر لك الفصل المطابق لهذا الاسم فقط.';
+    $('wgRoleHint').textContent = sec
+      ? '🔎 ترى كل فصول المرحلة التي تختارها للفئة التي تختارها (بنين أو بنات) فقط، وتعدّل بيانات فصلك أنت فقط. الصفتان (أمين خدمة / مساعد) لهما نفس الصلاحيات.'
+      : '🙋 ترى فصلك فقط وتعدّل بيانات مخدومي فصلك.';
+    try { fillClassList(); } catch (e) {}
+  }
+  // اقتراحات أسماء الفصول (من الفصول المحمّلة) بحسب السنة/المرحلة والفئة المختارتين
   function fillClassList() {
     var dl = $('wgClassList');
     if (!dl) return;
-    var st = $('wgStage') ? $('wgStage').value : '', seen = {}, h = '';
+    var st = $('wgStage') ? $('wgStage').value : '', seen = {}, h = '', sec = rtype !== 'servant';
     try {
       ((typeof _chaptersCache !== 'undefined' && _chaptersCache) || []).forEach(function (c) {
         var id = String(c.chapter_id), nm = String(c.chapter_name || '').trim();
         if (!nm) return;
         var cs = _stageOf(id), cg = _genderOf(id);
-        if (st && cs && cs !== st) return;
+        if (st && cs && (sec ? groupIdOfStage(cs) !== st : cs !== st)) return;
         if (gender && cg && cg !== gender) return;
         var k = normName(nm);
         if (seen[k]) return;
@@ -452,6 +626,7 @@
     var lk = locked(), note = $('wgNote');
     $('wgName').disabled = lk;
     $('wgStage').disabled = lk;
+    Array.prototype.forEach.call($('wgRoleType').querySelectorAll('button'), function (b) { b.disabled = lk; });
     $('wgPhone').disabled = !!(profile && profile.phone);
     $('wgClass').disabled = !!(profile && profile.class_name && !unlocked);
     Array.prototype.forEach.call($('wgGender').querySelectorAll('button'), function (b) { b.disabled = lk; });
@@ -478,9 +653,10 @@
   }
 
   function prefill() {
+    setRoleType(profile ? roleTypeOf(profile) : 'servant');   // يضبط التسميات والتلميح حتى للمستخدم الجديد
     if (profile) {
       $('wgName').value = profile.name;
-      $('wgStage').value = profile.stage;
+      $('wgStage').value = isSecProfile(profile) ? profile.stage_group : profile.stage;
       $('wgPhone').value = profile.phone || '';
       $('wgClass').value = profile.class_name || '';
       setGender(profile.gender);
@@ -496,6 +672,9 @@
     });
     Array.prototype.forEach.call($('wgGender').querySelectorAll('button'), function (b) {
       b.addEventListener('click', function () { setGender(b.getAttribute('data-g')); showError(''); });
+    });
+    Array.prototype.forEach.call($('wgRoleType').querySelectorAll('button'), function (b) {
+      b.addEventListener('click', function () { setRoleType(b.getAttribute('data-r')); showError(''); });
     });
     $('wgStage').addEventListener('change', fillClassList);
     $('wgClass').addEventListener('focus', fillClassList);
@@ -545,18 +724,23 @@
       }
       if (locked()) { hide(); return; }   // مقفل: لا تغيير
       var name = $('wgName').value.trim().replace(/\s+/g, ' ');
-      var stage = $('wgStage').value;
+      var rtp = rtype, isSec = rtp !== 'servant';
+      var stageSel = $('wgStage').value;
+      var stage = isSec ? firstStageOfGroup(stageSel) : stageSel;   // الأمين: نحفظ أول سنة في المرحلة كقيمة مرجعية للسيرفر
+      var grp = isSec ? stageSel : '';
       if (name.length < 2) return showError('من فضلك اكتب اسمك');
       var phone = normPhone($('wgPhone').value);
       if (!phoneValid(phone)) return showError('من فضلك اكتب رقم هاتف صحيح');
-      if (!stage) return showError('من فضلك اختر السنة التي ستخدم فيها');
+      if (!stageSel || !stage) return showError(isSec ? 'من فضلك اختر المرحلة المسؤول عنها' : 'من فضلك اختر السنة التي ستخدم فيها');
       if (!gender) return showError('من فضلك اختر بنين أم بنات');
       var cls = cleanClass($('wgClass').value);
-      if (cls.length < 2) return showError('من فضلك اكتب اسم الفصل التابع له');
-      var stName = (STAGE_INDEX[stage] && STAGE_INDEX[stage].stage.name) || '';
-      if (!confirm('⚠️ تأكيد البيانات\n\nالاسم: ' + name + '\nالسنة: ' + stName + '\nالفئة: ' + (gender === 'girls' ? 'بنات' : 'بنين') + '\nالفصل: ' + cls + '\nالهاتف: ' + phone +
+      if (cls.length < 2) return showError(isSec ? 'من فضلك اكتب اسم فصلك' : 'من فضلك اكتب اسم الفصل التابع له');
+      var stName = isSec ? groupName(grp) : ((STAGE_INDEX[stage] && STAGE_INDEX[stage].stage.name) || '');
+      var gName = gender === 'girls' ? 'بنات' : 'بنين';
+      if (!confirm('⚠️ تأكيد البيانات\n\nالاسم: ' + name + '\nالصفة: ' + ROLE_NAMES[rtp] + '\n' + (isSec ? 'المرحلة: ' : 'السنة: ') + stName + '\nالفئة: ' + gName + '\n' + (isSec ? 'فصلك: ' : 'الفصل: ') + cls + '\nالهاتف: ' + phone +
+        (isSec ? '\n\nستظهر لك كل فصول ' + stName + ' (' + gName + ') للعرض فقط، وتعدّل بيانات فصلك «' + cls + '» فقط.' : '') +
         '\n\nلن تستطيع تغيير هذه البيانات بعد التأكيد إلا عن طريق المشرف العام.\nهل البيانات صحيحة؟')) return;
-      var saved = { name: name, stage: stage, gender: gender, at: new Date().toISOString() };
+      var saved = { name: name, stage: stage, gender: gender, at: new Date().toISOString(), role_type: rtp, stage_group: grp };
       var c = anonClient();
       if (c) {
         busy(true, 'جاري الحفظ...');
@@ -574,14 +758,22 @@
       if (c) await savePhoneRemote(phone);
       saved.phone = phone;
       saved.class_name = await saveClassRemote(cls);
-      profile = saved;
+      saved.role_type = rtp; saved.stage_group = grp;
+      var rrole = await saveRoleRemote(rtp, grp);          // السيرفر هو المرجع (أول تسجيل فقط)
+      if (rrole && rrole.role_type) {
+        if (rrole.role_type !== rtp || (rrole.stage_group || '') !== grp) {
+          alert('هذا الجهاز مسجّل مسبقاً بصفة «' + ROLE_NAMES[rrole.role_type] + '» ولا يمكن تغيير الصفة إلا عن طريق المشرف العام.');
+        }
+        saved.role_type = rrole.role_type; saved.stage_group = rrole.stage_group || '';
+      }
+      profile = normProfile(saved);
       name = profile.name;
       writeJSON(localStorage, PROFILE_KEY, profile);
       admin = null;
       unlocked = false;
       try { sessionStorage.removeItem(ADMIN_KEY); sessionStorage.removeItem(UNLOCK_KEY); } catch (e) {}
       applyLock();
-      finish('👋 أهلاً ' + name);
+      finish('👋 أهلاً ' + name + (isSecretary() ? ' — ' + roleLabel() + ' ' + stageName() : ''));
       return;
     }
     // مشرف عام
@@ -632,7 +824,7 @@
   /* ---------------------------- شريط المستخدم ---------------------------- */
   function label() {
     if (admin) return adminName() + ' — مشرف عام (كل الفصول)';
-    return profile ? (profile.name + ' — ' + stageName() + ' — ' + genderName()) : '';
+    return profile ? (profile.name + ' — ' + (isSecProfile(profile) ? roleLabel() + ' — ' : '') + stageName() + ' — ' + genderName()) : '';
   }
 
   // المشرف العام: تسجيل خروج (يعود الجهاز لبيانات الخادم المحفوظة إن وُجدت)
@@ -657,6 +849,7 @@
         var r = await c.rpc('admin_unlock_servant', { p_device: deviceId() });
         if (r.error && !missingFn(r.error)) { alert('تعذر فتح القفل: ' + (r.error.message || 'خطأ غير معروف') + '\nسجّل خروج ثم ادخل كمشرف مرة أخرى.'); return; }
         try { await c.rpc('admin_unlock_servant_class', { p_device: deviceId() }); } catch (e2) {}
+        try { await c.rpc('admin_unlock_servant_role', { p_device: deviceId() }); } catch (e2b) {}   // ليختار صفته من جديد
       } catch (e) { alert('تعذر الاتصال بالسيرفر — تحقق من الإنترنت.'); return; }
     }
     try {
@@ -676,6 +869,7 @@
 
   /* ---------------------------- شاشة الخدام المسجّلون (للمشرف العام) ---------------------------- */
   var servList = [], servEdit = -1;
+  var rolesAvail = false;   // هل ملف servant_roles.sql مثبّت على السيرفر؟
 
   function closeServants() { var m = $('wgServModal'); if (m) m.remove(); servEdit = -1; }
 
@@ -698,6 +892,7 @@
     $('wgsRefresh').addEventListener('click', loadServants);
     $('wgsSearch').addEventListener('input', function () { servEdit = -1; renderServants(); });
     $('wgsBody').addEventListener('click', onServClick);
+    $('wgsBody').addEventListener('change', function (e) { if (e.target && e.target.id === 'wgsERole') syncServRoleUi(); });
     loadServants();
   }
 
@@ -738,6 +933,20 @@
           servList.forEach(function (it) { it.class_name = cm[it.device_id] || ''; });
         }
       } catch (e3) {}
+      rolesAvail = false;
+      try {                                      // الصفات: خادم / أمين مساعد / أمين خدمة (servant_roles.sql)
+        var rr = await c.rpc('admin_list_servant_roles');
+        if (!rr.error && Array.isArray(rr.data)) {
+          rolesAvail = true;
+          var rm = {};
+          rr.data.forEach(function (x) { rm[x.device_id] = x; });
+          servList.forEach(function (it) {
+            var x = rm[it.device_id];
+            it.role_type = x ? roleTypeOf(x) : 'servant';
+            it.stage_group = (x && it.role_type !== 'servant') ? (x.stage_group || '') : '';
+          });
+        }
+      } catch (e4) {}
       servEdit = -1;
       renderServants();
     } catch (e) {
@@ -751,7 +960,7 @@
     var q = (($('wgsSearch') && $('wgsSearch').value) || '').trim().toLowerCase();
     var html = '', n = 0;
     servList.forEach(function (it, i) {
-      var hay = (it.name + ' ' + sStage(it.stage) + ' ' + sGender(it.gender) + ' ' + (it.class_name || '')).toLowerCase();
+      var hay = (it.name + ' ' + sStage(it.stage) + ' ' + sGender(it.gender) + ' ' + (it.class_name || '') + ' ' + ROLE_NAMES[roleTypeOf(it)] + ' ' + groupName(it.stage_group)).toLowerCase();
       if (q && hay.indexOf(q) < 0 && i !== servEdit) return;
       n++;
       var date = '';
@@ -759,7 +968,11 @@
       if (i === servEdit) {
         html += '<div class="wgs-item">' +
           '<input id="wgsEName" type="text" value="' + esc(it.name) + '" placeholder="الاسم">' +
+          (rolesAvail
+            ? '<select id="wgsERole" title="الصفة"><option value="servant">🙋 خادم</option><option value="assistant">🧑‍💼 أمين مساعد</option><option value="coordinator">⭐ أمين خدمة</option></select>'
+            : '<div class="wgs-meta" style="margin:0 0 8px">🎖️ لتعيين «أمين خدمة / أمين مساعد» شغّل ملف servant_roles.sql على Supabase ثم حدّث القائمة.</div>') +
           '<select id="wgsEStage">' + stageOptionsHtml() + '</select>' +
+          (rolesAvail ? '<select id="wgsEGroup" title="المرحلة المسؤول عنها" style="display:none">' + groupOptionsHtml() + '</select>' : '') +
           '<select id="wgsEGender"><option value="boys">👦 بنين</option><option value="girls">👧 بنات</option></select>' +
           '<input id="wgsEClass" type="text" list="wgsClassList" maxlength="80" value="' + esc(it.class_name || '') + '" placeholder="اسم الفصل التابع له">' +
           '<datalist id="wgsClassList">' + allClassNamesHtml() + '</datalist>' +
@@ -768,7 +981,9 @@
       } else {
         html += '<div class="wgs-item"><div class="wgs-row"><div class="wgs-nm">' + esc(it.name) + '</div>' +
           '<button type="button" class="wgs-b" data-act="edit" data-i="' + i + '">✏️ تعديل</button></div>' +
-          '<div class="wgs-meta"><span class="wgs-chip">📚 ' + esc(sStage(it.stage)) + '</span>' +
+          '<div class="wgs-meta">' +
+          (isSecProfile(it) ? '<span class="wgs-chip" style="background:#f3e8fb;color:#6c2d85">' + (it.role_type === 'coordinator' ? '⭐ ' : '🧑‍💼 ') + esc(ROLE_NAMES[it.role_type]) + '</span>' : '') +
+          '<span class="wgs-chip">📚 ' + esc(isSecProfile(it) ? groupName(it.stage_group) : sStage(it.stage)) + '</span>' +
           '<span class="wgs-chip ' + (it.gender === 'girls' ? 'girls' : 'boys') + '">' + (it.gender === 'girls' ? '👧 ' : '👦 ') + sGender(it.gender) + '</span>' +
           (it.class_name ? '<span class="wgs-chip">🏫 ' + esc(it.class_name) + '</span>' : '') +
           (date ? '<span>سُجّل: ' + esc(date) + '</span>' : '') + '</div></div>';
@@ -778,9 +993,23 @@
     var cnt = $('wgsCount');
     if (cnt) cnt.textContent = '(' + (q ? n + ' من ' : '') + servList.length + ')';
     if (servEdit >= 0 && servList[servEdit]) {
-      $('wgsEStage').value = servList[servEdit].stage;
-      $('wgsEGender').value = servList[servEdit].gender;
+      var cur = servList[servEdit];
+      $('wgsEStage').value = cur.stage;
+      $('wgsEGender').value = cur.gender;
+      if ($('wgsERole')) {
+        $('wgsERole').value = roleTypeOf(cur);
+        $('wgsEGroup').value = cur.stage_group || groupIdOfStage(cur.stage);
+        syncServRoleUi();
+      }
     }
+  }
+  // خادم: يظهر اختيار السنة · أمين: يظهر اختيار المرحلة
+  function syncServRoleUi() {
+    var r = $('wgsERole');
+    if (!r || !$('wgsEGroup')) return;
+    var sec = r.value !== 'servant';
+    $('wgsEStage').style.display = sec ? 'none' : '';
+    $('wgsEGroup').style.display = sec ? '' : 'none';
   }
 
   async function onServClick(e) {
@@ -792,10 +1021,19 @@
     if (act !== 'save') return;
     var it = servList[i], c = adminClient();
     var name = $('wgsEName').value.trim().replace(/\s+/g, ' ');
-    var stage = $('wgsEStage').value, gender = $('wgsEGender').value, cls = cleanClass($('wgsEClass').value);
+    var rtp = $('wgsERole') ? $('wgsERole').value : roleTypeOf(it), sec = rtp !== 'servant';
+    var grp = $('wgsEGroup') ? $('wgsEGroup').value : (it.stage_group || '');
+    var stage = sec ? firstStageOfGroup(grp) : $('wgsEStage').value;
+    var gender = $('wgsEGender').value, cls = cleanClass($('wgsEClass').value);
     if (name.length < 2) return alert('من فضلك اكتب الاسم');
-    if (!stage) return alert('من فضلك اختر السنة');
+    if (sec && !grp) return alert('من فضلك اختر المرحلة المسؤول عنها');
+    if (!sec && !stage) return alert('من فضلك اختر السنة');
     if (!c || !it) return;
+    if (sec && !rolesAvail) return alert('شغّل ملف servant_roles.sql على Supabase أولاً لتعيين أمين خدمة / أمين مساعد.');
+    if (rtp === 'coordinator') {              // تنبيه: يوجد أمين خدمة آخر لنفس المرحلة والفئة
+      var dup = servList.filter(function (o) { return o !== it && roleTypeOf(o) === 'coordinator' && o.stage_group === grp && o.gender === gender; });
+      if (dup.length && !confirm('يوجد بالفعل أمين خدمة (' + groupName(grp) + ' - ' + sGender(gender) + '): «' + dup[0].name + '».\nهل تريد تعيين «' + name + '» أمين خدمة أيضاً؟')) return;
+    }
     b.disabled = true; b.textContent = 'جاري الحفظ...';
     try {
       var r = await c.rpc('admin_update_servant', { p_device: it.device_id, p_name: name, p_stage: stage, p_gender: gender });
@@ -817,9 +1055,23 @@
       b.disabled = false; b.textContent = '💾 حفظ';
       return alert('تعذر الاتصال بالسيرفر — تحقق من الإنترنت.');
     }
+    if (rolesAvail) {                       // الصفة (دالة مستقلة: servant_roles.sql)
+      try {
+        var rrl = await c.rpc('admin_set_servant_role', { p_device: it.device_id, p_role: rtp, p_group: sec ? grp : '' });
+        if (rrl.error) {
+          b.disabled = false; b.textContent = '💾 حفظ';
+          return alert('تعذر حفظ الصفة: ' + (rrl.error.message || '') + '\n(باقي البيانات حُفظت)');
+        }
+      } catch (err3) {
+        b.disabled = false; b.textContent = '💾 حفظ';
+        return alert('تعذر الاتصال بالسيرفر — تحقق من الإنترنت.');
+      }
+      it.role_type = rtp; it.stage_group = sec ? grp : '';
+    }
     it.name = name; it.stage = stage; it.gender = gender; it.class_name = cls;
     if (it.device_id === deviceId()) {      // الجهاز الحالي نفسه
-      profile = { name: name, stage: stage, gender: gender, phone: (profile && profile.phone) || '', class_name: cls, at: it.created_at };
+      profile = normProfile({ name: name, stage: stage, gender: gender, phone: (profile && profile.phone) || '', class_name: cls, at: it.created_at,
+        role_type: rolesAvail ? rtp : roleTypeOf(profile), stage_group: rolesAvail ? (sec ? grp : '') : ((profile && profile.stage_group) || '') });
       writeJSON(localStorage, PROFILE_KEY, profile);
     }
     servEdit = -1;
@@ -851,7 +1103,8 @@
       if (r) {
         var chips = r === 'admin'
           ? '<span class="wg-chip admin">🛡️ مشرف عام</span><span class="wg-chip">📚 كل الفصول</span>'
-          : (profile && profile.class_name ? '<span class="wg-chip">🏫 ' + esc(profile.class_name) + '</span>' : '') +
+          : '<span class="wg-chip role ' + roleTypeOf(profile) + '">' + (roleTypeOf(profile) === 'coordinator' ? '⭐ ' : (roleTypeOf(profile) === 'assistant' ? '🧑‍💼 ' : '🙋 ')) + esc(roleLabel()) + '</span>' +
+            (profile && profile.class_name ? '<span class="wg-chip">🏫 ' + esc(profile.class_name) + '</span>' : '') +
             '<span class="wg-chip">📚 ' + esc(stageName()) + '</span>' +
             '<span class="wg-chip ' + (isGirls ? 'girls' : 'boys') + '">' + (isGirls ? '👧 ' : '👦 ') + esc(genderName()) + '</span>' +
             '<span class="wg-chip st-on" id="wgMeSt">🟢 متصل</span>';
@@ -862,6 +1115,7 @@
             '<div class="wg-name">' + (r === 'servant' ? '<span class="wg-dot on" id="wgMeDot"></span>' : '') + esc(nm) + '</div>' +
             '<div class="wg-chips">' + chips + '</div>' +
           '</div>' +
+          '<button type="button" class="wg-btn" id="wgPermBtn">🛡️ صلاحياتي</button>' +
           '<button type="button" class="wg-btn" id="wgChangeBtn">' +
             (r === 'admin' ? '🚪 تسجيل الخروج' : '🔒 تغيير البيانات (للمشرف)') + '</button>' +
           (r === 'admin' ? '<button type="button" class="wg-btn" id="wgServBtn">👥 الخدام المسجّلون</button>' : '') +
@@ -869,6 +1123,7 @@
           (r === 'servant' ? '<button type="button" class="wg-btn" id="wgAnnBtn">📢 الإعلانات <span class="wg-badge" id="wgAnnBadge" style="display:none"></span></button>' : '') +
           (r === 'servant' ? '<div class="wg-team" id="wgTeam" style="display:none"></div>' : '');
         $('wgChangeBtn').addEventListener('click', changeUser);
+        $('wgPermBtn').addEventListener('click', openPermissions);
         if ($('wgUnlockBtn')) $('wgUnlockBtn').addEventListener('click', adminUnlockProfile);
         if ($('wgServBtn')) $('wgServBtn').addEventListener('click', openServants);
         if ($('wgAnnBtn')) { $('wgAnnBtn').addEventListener('click', function () { showAnnouncements(false); }); updateAnnBtn(); ensureAnnLoaded(); }
@@ -891,12 +1146,26 @@
       hb.title = r === 'admin' ? 'تسجيل الخروج من المشرف العام' : 'البيانات مقفلة — التغيير عن طريق المشرف العام';
       hb.innerHTML = '<span class="wg-hav">' + (r === 'admin' ? '🛡️' : esc(initialOf(nm))) + '</span>' +
         '<span class="wg-hname">' + esc(nm) + '</span><span class="wg-hedit">' + (r === 'admin' ? '🚪' : '🔒') + '</span>';
+      // زر «صلاحياتي» في أعلى الصفحة (يشرح ما يسمح به لهذا المستخدم)
+      var pb = $('wgHeaderPerm');
+      if (!pb) {
+        pb = document.createElement('button');
+        pb.id = 'wgHeaderPerm';
+        pb.type = 'button';
+        pb.className = 'switch-chapter-btn';
+        pb.textContent = '🛡️ صلاحياتي';
+        pb.title = 'اعرف ما يمكنك فعله في النظام';
+        pb.addEventListener('click', openPermissions);
+        hdr.insertBefore(pb, hb.nextSibling);
+      }
+      pb.style.display = r ? '' : 'none';
     }
   }
 
   function applyRole() {
     var r = role();
     document.body.classList.toggle('role-servant', r === 'servant');
+    document.body.classList.toggle('role-secretary', isSecretary());
     document.body.classList.toggle('role-admin', r === 'admin');
     if (r === 'servant') {
       try { _genderFilter = profile.gender; _stageFilter = 'all'; } catch (e) {}
@@ -905,6 +1174,7 @@
     if (typeof renderChapterCards === 'function' && typeof _chaptersCache !== 'undefined' && _chaptersCache.length) {
       try { renderChapterCards(); } catch (e) {}
     }
+    try { refreshReadOnlyUI(); } catch (e2) {}
   }
 
   /* ---------------------------- إعلانات المشرف العام ---------------------------- */
@@ -920,7 +1190,7 @@
   }
   // الإعلان للجميع، أو لمرحلة الخادم، أو لاسم فصله
   function annApplies(a) {
-    if (a.target_type === 'stage') return !!profile && profile.stage === a.target_value;
+    if (a.target_type === 'stage') return !!profile && (isSecProfile(profile) ? groupIdOfStage(a.target_value) === profile.stage_group : profile.stage === a.target_value);
     if (a.target_type === 'class') return !!profile && !!profile.class_name && normName(profile.class_name) === normName(a.target_value);
     return true;
   }
@@ -1095,9 +1365,11 @@
   var _origOpenPass = window.openChapterPasswordModal;
   if (typeof _origOpenPass === 'function') {
     window.openChapterPasswordModal = function (chapterId) {
-      if (role() === 'admin') {
-        var ch = (_chaptersCache || []).find(function (c) { return String(c.chapter_id) === String(chapterId); });
-        return unlockChapter(String(chapterId), ch ? ch.chapter_name : '');
+      var cid = String(chapterId);
+      // المشرف العام يدخل أي فصل · الأمين يطّلع على بقية فصول مرحلته (عرض فقط) دون كلمة سر — أما فصله هو فبكلمة سره
+      if (role() === 'admin' || (SECRETARY_SKIPS_CLASS_PASSWORD && isSecretary() && !ownClass(cid) && chapterAllowed(cid))) {
+        var ch = (_chaptersCache || []).find(function (c) { return String(c.chapter_id) === cid; });
+        return unlockChapter(cid, ch ? ch.chapter_name : '');
       }
       return _origOpenPass.apply(this, arguments);
     };
@@ -1115,7 +1387,197 @@
     };
   }
 
+  /* ---------------------------- صلاحياتي ---------------------------- */
+  function closePerms() { var m = $('wgPermModal'); if (m) m.remove(); }
+  function pli(cls, ic, html) { return '<li class="' + cls + '"><span class="ic">' + ic + '</span><span>' + html + '</span></li>'; }
+
+  function permItems() {
+    var t = roleType(), L = [];
+    if (t === 'admin') {
+      L.push(pli('ok', '✅', 'يرى <b>كل الفصول</b> (بنين وبنات، في كل المراحل) ويدخل أي فصل دون كلمة سر الفصل.'));
+      L.push(pli('ok', '✅', 'يعدّل ويحذف <b>أي بيانات</b> في أي فصل: المخدومين والخدام والحضور والافتقاد.'));
+      L.push(pli('ok', '✅', 'يضيف الفصول ويعدّل أسماءها وكلمات سرها ومراحلها ويحذفها.'));
+      L.push(pli('ok', '🎖️', 'يعيّن <b>أمين الخدمة</b> و<b>الأمين المساعد</b> لكل مرحلة (للبنين وللبنات) ويغيّر صفة أي خادم، من زر «👥 الخدام المسجّلون».'));
+      L.push(pli('ok', '✅', 'يعدّل بيانات أي خادم مسجّل (الاسم / السنة أو المرحلة / الفئة / الفصل / الصفة) ويفتح قفلها.'));
+    } else if (t === 'assistant' || t === 'coordinator') {
+      var st = esc(stageName()), g = esc(genderName()), other = profile.gender === 'girls' ? 'البنين' : 'البنات';
+      L.push(pli('ok', '👀', 'يرى <b>كل فصول ' + st + ' (' + g + ')</b> فقط، ولا يرى فصول ' + other + '.'));
+      if (profile.class_name) L.push(pli('ok', '✏️', 'يعدّل بيانات مخدومي <b>فصله «' + esc(profile.class_name) + '» فقط</b>: إضافة وتعديل وحذف وتسجيل الحضور والافتقاد.'));
+      else L.push(pli('no', '⚠️', 'لم تحدّد <b>اسم فصلك</b> بعد — لن تستطيع تعديل أي فصل حتى تكمل بياناتك (سيُطلب منك ذلك).'));
+      L.push(pli('view', '🔒', 'بقية فصول ' + st + ': <b>عرض فقط</b> — يطّلع على البيانات ولا يعدّل ولا يحذف ولا يسجّل حضوراً.'));
+      L.push(pli('no', '⛔', 'لا يرى فصول المراحل الأخرى.'));
+      L.push(pli('no', '⛔', 'لا يغيّر صفته أو مرحلته أو بياناته بنفسه — التغيير عن طريق <b>المشرف العام</b>.'));
+      L.push(pli('ok', 'ℹ️', 'صلاحيات «الأمين المساعد» و«أمين الخدمة» <b>متطابقة</b>.'));
+    } else if (t === 'servant') {
+      L.push(pli('ok', '👀', 'يرى <b>فصله فقط</b>' + (profile.class_name ? ': «' + esc(profile.class_name) + '»' : ' (' + esc(stageName()) + ' - ' + esc(genderName()) + ')') + '.'));
+      L.push(pli('ok', '✏️', 'يعدّل بيانات مخدومي فصله: إضافة وتعديل وحذف وتسجيل الحضور والافتقاد.'));
+      L.push(pli('no', '⛔', 'لا يرى فصول الآخرين ولا يستطيع تعديلها.'));
+      L.push(pli('no', '⛔', 'لا يغيّر بياناته (الاسم / السنة / الفصل / الصفة) بنفسه — التغيير عن طريق <b>المشرف العام</b>.'));
+    }
+    return L.join('');
+  }
+
+  function openPermissions() {
+    if (!role()) return;
+    injectCss(); closePerms();
+    var t = roleType(), id = activeId(), now = '';
+    if (id && t) {
+      var editable = canEditChapter(id), nm = (typeof ACTIVE_CHAPTER_NAME !== 'undefined' && ACTIVE_CHAPTER_NAME) || chapterName(id);
+      now = '<div class="wgp-now' + (editable ? '' : ' ro') + '">📂 أنت الآن في فصل «' + esc(nm) + '»: ' +
+        (editable ? '✏️ يمكنك التعديل' : '👁️ <b>عرض فقط</b> — هذا ليس فصلك') + '</div>';
+    }
+    var who = t === 'admin' ? adminName() : (profile ? profile.name : '');
+    var scope = t === 'admin' ? 'كل الفصول'
+      : (isSecretary() ? (stageName() + ' — ' + genderName()) : (stageName() + ' — ' + genderName()));
+    var m = document.createElement('div');
+    m.id = 'wgPermModal';
+    m.innerHTML =
+      '<div class="wgp-box" role="dialog" aria-modal="true">' +
+        '<div class="wgp-head">🛡️ صلاحياتي — ' + esc(roleLabel()) + '</div>' +
+        '<div class="wgp-sub">' + esc(who) + ' · ' + esc(scope) + '</div>' +
+        '<div class="wgp-body">' + now + '<ul>' + permItems() + '</ul></div>' +
+        '<button type="button" class="wgp-ok" id="wgpOk">فهمت</button>' +
+      '</div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', function (e) { if (e.target === m) closePerms(); });
+    $('wgpOk').addEventListener('click', closePerms);
+  }
+
+  /* ---------------------------- وضع العرض فقط (خارج فصل الأمين) ---------------------------- */
+  // الأمين المساعد / أمين الخدمة يرى فصول مرحلته لكنه لا يعدّل إلا فصله. الحجب هنا من جهة الصفحة؛
+  // وللحماية الكاملة من جهة السيرفر يلزم تقييد upsert_class_record بالصلاحيات (غير مضمّن في هذه الملفات).
+  var SECRETARY_SKIPS_CLASS_PASSWORD = true;   // false = يطلب كلمة سر كل فصل حتى للاطّلاع
+
+  // دوال تغيّر البيانات أو تفتح نماذج تعديلها — تُحجب عندما يكون الفصل المفتوح للعرض فقط
+  var RO_BLOCK = [
+    'deleteAllPeople', 'deleteAllAttendanceRecords', 'saveAbsenceDay', 'importJSON', 'saveClassName', 'handleClassPhoto', 'removeClassPhoto',
+    'setAbsenceReason', 'cycleStatus', 'markAll', 'setNote', 'setRecitationText', 'toggleRecitationDone', 'changeConfession', 'changeMassAttendance',
+    'saveStudent', 'deleteStudent', 'saveServant', 'deleteServant', 'cycleServantStatus', 'markAllServants', 'ahConfirmDelete',
+    'roomDeleteStudent', 'roomDeleteAllStudents', 'clearActivityLog', 'saveFollowupData', 'toggleFollowupDone', 'setFollowupNotes',
+    'setFollowupType', 'resetAllFollowupDone', 'doImportFromExcel', 'doArchiveYear', 'qrMarkUnrecordedAbsent', 'qrRegister', 'qrUndoLast',
+    'qrManualSubmit', 'openQrScanner', 'undo', 'redo',
+    'openAddModal', 'openEditModal', 'openAddServantModal', 'openEditServantModal', 'editFromView', 'openImportExcelModal', 'openArchiveYearModal'
+  ];
+  // أزرار تُخفى بالكامل (إضافة / تعديل / حذف / استيراد)
+  var RO_HIDE = [
+    'openAddModal', 'openEditModal', 'openAddServantModal', 'openEditServantModal', 'editFromView', 'deleteStudent', 'deleteServant',
+    'deleteAllPeople', 'deleteAllAttendanceRecords', 'importJSON', 'openImportExcelModal', 'openArchiveYearModal', 'roomDeleteStudent',
+    'roomDeleteAllStudents', 'clearActivityLog', 'removeClassPhoto', 'qrMarkUnrecordedAbsent', 'qrUndoLast', 'openQrScanner',
+    'resetAllFollowupDone', 'handleClassPhoto', 'saveStudent', 'saveServant', 'undo', 'redo'
+  ];
+  // عناصر تبقى ظاهرة لكن لا تستجيب (حالات الحضور والملاحظات...)
+  var RO_DISABLE = [
+    'cycleStatus', 'markAll', 'markAllServants', 'cycleServantStatus', 'setAbsenceReason', 'setNote', 'setRecitationText',
+    'toggleRecitationDone', 'changeConfession', 'changeMassAttendance', 'toggleFollowupDone', 'setFollowupNotes', 'setFollowupType',
+    'saveClassName', 'saveAbsenceDay'
+  ];
+
+  function activeId() {
+    try { return (typeof ACTIVE_CHAPTER_ID !== 'undefined' && ACTIVE_CHAPTER_ID) ? String(ACTIVE_CHAPTER_ID) : ''; } catch (e) { return ''; }
+  }
+  function isReadOnly() {
+    var id = activeId();
+    return !!id && !canEditChapter(id);
+  }
+
+  var _roToastAt = 0;
+  function roBlocked() {
+    if (Date.now() - _roToastAt < 1500) return;
+    _roToastAt = Date.now();
+    var msg = '👁️ هذا الفصل للعرض فقط — لا يمكنك تعديل بيانات غير فصلك';
+    if (typeof showToast === 'function') { try { showToast(msg); return; } catch (e) {} }
+    try { alert(msg); } catch (e2) {}
+  }
+
+  function ensureRoCss() {
+    if ($('wgRoStyles')) return;
+    var sel = function (list, attrs) {
+      var out = [];
+      list.forEach(function (n) { attrs.forEach(function (a) { out.push('body.wg-readonly [' + a + '*="' + n + '("]'); }); });
+      return out.join(',');
+    };
+    var ATTRS = ['onclick', 'onchange', 'oninput', 'onblur'];
+    var st = document.createElement('style');
+    st.id = 'wgRoStyles';
+    st.textContent =
+      sel(RO_HIDE, ATTRS) + '{display:none !important}' +
+      sel(RO_DISABLE, ATTRS) + '{pointer-events:none !important}' +
+      'body.wg-readonly input[onchange*="("],body.wg-readonly select[onchange*="("],body.wg-readonly textarea[oninput*="("],body.wg-readonly input[oninput*="("]{opacity:.75}';
+    document.head.appendChild(st);
+  }
+
+  function refreshReadOnlyUI() {
+    var ro = isReadOnly();
+    document.body.classList.toggle('wg-readonly', ro);
+    var bar = $('wgReadOnlyBar');
+    if (!ro) { if (bar) bar.style.display = 'none'; return; }
+    ensureRoCss();
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'wgReadOnlyBar';
+      bar.setAttribute('role', 'status');
+      var hd = document.querySelector('.header');
+      if (hd && hd.parentNode) hd.parentNode.insertBefore(bar, hd.nextSibling);
+      else document.body.insertBefore(bar, document.body.firstChild);
+    }
+    var nm = (typeof ACTIVE_CHAPTER_NAME !== 'undefined' && ACTIVE_CHAPTER_NAME) || '';
+    bar.innerHTML = '👁️ وضع العرض فقط — فصل «' + esc(nm) + '» ليس فصلك، يمكنك الاطّلاع على بياناته ولا يمكنك تعديلها. ' +
+      '<button type="button" id="wgRoPerm">🛡️ صلاحياتي</button>';
+    bar.style.display = 'block';
+    var pb = $('wgRoPerm');
+    if (pb) pb.onclick = openPermissions;
+  }
+
+  function installReadOnlyGuards() {
+    RO_BLOCK.forEach(function (nm) {
+      var f = window[nm];
+      if (typeof f !== 'function' || f.__wgRo) return;
+      var w = function () { if (isReadOnly()) { roBlocked(); return; } return f.apply(this, arguments); };
+      w.__wgRo = true;
+      window[nm] = w;
+    });
+    // شبكة أمان: لا حفظ ولا رفع للسحابة من فصل للعرض فقط حتى لو فات مسار تعديل
+    ['save', 'scheduleCloudPush', 'cloudPushNow', '_saveAsync'].forEach(function (nm) {
+      var f = window[nm];
+      if (typeof f !== 'function' || f.__wgRo) return;
+      var w = function () {
+        if (isReadOnly()) return (nm === 'cloudPushNow' || nm === '_saveAsync') ? Promise.resolve() : undefined;   // صامت: يحدث أيضاً عند تحميل الفصل
+        return f.apply(this, arguments);
+      };
+      w.__wgRo = true;
+      window[nm] = w;
+    });
+    // تعديل بيانات فصل (الاسم/كلمة السر/المرحلة/الحذف): فصل الأمين نفسه فقط
+    var oce = window.openChapterEditModal;
+    if (typeof oce === 'function' && !oce.__wgRo) {
+      var w2 = function (id) { if (!canEditChapter(id)) { roBlocked(); return; } return oce.apply(this, arguments); };
+      w2.__wgRo = true;
+      window.openChapterEditModal = w2;
+    }
+    // عند فتح فصل: نحدّث شريط العرض فقط وأزراره فوراً (قبل تحميل البيانات) ثم بعد الانتهاء
+    var ouc = window.unlockChapter;
+    if (typeof ouc === 'function' && !ouc.__wgRo) {
+      var w3 = function () {
+        var p = ouc.apply(this, arguments);
+        try { refreshReadOnlyUI(); } catch (e) {}
+        return Promise.resolve(p).then(function (v) { try { refreshReadOnlyUI(); } catch (e) {} return v; });
+      };
+      w3.__wgRo = true;
+      window.unlockChapter = w3;
+    }
+  }
+  installReadOnlyGuards();
+
   window.WelcomeGate = {
+    roleType: roleType,
+    roleLabel: roleLabel,
+    isSecretary: isSecretary,
+    canEditChapter: canEditChapter,
+    isReadOnly: isReadOnly,
+    chapterTag: chapterTag,
+    ownClass: ownClass,
+    stageInScope: stageInScope,
+    permissions: openPermissions,
     role: role,
     actor: actor,
     summary: summary,
@@ -1146,6 +1608,8 @@
         var localPhone = (profile && profile.phone) || '';
         var localClass = (profile && profile.class_name) || '';
         var remoteClass = await getClassRemote();      // السيرفر هو المرجع (المشرف العام قد يعدّله)
+        var remoteRole = await getRoleRemote();        // null = غير مثبّتة · {} = لا صفة محفوظة
+        var localRole = profile ? { role_type: roleTypeOf(profile), stage_group: profile.stage_group || '' } : null;
         profile = srv;
         if (!profile.phone && localPhone) { profile.phone = localPhone; savePhoneRemote(localPhone); }
         if (remoteClass) profile.class_name = remoteClass;
@@ -1154,6 +1618,15 @@
           if (remoteClass === '') saveClassRemote(localClass);   // الدالة مثبّتة والسيرفر فارغ → نرفعه
         }
         if ((profile.class_name || '') !== localClass) diff = true;
+        // الصفة: السيرفر هو المرجع (المشرف العام قد يعيّن أمين خدمة / مساعد أو يغيّرها)
+        if (remoteRole && remoteRole.role_type) {
+          profile.role_type = remoteRole.role_type; profile.stage_group = remoteRole.stage_group || '';
+        } else if (localRole) {
+          profile.role_type = localRole.role_type; profile.stage_group = localRole.stage_group;
+          if (remoteRole && localRole.role_type !== 'servant') saveRoleRemote(localRole.role_type, localRole.stage_group);   // مثبّتة والسيرفر فارغ → نرفعها
+        }
+        normProfile(profile);
+        if (!localRole || roleTypeOf(profile) !== localRole.role_type || (profile.stage_group || '') !== localRole.stage_group) diff = true;
         writeJSON(localStorage, PROFILE_KEY, profile);
         if (diff && !admin) {
           applyRole();
@@ -1165,7 +1638,7 @@
         location.reload();
       } else if (profile) {                       // مسجّل محلياً فقط (خادم قديم) → نرفعه للسيرفر
         var r = await c.rpc('register_servant', { p_device: deviceId(), p_name: profile.name, p_stage: profile.stage, p_gender: profile.gender });
-        if (!r.error && r.data && profileValid(r.data)) { var kc = profile.class_name, kp = profile.phone; profile = r.data; if (kc) profile.class_name = kc; if (!profile.phone && kp) profile.phone = kp; writeJSON(localStorage, PROFILE_KEY, profile); }
+        if (!r.error && r.data && profileValid(r.data)) { var kc = profile.class_name, kp = profile.phone, kr = profile.role_type, kg = profile.stage_group; profile = r.data; if (kc) profile.class_name = kc; if (!profile.phone && kp) profile.phone = kp; profile.role_type = kr; profile.stage_group = kg; normProfile(profile); writeJSON(localStorage, PROFILE_KEY, profile); }
       }
     } catch (e) {}
   }

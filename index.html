@@ -3854,6 +3854,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   function _servantMatchesProfile(id) {
     try {
       const p = WelcomeGate.profile();
+      if (p && p.role_type && p.role_type !== 'servant') return false;   // الأمين: القرار لقاعدة صفحة الترحيب (مرحلته كاملة)
       if (p && p.class_name) return false;      // للخادم اسم فصل مسجّل → القرار لاسم الفصل فقط (في صفحة الترحيب)
       if (!p || !p.stage || !STAGE_INDEX[p.stage]) return false;
       const st = _stageOf(id);
@@ -3924,6 +3925,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     try {
       if (window.WelcomeGate && WelcomeGate.role() === 'servant') {
         const p = WelcomeGate.profile();
+        if (p && p.role_type && p.role_type !== 'servant') return '';     // أمين: مرحلة كاملة لا سنة واحدة
         if (p && p.stage && STAGE_INDEX[p.stage]) return p.stage;
       }
     } catch(e) {}
@@ -4006,10 +4008,18 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     const sv = known ? m.students : (pending ? '…' : '—');
     const vv = known ? m.servants : (pending ? '…' : '—');
     const cls = (!known && pending) ? ' loading' : '';
+    // الأمين المساعد / أمين الخدمة: لا يعدّل بيانات فصل غير فصله (يظهر له وسم «عرض فقط» بدل زر التعديل)
+    let _canEdit = true, _tag = '';
+    try {
+      if (window.WelcomeGate) {
+        if (WelcomeGate.canEditChapter) _canEdit = !!WelcomeGate.canEditChapter(id);
+        if (WelcomeGate.chapterTag) _tag = WelcomeGate.chapterTag(id) || '';
+      }
+    } catch(e) {}
     return '<div class="chapter-card" onclick="openChapterPasswordModal(\'' + _jsq(id) + '\')">' +
-      '<div class="chapter-card-edit" onclick="event.stopPropagation();openChapterEditModal(\'' + _jsq(id) + '\')" title="تعديل الاسم/كلمة السر/المرحلة">✏️</div>' +
+      (_canEdit ? '<div class="chapter-card-edit" onclick="event.stopPropagation();openChapterEditModal(\'' + _jsq(id) + '\')" title="تعديل الاسم/كلمة السر/المرحلة">✏️</div>' : '') +
       '<div class="chapter-card-icon">' + _esc(c.icon || '⛪') + '</div>' +
-      '<div class="chapter-card-name">' + _esc(c.chapter_name || '') + '</div>' +
+      '<div class="chapter-card-name">' + _esc(c.chapter_name || '') + '</div>' + _tag +
       '<div class="chapter-card-stage' + (info ? '' : ' none') + '">' + (info ? _esc(info.stage.name) : 'المرحلة غير محددة') + '</div>' +
       '<div class="chapter-card-stats">' +
         '<span class="cc-chip s' + cls + '" title="عدد المخدومين">👦 <b>' + sv + '</b> مخدوم</span>' +
@@ -4118,8 +4128,11 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       // دالة chapters_overview لا ترجع الجنس — نجلبه من سجل الفصل لأي فصل لم نعرف جنسه بعد
       let missing = chapters.map(c => String(c.chapter_id)).filter(id => !_genderOf(id));
       // الخادم لا يحتاج إلا فصول مرحلته: لا نقرأ سجلات الفصول الأخرى الثقيلة (قد تتجاوز المهلة فيتأخر ظهور فصله)
-      const _gs = _gateStage();
-      if (_gs) missing = missing.filter(id => { const st = _stageOf(id); return !st || st === _gs; });
+      try {
+        if (window.WelcomeGate && WelcomeGate.role() === 'servant' && WelcomeGate.stageInScope) {
+          missing = missing.filter(id => { const st = _stageOf(id); return !st || WelcomeGate.stageInScope(st); });
+        }
+      } catch(e) {}
       if (missing.length) await _fillGenderFromCloud(missing, token);
       return;
     }
