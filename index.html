@@ -1631,6 +1631,46 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   }
   /* الحذف للمشرف العام فقط */
   body:not(.role-admin) .admin-only-del { display: none !important; }
+
+  /* ===== تثبيت عمودي الصورة والاسم أثناء التمرير الأفقي (المخدومين + الخدام) ===== */
+  .students-table, .servants-table { border-collapse: separate; border-spacing: 0; }
+  .students-table tbody tr, .servants-table tbody tr { border-bottom: none; }
+  .students-table td, .servants-table td { border-bottom: 1px solid var(--cream); }
+
+  .students-table th:nth-child(1), .students-table td:nth-child(1),
+  .servants-table th:nth-child(1), .servants-table td:nth-child(1) {
+    position: sticky; right: 0; z-index: 2;
+    box-sizing: border-box; width: 132px; min-width: 132px; max-width: 132px;
+  }
+  .students-table th:nth-child(2), .students-table td:nth-child(2),
+  .servants-table th:nth-child(2), .servants-table td:nth-child(2) {
+    position: sticky; right: 132px; z-index: 2;
+    box-sizing: border-box; width: 190px; min-width: 190px; max-width: 190px;
+    box-shadow: 6px 0 8px -4px rgba(0,0,0,0.25);
+  }
+  .students-table td:nth-child(1), .students-table td:nth-child(2) { background: #fff; }
+  .servants-table td:nth-child(1), .servants-table td:nth-child(2) { background: #fff; border-bottom-color: #f3e8ff; }
+  .students-table tbody tr:hover td:nth-child(1), .students-table tbody tr:hover td:nth-child(2) { background: var(--cream); }
+  .servants-table tbody tr:hover td:nth-child(1), .servants-table tbody tr:hover td:nth-child(2) { background: #faf5ff; }
+  .students-table thead th:nth-child(1), .students-table thead th:nth-child(2) { background: var(--ink); z-index: 3; }
+  .servants-table thead th:nth-child(1), .servants-table thead th:nth-child(2) { background: #5b21b6; z-index: 3; }
+  .students-table .call-btns-group { flex-wrap: wrap; }
+
+  @media (max-width: 600px) {
+    .students-table th:nth-child(1), .students-table td:nth-child(1),
+    .servants-table th:nth-child(1), .servants-table td:nth-child(1) {
+      width: 76px; min-width: 76px; max-width: 76px; padding-inline: 6px;
+    }
+    .students-table th:nth-child(2), .students-table td:nth-child(2),
+    .servants-table th:nth-child(2), .servants-table td:nth-child(2) {
+      right: 76px; width: 118px; min-width: 118px; max-width: 118px; padding-inline: 6px; font-size: 12px;
+    }
+    .students-table td:nth-child(1) .student-photo,
+    .students-table td:nth-child(1) .student-photo img,
+    .servants-table td:nth-child(1) > div,
+    .servants-table td:nth-child(1) img { width: 60px !important; height: 60px !important; }
+    .students-table .call-btn, .students-table .call-btn-2 { font-size: 10px; padding: 3px 6px; }
+  }
 </style>
 
 <style>
@@ -2413,7 +2453,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       </div>
     </div>
     <div class="table-wrapper" style="box-shadow:none;border:1px solid #bee3f8;border-radius:12px;">
-      <table>
+      <table class="students-table">
         <thead>
           <tr>
             <th>صورة المخدوم</th>
