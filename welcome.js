@@ -815,7 +815,7 @@
       var atitle = $('wgAdminTitle') && $('wgAdminTitle').value === 'priest' ? 'priest' : 'general';
       admin = { email: (user && user.email) || email, name: $('wgAdminName').value.trim(), title: atitle };
       writeJSON(sessionStorage, ADMIN_KEY, admin);
-      try { localStorage.setItem(ADMIN_EMAIL_KEY, email); localStorage.setItem(ADMIN_TITLE_KEY, atitle); } catch (e) {}
+      try { localStorage.setItem(ADMIN_EMAIL_KEY, email); localStorage.setItem(ADMIN_TITLE_KEY, atitle); if (admin.name) localStorage.setItem('wg_admin_name', admin.name); } catch (e) {}
       $('wgPass').value = '';
       busy(false);
       finish('🛡️ أهلاً ' + adminName() + ' — تظهر لك كل الفصول');
@@ -1234,9 +1234,11 @@
       var now = Date.now();
       r.data.forEach(function (a) {   // فكّ علامة صفة الناشر من أول العنوان
         var t = String(a.title || '');
-        a._kind = '';
-        if (t.indexOf('\u2063P\u2063') === 0) { a._kind = 'priest'; a.title = t.slice(3); }
-        else if (t.indexOf('\u2063G\u2063') === 0) { a._kind = 'general'; a.title = t.slice(3); }
+        a._kind = ''; a._by = '';
+        if (t.charAt(0) === '\u2063' && (t.charAt(1) === 'P' || t.charAt(1) === 'G')) {
+          var e2 = t.indexOf('\u2063', 2);
+          if (e2 > 1) { a._kind = t.charAt(1) === 'P' ? 'priest' : 'general'; a._by = t.slice(2, e2); a.title = t.slice(e2 + 1); }
+        }
       });
       annList = r.data.filter(function (a) {
         return (!a.expires_at || new Date(a.expires_at).getTime() > now) && annApplies(a);
@@ -1297,8 +1299,8 @@
         '<div class="wga-body">' +
           (items.length ? items.map(function (a) {
             var isNew = seen.indexOf(a.id) < 0;
-            var by = a._kind === 'priest' ? '<div class="wga-by priest">' + GOLD_CROSS + ' أب كاهن مشرف</div>'
-                   : a._kind === 'general' ? '<div class="wga-by">🛡️ أمين خدمة عام</div>' : '';
+            var by = a._kind === 'priest' ? '<div class="wga-by priest">' + GOLD_CROSS + ' أب كاهن مشرف' + (a._by ? ' — ' + esc(a._by) : '') + '</div>'
+                   : a._kind === 'general' ? '<div class="wga-by">🛡️ أمين خدمة عام' + (a._by ? ' — ' + esc(a._by) : '') + '</div>' : '';
             return '<div class="wga-item' + (isNew ? ' new' : '') + (a._kind === 'priest' ? ' priest' : '') + '">' + by +
               (a.title ? '<div class="wga-t">' + esc(a.title) + '</div>' : '') +
               '<div class="wga-tx">' + linkify(a.body) + '</div>' +

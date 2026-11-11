@@ -1496,14 +1496,18 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   // ---- صفة الناشر: أمين خدمة عام (general) / أب كاهن مشرف (priest) ----
   // تُخزَّن داخل العنوان كعلامة غير مرئية في أوله (بدون تغيير قاعدة البيانات)
   const AS_NAMES = { general: 'أمين خدمة عام', priest: 'أب كاهن مشرف' };
-  const AS_MARK = { general: '\u2063G\u2063', priest: '\u2063P\u2063' };
+  // العلامة غير المرئية في أول العنوان: ⁣K<الاسم>⁣  حيث K = G (أمين خدمة عام) أو P (أب كاهن مشرف)
+  function markFor(kind, name) { return '\u2063' + (kind === 'priest' ? 'P' : 'G') + String(name || '').replace(/\u2063/g, '').trim() + '\u2063'; }
   function adminAs() { try { return localStorage.getItem('wg_admin_title') === 'priest' ? 'priest' : 'general'; } catch (e) { return 'general'; } }
   function adminAsLabel() { return AS_NAMES[adminAs()]; }
+  function adminSavedName() { try { return localStorage.getItem('wg_admin_name') || ''; } catch (e) { return ''; } }
   function decodeAnTitle(t) {
     t = String(t || '');
-    if (t.indexOf(AS_MARK.priest) === 0) return { kind: 'priest', title: t.slice(3) };
-    if (t.indexOf(AS_MARK.general) === 0) return { kind: 'general', title: t.slice(3) };
-    return { kind: '', title: t };
+    if (t.charAt(0) === '\u2063' && (t.charAt(1) === 'P' || t.charAt(1) === 'G')) {
+      const end = t.indexOf('\u2063', 2);
+      if (end > 1) return { kind: t.charAt(1) === 'P' ? 'priest' : 'general', name: t.slice(2, end), title: t.slice(end + 1) };
+    }
+    return { kind: '', name: '', title: t };
   }
   const AN_MISSING = e => e && (e.code === 'PGRST202' || e.code === '42883' || e.code === '42P01' || /could not find|does not exist|schema cache/i.test(e.message || ''));
   const anEl = id => document.getElementById(id);
@@ -1521,6 +1525,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
             <option value="general" ${adminAs() === 'general' ? 'selected' : ''}>🛡️ أمين خدمة عام</option>
             <option value="priest" ${adminAs() === 'priest' ? 'selected' : ''}>✝️ أب كاهن مشرف</option>
           </select></div>
+        <div><label for="anName">اسم الناشر (يظهر للخدام)</label>
+          <input type="text" id="anName" value="${escapeHtml(adminSavedName() || (window._adminEmail ? window._adminEmail.split('@')[0] : ''))}" placeholder="مثال: أبونا بيشوي / أ. مينا"></div>
         <div><label for="anTitle">العنوان (اختياري)</label>
           <input type="text" id="anTitle" placeholder="مثال: رحلة الكنيسة"></div>
         <div><label for="anBody">نص الإعلان</label>
@@ -1581,8 +1587,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       const active = !a.expires_at || new Date(a.expires_at).getTime() > now;
       const target = a.target_type === 'stage' ? '📚 ' + (STAGE_NAMES[a.target_value] || a.target_value)
                    : a.target_type === 'class' ? '🏫 ' + a.target_value : '📣 كل الخدام';
-      const asChip = dec.kind === 'priest' ? '<span class="chip" style="background:#000;color:#f1d98a;border:1px solid #d4a017;">✝ أب كاهن مشرف</span>'
-                   : dec.kind === 'general' ? '<span class="chip" style="background:#fde4e1;color:#a82a1e;">🛡️ أمين خدمة عام</span>' : '';
+      const asChip = dec.kind === 'priest' ? '<span class="chip" style="background:#000;color:#f1d98a;border:1px solid #d4a017;">✝ أب كاهن مشرف' + (dec.name ? ' — ' + escapeHtml(dec.name) : '') + '</span>'
+                   : dec.kind === 'general' ? '<span class="chip" style="background:#fde4e1;color:#a82a1e;">🛡️ أمين خدمة عام' + (dec.name ? ' — ' + escapeHtml(dec.name) : '') + '</span>' : '';
       return `<div class="an-item ${active ? '' : 'off'}" ${dec.kind === 'priest' ? 'style="background:#111;color:#fff;border-color:#d4a017;"' : ''}>
         ${a.title ? `<div class="an-t">${escapeHtml(a.title)}</div>` : ''}
         <div class="an-tx">${escapeHtml(a.body)}</div>
@@ -1605,7 +1611,9 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     const asKind = anEl('anAs') && anEl('anAs').value === 'priest' ? 'priest' : 'general';
     try { localStorage.setItem('wg_admin_title', asKind); } catch (e) {}
     const plainTitle = (anEl('anTitle').value || '').trim();
-    const title = AS_MARK[asKind] + plainTitle;
+    const pubName = ((anEl('anName') && anEl('anName').value) || '').trim() || (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف');
+    try { localStorage.setItem('wg_admin_name', pubName); } catch (e) {}
+    const title = markFor(asKind, pubName) + plainTitle;
     const body = (anEl('anBody').value || '').trim();
     const type = anEl('anTarget').value;
     let val = '';
@@ -1621,7 +1629,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       if (isNaN(dt) || dt.getTime() < Date.now()) { showToast('⚠️ تاريخ الانتهاء يجب أن يكون اليوم أو بعده'); return; }
       exp = dt.toISOString();
     }
-    const by = (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف') + ' (' + AS_NAMES[asKind] + ')';
+    const by = pubName + ' (' + AS_NAMES[asKind] + ')';
     const btn = anEl('anSend'); btn.disabled = true; btn.textContent = 'جاري النشر...';
     const { error } = await sb.rpc('admin_create_announcement', {
       p_title: title, p_body: body, p_target_type: type, p_target_value: val, p_expires: exp, p_by: by
@@ -1630,7 +1638,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     if (error) { showToast(AN_MISSING(error) ? '⚠️ شغّل ملف announcements.sql على Supabase أولاً' : '⚠️ تعذر النشر: ' + (error.message || '')); return; }
     anEl('anTitle').value = ''; anEl('anBody').value = '';
     showToast('✅ تم نشر الإعلان — يصل للخدام كإشعار على أجهزتهم');
-    try { PushClient.announce({ title: plainTitle, by_kind: asKind, body: body, target_type: type, target_value: val }); } catch (e) {}
+    try { PushClient.announce({ title: plainTitle, by_kind: asKind, by_name: pubName, body: body, target_type: type, target_value: val }); } catch (e) {}
     loadAnnouncementsAdmin();
   }
 
