@@ -86,6 +86,9 @@
       var dow = 5;
       try { if (typeof getAbsenceDayOfWeek === 'function') dow = getAbsenceDayOfWeek(); } catch (e) {}
       p.absenceDay = (isNaN(dow) || dow < 0 || dow > 6) ? 5 : dow;
+      // إعلانات المشرف العام: نرسل مرحلة الخادم واسم فصله ليختار السيرفر المستلمين
+      p.announce = true;
+      try { if (root.WelcomeGate && root.WelcomeGate.pushTargets) p.ann = root.WelcomeGate.pushTargets() || undefined; } catch (e) {}
     }
     return p;
   }
@@ -203,7 +206,17 @@
     });
   }
 
+  // ---------- إشعار إعلان جديد (من صفحة المشرف) ----------
+  function announce(a) {
+    var c = client();
+    if (!c) return Promise.resolve({ ok: false });
+    return c.functions.invoke(FN, { body: { mode: 'announce', by_kind: a.by_kind === 'priest' ? 'priest' : 'general', title: a.title || '', body: a.body || '', target_type: a.target_type || 'all', target_value: a.target_value || '' } })
+      .then(function (r) { return (r && r.data) || { ok: false }; })
+      .catch(function () { return { ok: false }; });
+  }
+
   root.PushClient = {
+    announce: announce,
     init: init, test: test, testFromPanel: testFromPanel, disable: disable,
     sync: function () { return tick(true); },
     status: function () { return st.status; }

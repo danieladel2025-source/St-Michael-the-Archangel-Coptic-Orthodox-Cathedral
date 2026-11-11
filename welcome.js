@@ -120,10 +120,17 @@
   // الصفة الدقيقة: admin | servant | assistant | coordinator
   function roleType() { return admin ? 'admin' : (profile ? roleTypeOf(profile) : ''); }
   function isSecretary() { return !admin && isSecProfile(profile); }
-  function roleLabel() { return admin ? 'مشرف عام' : (profile ? ROLE_NAMES[roleTypeOf(profile)] : ''); }
+  // صفة المشرف العام: أمين خدمة عام (general) أو أب كاهن مشرف (priest)
+  var ADMIN_TITLES = { general: 'أمين خدمة عام', priest: 'أب كاهن مشرف' };
+  var ADMIN_TITLE_KEY = 'wg_admin_title';
+  function isPriest() { return !!admin && admin.title === 'priest'; }
+  function adminTitleLabel() { return ADMIN_TITLES[isPriest() ? 'priest' : 'general']; }
+  // صليب ذهبي (SVG) يظهر بدل الحرف داخل دائرة الأب الكاهن
+  var GOLD_CROSS = '<svg class="wg-cross" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="wgGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7e08a"/><stop offset=".5" stop-color="#d4a017"/><stop offset="1" stop-color="#a87b0c"/></linearGradient></defs><path fill="url(#wgGold)" d="M10 2h4v6h6v4h-6v10h-4V12H4V8h6z"/></svg>';
+  function roleLabel() { return admin ? adminTitleLabel() : (profile ? ROLE_NAMES[roleTypeOf(profile)] : ''); }
   function adminName() { return (admin && (admin.name || String(admin.email || '').split('@')[0])) || 'المشرف'; }
   function actor() {
-    if (admin) return adminName() + ' (مشرف عام)';
+    if (admin) return adminName() + ' (' + adminTitleLabel() + ')';
     return profile ? profile.name : '';
   }
   // ---- رقم الهاتف ----
@@ -331,6 +338,17 @@
       ' box-shadow:0 4px 14px rgba(41,128,185,.14);color:var(--ink,#0d1117);font-family:inherit}',
       '#wgUserBar.admin{background:linear-gradient(135deg,#ffffff 0%,#fdeeec 100%);border-color:rgba(200,57,43,.3);',
       ' border-right-color:var(--accent,#c8392b);box-shadow:0 4px 14px rgba(200,57,43,.14)}',
+      '#wgUserBar.priest{background:linear-gradient(135deg,#000 0%,#1c1c1c 100%);border-color:#d4a017;',
+      ' border-right-color:#d4a017;box-shadow:0 4px 16px rgba(0,0,0,.45);color:#fff}',
+      '#wgUserBar.priest .wg-av{background:#000;border:2px solid #d4a017;box-shadow:0 0 12px rgba(212,160,23,.55)}',
+      '#wgUserBar .wg-cross,#wgHeaderUser .wg-cross{display:block;width:26px;height:26px}',
+      '#wgUserBar.priest .wg-hi{color:#c9b777}',
+      '#wgUserBar.priest .wg-chip{background:#262626;color:#f1d98a;border-color:#6b5514}',
+      '#wgUserBar.priest .wg-chip.admin{background:#d4a017;color:#000;border-color:#f1d98a}',
+      '#wgUserBar.priest .wg-btn{background:#d4a017;color:#000}',
+      '#wgUserBar.priest .wg-btn:hover{background:#f1d98a;color:#000}',
+      '#wgHeaderUser.priest .wg-hav{background:#000;border-color:#d4a017}',
+      '#wgHeaderUser .wg-hav .wg-cross{width:15px;height:15px}',
       '#wgUserBar.girls{background:linear-gradient(135deg,#ffffff 0%,#fdeaf2 100%);border-color:rgba(194,24,91,.28);',
       ' border-right-color:#c2185b;box-shadow:0 4px 14px rgba(194,24,91,.12)}',
       '#wgUserBar .wg-av{flex:0 0 auto;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;',
@@ -392,6 +410,14 @@
       '#wgAnnModal .wga-body{overflow-y:auto;flex:1 1 auto}',
       '#wgAnnModal .wga-item{background:#fff;border:1px solid var(--line,#b5a98a);border-right:4px solid var(--gold,#d4a017);border-radius:12px;padding:11px 13px;margin-bottom:10px}',
       '#wgAnnModal .wga-item.new{border-right-color:var(--accent,#c8392b)}',
+      '#wgAnnModal .wga-by{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:900;padding:2px 10px;border-radius:20px;background:#fde4e1;color:#a82a1e;margin-bottom:6px}',
+      '#wgAnnModal .wga-by.priest{background:#000;color:#f1d98a;border:1px solid #d4a017}',
+      '#wgAnnModal .wga-by .wg-cross{width:14px;height:14px}',
+      '#wgAnnModal .wga-item.priest{background:#111;border-color:#d4a017;border-right-color:#d4a017}',
+      '#wgAnnModal .wga-item.priest .wga-t{color:#f1d98a}',
+      '#wgAnnModal .wga-item.priest .wga-tx{color:#f2f2f2}',
+      '#wgAnnModal .wga-item.priest .wga-tx a{color:#f1d98a}',
+      '#wgAnnModal .wga-item.priest .wga-meta{color:#b9a766}',
       '#wgAnnModal .wga-t{font-weight:900;font-size:15px;margin-bottom:4px;color:var(--ink,#0d1117)}',
       '#wgAnnModal .wga-tx{font-size:14px;line-height:1.8;white-space:pre-wrap;word-break:break-word;color:#222}',
       '#wgAnnModal .wga-tx a{color:var(--accent2,#2980b9);font-weight:700}',
@@ -530,6 +556,8 @@
           '<input id="wgPass" type="password" dir="ltr" autocomplete="current-password" placeholder="********">' +
           '<label for="wgAdminName">اسمك (اختياري — يظهر في سجل النشاط)</label>' +
           '<input id="wgAdminName" type="text" autocomplete="name" placeholder="مثال: أبونا / أ. مينا">' +
+          '<label for="wgAdminTitle">الصفة</label>' +
+          '<select id="wgAdminTitle"><option value="general">🛡️ أمين خدمة عام</option><option value="priest">✝️ أب كاهن مشرف</option></select>' +
           '<div class="wg-hint">نفس بيانات الدخول إلى لوحة المشرفين. ستظهر لك كل الفصول.</div>' +
         '</div>' +
 
@@ -664,6 +692,7 @@
     fillClassList();
     applyLock();
     try { $('wgEmail').value = localStorage.getItem(ADMIN_EMAIL_KEY) || ''; } catch (e) {}
+    try { var at = localStorage.getItem(ADMIN_TITLE_KEY); if (at === 'priest' || at === 'general') $('wgAdminTitle').value = at; } catch (e) {}
   }
 
   function wire() {
@@ -783,9 +812,10 @@
     busy(true, 'جاري التحقق...');
     try {
       var user = await verifyAdmin(email, pass);
-      admin = { email: (user && user.email) || email, name: $('wgAdminName').value.trim() };
+      var atitle = $('wgAdminTitle') && $('wgAdminTitle').value === 'priest' ? 'priest' : 'general';
+      admin = { email: (user && user.email) || email, name: $('wgAdminName').value.trim(), title: atitle };
       writeJSON(sessionStorage, ADMIN_KEY, admin);
-      try { localStorage.setItem(ADMIN_EMAIL_KEY, email); } catch (e) {}
+      try { localStorage.setItem(ADMIN_EMAIL_KEY, email); localStorage.setItem(ADMIN_TITLE_KEY, atitle); } catch (e) {}
       $('wgPass').value = '';
       busy(false);
       finish('🛡️ أهلاً ' + adminName() + ' — تظهر لك كل الفصول');
@@ -823,7 +853,7 @@
 
   /* ---------------------------- شريط المستخدم ---------------------------- */
   function label() {
-    if (admin) return adminName() + ' — مشرف عام (كل الفصول)';
+    if (admin) return adminName() + ' — ' + adminTitleLabel() + ' (كل الفصول)';
     return profile ? (profile.name + ' — ' + (isSecProfile(profile) ? roleLabel() + ' — ' : '') + stageName() + ' — ' + genderName()) : '';
   }
 
@@ -1098,18 +1128,18 @@
         bar.id = 'wgUserBar';
         card.insertBefore(bar, card.firstChild);
       }
-      bar.className = (r === 'admin' ? 'admin' : (isGirls ? 'girls' : '')) + (r === 'servant' ? ' has-team' : '');
+      bar.className = (r === 'admin' ? 'admin' + (isPriest() ? ' priest' : '') : (isGirls ? 'girls' : '')) + (r === 'servant' ? ' has-team' : '');
       bar.style.display = r ? 'flex' : 'none';
       if (r) {
         var chips = r === 'admin'
-          ? '<span class="wg-chip admin">🛡️ مشرف عام</span><span class="wg-chip">📚 كل الفصول</span>'
+          ? '<span class="wg-chip admin">' + (isPriest() ? '✝ ' : '🛡️ ') + esc(adminTitleLabel()) + '</span><span class="wg-chip">📚 كل الفصول</span>'
           : '<span class="wg-chip role ' + roleTypeOf(profile) + '">' + (roleTypeOf(profile) === 'coordinator' ? '⭐ ' : (roleTypeOf(profile) === 'assistant' ? '🧑‍💼 ' : '🙋 ')) + esc(roleLabel()) + '</span>' +
             (profile && profile.class_name ? '<span class="wg-chip">🏫 ' + esc(profile.class_name) + '</span>' : '') +
             '<span class="wg-chip">📚 ' + esc(stageName()) + '</span>' +
             '<span class="wg-chip ' + (isGirls ? 'girls' : 'boys') + '">' + (isGirls ? '👧 ' : '👦 ') + esc(genderName()) + '</span>' +
             '<span class="wg-chip st-on" id="wgMeSt">🟢 متصل</span>';
         bar.innerHTML =
-          '<div class="wg-av">' + (r === 'admin' ? '🛡️' : esc(initialOf(nm))) + '</div>' +
+          '<div class="wg-av">' + (r === 'admin' ? (isPriest() ? GOLD_CROSS : '🛡️') : esc(initialOf(nm))) + '</div>' +
           '<div class="wg-info">' +
             '<div class="wg-hi">' + (r === 'admin' ? 'مسجّل الدخول كـ' : 'أهلاً بك 👋') + '</div>' +
             '<div class="wg-name">' + (r === 'servant' ? '<span class="wg-dot on" id="wgMeDot"></span>' : '') + esc(nm) + '</div>' +
@@ -1142,9 +1172,9 @@
         hdr.insertBefore(hb, hdr.firstChild);
       }
       hb.style.display = r ? '' : 'none';
-      hb.className = 'switch-chapter-btn ' + (r === 'admin' ? 'admin' : (isGirls ? 'girls' : ''));
-      hb.title = r === 'admin' ? 'تسجيل الخروج من المشرف العام' : 'البيانات مقفلة — التغيير عن طريق المشرف العام';
-      hb.innerHTML = '<span class="wg-hav">' + (r === 'admin' ? '🛡️' : esc(initialOf(nm))) + '</span>' +
+      hb.className = 'switch-chapter-btn ' + (r === 'admin' ? 'admin' + (isPriest() ? ' priest' : '') : (isGirls ? 'girls' : ''));
+      hb.title = r === 'admin' ? 'تسجيل الخروج (' + adminTitleLabel() + ')' : 'البيانات مقفلة — التغيير عن طريق المشرف العام';
+      hb.innerHTML = '<span class="wg-hav">' + (r === 'admin' ? (isPriest() ? GOLD_CROSS : '🛡️') : esc(initialOf(nm))) + '</span>' +
         '<span class="wg-hname">' + esc(nm) + '</span><span class="wg-hedit">' + (r === 'admin' ? '🚪' : '🔒') + '</span>';
       // زر «صلاحياتي» في أعلى الصفحة (يشرح ما يسمح به لهذا المستخدم)
       var pb = $('wgHeaderPerm');
@@ -1202,6 +1232,12 @@
       var r = await c.rpc('list_announcements');          // غير مثبّتة بعد → لا إعلانات
       if (r.error || !Array.isArray(r.data)) { annList = annList || []; return annList; }
       var now = Date.now();
+      r.data.forEach(function (a) {   // فكّ علامة صفة الناشر من أول العنوان
+        var t = String(a.title || '');
+        a._kind = '';
+        if (t.indexOf('\u2063P\u2063') === 0) { a._kind = 'priest'; a.title = t.slice(3); }
+        else if (t.indexOf('\u2063G\u2063') === 0) { a._kind = 'general'; a.title = t.slice(3); }
+      });
       annList = r.data.filter(function (a) {
         return (!a.expires_at || new Date(a.expires_at).getTime() > now) && annApplies(a);
       });
@@ -1261,7 +1297,9 @@
         '<div class="wga-body">' +
           (items.length ? items.map(function (a) {
             var isNew = seen.indexOf(a.id) < 0;
-            return '<div class="wga-item' + (isNew ? ' new' : '') + '">' +
+            var by = a._kind === 'priest' ? '<div class="wga-by priest">' + GOLD_CROSS + ' أب كاهن مشرف</div>'
+                   : a._kind === 'general' ? '<div class="wga-by">🛡️ أمين خدمة عام</div>' : '';
+            return '<div class="wga-item' + (isNew ? ' new' : '') + (a._kind === 'priest' ? ' priest' : '') + '">' + by +
               (a.title ? '<div class="wga-t">' + esc(a.title) + '</div>' : '') +
               '<div class="wga-tx">' + linkify(a.body) + '</div>' +
               '<div class="wga-meta">' + esc(annTargetLabel(a)) + (annDate(a.created_at) ? ' • ' + esc(annDate(a.created_at)) : '') +
@@ -1584,6 +1622,16 @@
     chapterAllowed: chapterAllowed,
     isLoading: isLoading,
     profile: function () { return profile; },
+    // يُستخدم لإرسال إشعارات الإعلانات: المراحل التي تخص هذا الخادم + اسم فصله (مطبَّع)
+    pushTargets: function () {
+      if (!profile) return null;
+      var stages = [];
+      if (isSecProfile(profile)) {
+        var g = groupById(profile.stage_group);
+        stages = (g && g.stages ? g.stages : []).map(function (x) { return x.id; });
+      } else if (profile.stage) stages = [profile.stage];
+      return { stages: stages, cls: profile.class_name ? normName(profile.class_name) : '' };
+    },
     change: changeUser,
     locked: locked,
     announcements: function () { return showAnnouncements(false); },

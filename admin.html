@@ -1464,7 +1464,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     td.students.push({ ...st, id: newId });
     sd.students = (sd.students || []).filter(x => x.id !== studentId);
 
-    const by = (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف') + ' (مشرف عام)';
+    const by = (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف') + ' (' + adminAsLabel() + ')';
     const now = new Date().toISOString();
     [[sd, 'out', tgt.class_name, studentId], [td, 'in', src.class_name, newId]].forEach(([d, dir, other, id]) => {
       if (!Array.isArray(d.activityLog)) d.activityLog = [];
@@ -1493,6 +1493,18 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
   // ================== إعلانات المشرف العام للخدام ==================
   let allAnnouncements = [];
+  // ---- صفة الناشر: أمين خدمة عام (general) / أب كاهن مشرف (priest) ----
+  // تُخزَّن داخل العنوان كعلامة غير مرئية في أوله (بدون تغيير قاعدة البيانات)
+  const AS_NAMES = { general: 'أمين خدمة عام', priest: 'أب كاهن مشرف' };
+  const AS_MARK = { general: '\u2063G\u2063', priest: '\u2063P\u2063' };
+  function adminAs() { try { return localStorage.getItem('wg_admin_title') === 'priest' ? 'priest' : 'general'; } catch (e) { return 'general'; } }
+  function adminAsLabel() { return AS_NAMES[adminAs()]; }
+  function decodeAnTitle(t) {
+    t = String(t || '');
+    if (t.indexOf(AS_MARK.priest) === 0) return { kind: 'priest', title: t.slice(3) };
+    if (t.indexOf(AS_MARK.general) === 0) return { kind: 'general', title: t.slice(3) };
+    return { kind: '', title: t };
+  }
   const AN_MISSING = e => e && (e.code === 'PGRST202' || e.code === '42883' || e.code === '42P01' || /could not find|does not exist|schema cache/i.test(e.message || ''));
   const anEl = id => document.getElementById(id);
   const localDateStr = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -1504,10 +1516,15 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     wrap.innerHTML = `
       <div class="an-form" id="anForm">
         <div style="font-weight:900;font-size:16px;">📢 إعلان جديد للخدام</div>
+        <div><label for="anAs">النشر بصفة</label>
+          <select id="anAs" onchange="try{localStorage.setItem('wg_admin_title',this.value)}catch(e){}">
+            <option value="general" ${adminAs() === 'general' ? 'selected' : ''}>🛡️ أمين خدمة عام</option>
+            <option value="priest" ${adminAs() === 'priest' ? 'selected' : ''}>✝️ أب كاهن مشرف</option>
+          </select></div>
         <div><label for="anTitle">العنوان (اختياري)</label>
-          <input type="text" id="anTitle" maxlength="80" placeholder="مثال: رحلة الكنيسة"></div>
+          <input type="text" id="anTitle" placeholder="مثال: رحلة الكنيسة"></div>
         <div><label for="anBody">نص الإعلان</label>
-          <textarea id="anBody" maxlength="1000" placeholder="اكتب الإعلان هنا... (الروابط تظهر قابلة للضغط)"></textarea></div>
+          <textarea id="anBody" placeholder="اكتب الإعلان هنا... (الروابط تظهر قابلة للضغط)"></textarea></div>
         <div class="an-row">
           <div><label for="anTarget">يظهر لـ</label>
             <select id="anTarget" onchange="onAnTargetChange()">
@@ -1558,14 +1575,19 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     if (!allAnnouncements.length) { list.innerHTML = '<div class="empty-state"><div class="ic">📭</div>لا توجد إعلانات بعد.</div>'; return; }
     const fmt = iso => { try { return new Date(iso).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return ''; } };
     const now = Date.now();
-    list.innerHTML = allAnnouncements.map((a, i) => {
+    list.innerHTML = allAnnouncements.map((a0, i) => {
+      const dec = decodeAnTitle(a0.title);
+      const a = Object.assign({}, a0, { title: dec.title });
       const active = !a.expires_at || new Date(a.expires_at).getTime() > now;
       const target = a.target_type === 'stage' ? '📚 ' + (STAGE_NAMES[a.target_value] || a.target_value)
                    : a.target_type === 'class' ? '🏫 ' + a.target_value : '📣 كل الخدام';
-      return `<div class="an-item ${active ? '' : 'off'}">
+      const asChip = dec.kind === 'priest' ? '<span class="chip" style="background:#000;color:#f1d98a;border:1px solid #d4a017;">✝ أب كاهن مشرف</span>'
+                   : dec.kind === 'general' ? '<span class="chip" style="background:#fde4e1;color:#a82a1e;">🛡️ أمين خدمة عام</span>' : '';
+      return `<div class="an-item ${active ? '' : 'off'}" ${dec.kind === 'priest' ? 'style="background:#111;color:#fff;border-color:#d4a017;"' : ''}>
         ${a.title ? `<div class="an-t">${escapeHtml(a.title)}</div>` : ''}
         <div class="an-tx">${escapeHtml(a.body)}</div>
         <div class="an-meta">
+          ${asChip}
           <span class="chip ${active ? 'green' : ''}">${active ? '🟢 نشط' : '⚪ منتهي'}</span>
           <span class="chip blue">${escapeHtml(target)}</span>
           <span>نُشر ${escapeHtml(fmt(a.created_at))}${a.created_by ? ' • ' + escapeHtml(a.created_by) : ''}</span>
@@ -1580,7 +1602,10 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   }
 
   async function createAnnouncement() {
-    const title = (anEl('anTitle').value || '').trim().slice(0, 80);
+    const asKind = anEl('anAs') && anEl('anAs').value === 'priest' ? 'priest' : 'general';
+    try { localStorage.setItem('wg_admin_title', asKind); } catch (e) {}
+    const plainTitle = (anEl('anTitle').value || '').trim();
+    const title = AS_MARK[asKind] + plainTitle;
     const body = (anEl('anBody').value || '').trim();
     const type = anEl('anTarget').value;
     let val = '';
@@ -1596,7 +1621,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       if (isNaN(dt) || dt.getTime() < Date.now()) { showToast('⚠️ تاريخ الانتهاء يجب أن يكون اليوم أو بعده'); return; }
       exp = dt.toISOString();
     }
-    const by = window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف';
+    const by = (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف') + ' (' + AS_NAMES[asKind] + ')';
     const btn = anEl('anSend'); btn.disabled = true; btn.textContent = 'جاري النشر...';
     const { error } = await sb.rpc('admin_create_announcement', {
       p_title: title, p_body: body, p_target_type: type, p_target_value: val, p_expires: exp, p_by: by
@@ -1604,7 +1629,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     btn.disabled = false; btn.textContent = '📤 نشر الإعلان';
     if (error) { showToast(AN_MISSING(error) ? '⚠️ شغّل ملف announcements.sql على Supabase أولاً' : '⚠️ تعذر النشر: ' + (error.message || '')); return; }
     anEl('anTitle').value = ''; anEl('anBody').value = '';
-    showToast('✅ تم نشر الإعلان — يظهر للخدام عند فتح التطبيق');
+    showToast('✅ تم نشر الإعلان — يصل للخدام كإشعار على أجهزتهم');
+    try { PushClient.announce({ title: plainTitle, by_kind: asKind, body: body, target_type: type, target_value: val }); } catch (e) {}
     loadAnnouncementsAdmin();
   }
 
@@ -1892,7 +1918,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       });
     });
     if (!Array.isArray(d.activityLog)) d.activityLog = [];
-    d.activityLog.push({ t: 'delete_student', by: (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف') + ' (مشرف عام)', at: new Date().toISOString(), studentId, studentName: nm });
+    d.activityLog.push({ t: 'delete_student', by: (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف') + ' (' + adminAsLabel() + ')', at: new Date().toISOString(), studentId, studentName: nm });
     if (d.activityLog.length > 300) d.activityLog = d.activityLog.slice(-300);
 
     const { data: upd, error: e2 } = await sb.from('class_records')
@@ -1939,7 +1965,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       });
     }
     if (!Array.isArray(d.activityLog)) d.activityLog = [];
-    d.activityLog.push({ t: 'delete_servant', by: (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف') + ' (مشرف عام)', at: new Date().toISOString(), studentName: nm });
+    d.activityLog.push({ t: 'delete_servant', by: (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف') + ' (' + adminAsLabel() + ')', at: new Date().toISOString(), studentName: nm });
     if (d.activityLog.length > 300) d.activityLog = d.activityLog.slice(-300);
 
     const { data: upd, error: e2 } = await sb.from('class_records')
