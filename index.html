@@ -1631,46 +1631,6 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   }
   /* الحذف للمشرف العام فقط */
   body:not(.role-admin) .admin-only-del { display: none !important; }
-
-  /* ===== تثبيت عمودي الصورة والاسم أثناء التمرير الأفقي (المخدومين + الخدام) ===== */
-  .students-table, .servants-table { border-collapse: separate; border-spacing: 0; }
-  .students-table tbody tr, .servants-table tbody tr { border-bottom: none; }
-  .students-table td, .servants-table td { border-bottom: 1px solid var(--cream); }
-
-  .students-table th:nth-child(1), .students-table td:nth-child(1),
-  .servants-table th:nth-child(1), .servants-table td:nth-child(1) {
-    position: sticky; right: 0; z-index: 2;
-    box-sizing: border-box; width: 132px; min-width: 132px; max-width: 132px;
-  }
-  .students-table th:nth-child(2), .students-table td:nth-child(2),
-  .servants-table th:nth-child(2), .servants-table td:nth-child(2) {
-    position: sticky; right: 132px; z-index: 2;
-    box-sizing: border-box; width: 190px; min-width: 190px; max-width: 190px;
-    box-shadow: 6px 0 8px -4px rgba(0,0,0,0.25);
-  }
-  .students-table td:nth-child(1), .students-table td:nth-child(2) { background: #fff; }
-  .servants-table td:nth-child(1), .servants-table td:nth-child(2) { background: #fff; border-bottom-color: #f3e8ff; }
-  .students-table tbody tr:hover td:nth-child(1), .students-table tbody tr:hover td:nth-child(2) { background: var(--cream); }
-  .servants-table tbody tr:hover td:nth-child(1), .servants-table tbody tr:hover td:nth-child(2) { background: #faf5ff; }
-  .students-table thead th:nth-child(1), .students-table thead th:nth-child(2) { background: var(--ink); z-index: 3; }
-  .servants-table thead th:nth-child(1), .servants-table thead th:nth-child(2) { background: #5b21b6; z-index: 3; }
-  .students-table .call-btns-group { flex-wrap: wrap; }
-
-  @media (max-width: 600px) {
-    .students-table th:nth-child(1), .students-table td:nth-child(1),
-    .servants-table th:nth-child(1), .servants-table td:nth-child(1) {
-      width: 76px; min-width: 76px; max-width: 76px; padding-inline: 6px;
-    }
-    .students-table th:nth-child(2), .students-table td:nth-child(2),
-    .servants-table th:nth-child(2), .servants-table td:nth-child(2) {
-      right: 76px; width: 118px; min-width: 118px; max-width: 118px; padding-inline: 6px; font-size: 12px;
-    }
-    .students-table td:nth-child(1) .student-photo,
-    .students-table td:nth-child(1) .student-photo img,
-    .servants-table td:nth-child(1) > div,
-    .servants-table td:nth-child(1) img { width: 60px !important; height: 60px !important; }
-    .students-table .call-btn, .students-table .call-btn-2 { font-size: 10px; padding: 3px 6px; }
-  }
 </style>
 
 <style>
@@ -2453,7 +2413,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       </div>
     </div>
     <div class="table-wrapper" style="box-shadow:none;border:1px solid #bee3f8;border-radius:12px;">
-      <table class="students-table">
+      <table>
         <thead>
           <tr>
             <th>صورة المخدوم</th>
@@ -3894,7 +3854,6 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   function _servantMatchesProfile(id) {
     try {
       const p = WelcomeGate.profile();
-      if (p && p.role_type && p.role_type !== 'servant') return false;   // الأمين: القرار لقاعدة صفحة الترحيب (مرحلته كاملة)
       if (p && p.class_name) return false;      // للخادم اسم فصل مسجّل → القرار لاسم الفصل فقط (في صفحة الترحيب)
       if (!p || !p.stage || !STAGE_INDEX[p.stage]) return false;
       const st = _stageOf(id);
@@ -3965,7 +3924,6 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     try {
       if (window.WelcomeGate && WelcomeGate.role() === 'servant') {
         const p = WelcomeGate.profile();
-        if (p && p.role_type && p.role_type !== 'servant') return '';     // أمين: مرحلة كاملة لا سنة واحدة
         if (p && p.stage && STAGE_INDEX[p.stage]) return p.stage;
       }
     } catch(e) {}
@@ -4048,18 +4006,10 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     const sv = known ? m.students : (pending ? '…' : '—');
     const vv = known ? m.servants : (pending ? '…' : '—');
     const cls = (!known && pending) ? ' loading' : '';
-    // الأمين المساعد / أمين الخدمة: لا يعدّل بيانات فصل غير فصله (يظهر له وسم «عرض فقط» بدل زر التعديل)
-    let _canEdit = true, _tag = '';
-    try {
-      if (window.WelcomeGate) {
-        if (WelcomeGate.canEditChapter) _canEdit = !!WelcomeGate.canEditChapter(id);
-        if (WelcomeGate.chapterTag) _tag = WelcomeGate.chapterTag(id) || '';
-      }
-    } catch(e) {}
     return '<div class="chapter-card" onclick="openChapterPasswordModal(\'' + _jsq(id) + '\')">' +
-      (_canEdit ? '<div class="chapter-card-edit" onclick="event.stopPropagation();openChapterEditModal(\'' + _jsq(id) + '\')" title="تعديل الاسم/كلمة السر/المرحلة">✏️</div>' : '') +
+      '<div class="chapter-card-edit" onclick="event.stopPropagation();openChapterEditModal(\'' + _jsq(id) + '\')" title="تعديل الاسم/كلمة السر/المرحلة">✏️</div>' +
       '<div class="chapter-card-icon">' + _esc(c.icon || '⛪') + '</div>' +
-      '<div class="chapter-card-name">' + _esc(c.chapter_name || '') + '</div>' + _tag +
+      '<div class="chapter-card-name">' + _esc(c.chapter_name || '') + '</div>' +
       '<div class="chapter-card-stage' + (info ? '' : ' none') + '">' + (info ? _esc(info.stage.name) : 'المرحلة غير محددة') + '</div>' +
       '<div class="chapter-card-stats">' +
         '<span class="cc-chip s' + cls + '" title="عدد المخدومين">👦 <b>' + sv + '</b> مخدوم</span>' +
@@ -4168,11 +4118,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       // دالة chapters_overview لا ترجع الجنس — نجلبه من سجل الفصل لأي فصل لم نعرف جنسه بعد
       let missing = chapters.map(c => String(c.chapter_id)).filter(id => !_genderOf(id));
       // الخادم لا يحتاج إلا فصول مرحلته: لا نقرأ سجلات الفصول الأخرى الثقيلة (قد تتجاوز المهلة فيتأخر ظهور فصله)
-      try {
-        if (window.WelcomeGate && WelcomeGate.role() === 'servant' && WelcomeGate.stageInScope) {
-          missing = missing.filter(id => { const st = _stageOf(id); return !st || WelcomeGate.stageInScope(st); });
-        }
-      } catch(e) {}
+      const _gs = _gateStage();
+      if (_gs) missing = missing.filter(id => { const st = _stageOf(id); return !st || st === _gs; });
       if (missing.length) await _fillGenderFromCloud(missing, token);
       return;
     }
