@@ -231,7 +231,7 @@
         return out;
       }
       var pub = kr && kr.data && kr.data.key;
-      if (!pub) { add(false, 'مفاتيح VAPID', 'غير مضبوطة في Secrets الخاصة بالدالة'); return out; }
+      if (!pub) { add(false, 'مفاتيح VAPID', (kr && kr.data && kr.data.error) || 'غير مضبوطة في Secrets الخاصة بالدالة'); return out; }
       try { localStorage.setItem(KEY_CACHE, pub); } catch (e) {}
       add(true, 'دالة push-notify ومفتاح VAPID');
 
@@ -357,8 +357,20 @@
     };
     return b;
   }
+  // زر عائم صغير ثابت لفتح التشخيص في أي وقت (حتى لو كل شيء يعمل)
+  function ensureFab() {
+    if (document.getElementById('pcFab') || !document.body) return;
+    var f = document.createElement('button');
+    f.id = 'pcFab'; f.type = 'button'; f.title = 'تشخيص الإشعارات'; f.setAttribute('aria-label', 'تشخيص الإشعارات');
+    f.textContent = '🔔';
+    f.style.cssText = 'position:fixed;left:10px;bottom:76px;z-index:99980;width:42px;height:42px;border-radius:50%;border:2px solid #d4a017;' +
+      'background:#111;color:#fff;font-size:19px;line-height:1;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.4);opacity:.88;padding:0';
+    f.onclick = function () { showDiag(); };
+    document.body.appendChild(f);
+  }
   function updateBar() {
     if (!cfg || !document.body) return;
+    ensureFab();
     var msg = '', enable = false, install = false;
     if (!supported()) {
       if (isIOS() && !standalone()) msg = '📲 لتصلك الإشعارات على الآيفون: اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية» وافتح التطبيق من الأيقونة.';
