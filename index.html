@@ -5001,7 +5001,73 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   }
 
   // ===== لوحة اختبار الإشعارات الشاملة =====
+  // ===== 🔐 حماية لوحة اختبار الإشعارات ببريد وكلمة مرور المشرف العام =====
+  // لا تُخزَّن أي بيانات دخول في الكود: التحقق يتم على Supabase بحساب المشرف نفسه.
+  let _notifPanelUnlocked = false;
+
   function openNotifTestPanel() {
+    const existing = document.getElementById('notifTestPanelOverlay');
+    if (existing) { existing.remove(); return; }
+    if (_notifPanelUnlocked) { _openNotifTestPanelInner(); return; }
+    _askNotifPanelLogin();
+  }
+
+  function _askNotifPanelLogin() {
+    if (document.getElementById('notifLoginOverlay')) return;
+    const ov = document.createElement('div');
+    ov.id = 'notifLoginOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(13,17,23,0.75);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    ov.innerHTML = `
+      <div dir="rtl" style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:22px;font-family:'Cairo',sans-serif;">
+        <h2 style="font-size:18px;font-weight:900;color:#0d1117;margin-bottom:6px;">🔐 لوحة اختبار الإشعارات</h2>
+        <p style="font-size:13px;color:#64748b;margin-bottom:14px;">هذه اللوحة للمشرف العام فقط. أدخل بريدك وكلمة مرورك للمتابعة.</p>
+        <input id="nlEmail" type="email" autocomplete="username" placeholder="البريد الإلكتروني" style="width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:10px;margin-bottom:10px;font-family:inherit;font-size:14px;direction:ltr;text-align:left;">
+        <input id="nlPass" type="password" autocomplete="current-password" placeholder="كلمة المرور" style="width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:10px;margin-bottom:10px;font-family:inherit;font-size:14px;direction:ltr;text-align:left;">
+        <div id="nlErr" style="display:none;color:#b91c1c;font-size:13px;font-weight:700;margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;">
+          <button id="nlOk" type="button" style="flex:1;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:11px;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;">دخول</button>
+          <button id="nlCancel" type="button" style="background:#eee;border:none;border-radius:10px;padding:11px 16px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;">إلغاء</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    const $ = id => document.getElementById(id);
+    const close = () => ov.remove();
+    const fail = m => { const e = $('nlErr'); e.textContent = m; e.style.display = 'block'; };
+    $('nlCancel').onclick = close;
+    ov.addEventListener('click', e => { if (e.target === ov) close(); });
+
+    const submit = async () => {
+      const email = $('nlEmail').value.trim();
+      const password = $('nlPass').value;
+      if (!email || !password) return fail('أدخل البريد الإلكتروني وكلمة المرور.');
+      if (!(window.supabase && window.supabase.createClient)) return fail('تعذّر الاتصال بالسحابة.');
+      const btn = $('nlOk'); btn.disabled = true; btn.textContent = 'جاري التحقق...';
+      try {
+        // عميل مؤقت منفصل حتى لا تتأثر جلسة التطبيق الحالية
+        const tmp = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY,
+          { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+        const { error } = await tmp.auth.signInWithPassword({ email, password });
+        if (error) { fail('البريد أو كلمة المرور غير صحيحة.'); return; }
+        // التأكد أن الحساب ضمن المشرفين (دالة تتحقق من ذلك داخل قاعدة البيانات)
+        const chk = await tmp.rpc('admin_list_chapters');
+        try { await tmp.auth.signOut(); } catch (e) {}
+        if (chk.error) { fail('هذا الحساب ليس من المشرفين.'); return; }
+        _notifPanelUnlocked = true;
+        close();
+        _openNotifTestPanelInner();
+      } catch (e) {
+        fail('حدث خطأ: ' + (e && e.message || e));
+      } finally {
+        btn.disabled = false; btn.textContent = 'دخول';
+        const pw = $('nlPass'); if (pw) pw.value = '';
+      }
+    };
+    $('nlOk').onclick = submit;
+    ov.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+    setTimeout(() => { const el = $('nlEmail'); if (el) el.focus(); }, 50);
+  }
+
+  function _openNotifTestPanelInner() {
     const existing = document.getElementById('notifTestPanelOverlay');
     if (existing) { existing.remove(); return; }
 
