@@ -1547,6 +1547,10 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   .followup-stat-card.done-card { background: #f0fdf4; border-color: #bbf7d0; }
   .followup-stat-card.pending-card .stat-val { color: #c0392b; }
   .followup-stat-card.pending-card { background: #fff5f5; border-color: #fca5a5; }
+  .abs-reason-wrap { display:block; }
+  .abs-reason-txt { display:block; margin-top:6px; width:100%; min-width:120px; padding:6px 8px; border:1.5px solid #e0b4ae; border-radius:8px;
+    font-family:'Cairo',sans-serif; font-size:12px; background:#fff; color:#7a2a20; box-sizing:border-box; }
+  .abs-reason-txt:focus { outline:none; border-color:#c0392b; box-shadow:0 0 0 2px rgba(192,57,43,.15); }
   .abs-reason-sel { display:block; margin-top:6px; width:100%; min-width:120px; padding:5px 8px; border:1.5px solid #e0b4ae; border-radius:8px;
     font-family:'Cairo',sans-serif; font-size:12px; background:#fff8f7; color:#7a2a20; cursor:pointer; }
 
@@ -2278,6 +2282,10 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
           <div>
             <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-bottom:2px;"><span>نسبة الحضور اليومي:</span><span id="pAttPct">0%</span></div>
             <div class="pastoral-progress"><div class="pastoral-progress-bar" id="pAttBar" style="width: 0%;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-bottom:2px;"><span>نسبة الغياب اليوم:</span><span id="pAbsPct">0%</span></div>
+            <div class="pastoral-progress"><div class="pastoral-progress-bar" id="pAbsBar" style="width: 0%; background:#c0392b;"></div></div>
           </div>
           <div>
             <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-bottom:2px;"><span>نسبة التسميع اليومي:</span><span id="pRecPct">0%</span></div>
@@ -3174,6 +3182,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   });
   let activityLog = [];        // سجل النشاط: من افتقد / من حذف (يُرفع مع نسخة الفصل)
   let followupStore = {};      // بيانات الافتقاد (في الذاكرة + تُرفع مع نسخة الفصل للسحابة)
+  let absenceReasonTexts = {}; // نص سبب الغياب عند اختيار "أخرى": absenceReasonTexts[التاريخ][رقم المخدوم] = نص حر
   let absenceReasons = {};     // سبب الغياب: absenceReasons[التاريخ][رقم المخدوم] = مفتاح السبب (يُرفع مع نسخة الفصل)
   let _lastSnapRaw = null;     // آخر حالة في الذاكرة لاستخدامها في التراجع/الإعادة
 
@@ -3250,7 +3259,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   // <<< stage-fix:snap-end
 
   function makeSnapshot() {
-    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, sessionMeta, className: getClassName(), stage: _snapStage(), gender: _snapGender(), classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, absenceReasons: absenceReasons, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2 };
+    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, sessionMeta, className: getClassName(), stage: _snapStage(), gender: _snapGender(), classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, absenceReasons: absenceReasons, absenceReasonTexts: absenceReasonTexts, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2 };
   }
 
   function applySnapshot(snap) {
@@ -3267,6 +3276,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     servantsAttendance = snap.servantsAttendance || {};
     followupStore = snap.followup || {};
     absenceReasons = (snap.absenceReasons && typeof snap.absenceReasons === 'object') ? snap.absenceReasons : {};
+    absenceReasonTexts = (snap.absenceReasonTexts && typeof snap.absenceReasonTexts === 'object') ? snap.absenceReasonTexts : {};
     activityLog = Array.isArray(snap.activityLog) ? snap.activityLog : [];
     if (typeof renderActivityLog === 'function') renderActivityLog();
     if (snap.stage && typeof ACTIVE_CHAPTER_STAGE !== 'undefined') ACTIVE_CHAPTER_STAGE = snap.stage;
@@ -5471,6 +5481,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     if (total === 0) return;
 
     let presentCount = 0;
+    let absentTodayCount = 0;
     let recCount = 0;
     let confCommitted = 0;
 
@@ -5484,6 +5495,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       // 1. حساب الحضور اليومي
       const st = getAttStatus(date, s.id);
       if (st === 'present' || st === 'late') presentCount++;
+      if (st === 'absent') absentTodayCount++;
 
       // 2. حساب التسميع اليومي
       if ((recitationDone[date] || {})[s.id]) recCount++;
@@ -5525,11 +5537,17 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
     // تحديث واجهة نسب الإنجاز
     const attPct = Math.round((presentCount / total) * 100) || 0;
+    const absPct = Math.round((absentTodayCount / total) * 100) || 0;
     const recPct = Math.round((recCount / total) * 100) || 0;
     const confPct = Math.round((confCommitted / total) * 100) || 0;
 
     document.getElementById('pAttPct').textContent = attPct + '%';
     document.getElementById('pAttBar').style.width = attPct + '%';
+
+    const pAbsPctEl = document.getElementById('pAbsPct');
+    const pAbsBarEl = document.getElementById('pAbsBar');
+    if (pAbsPctEl) pAbsPctEl.textContent = absPct + '%';
+    if (pAbsBarEl) pAbsBarEl.style.width = absPct + '%';
 
     document.getElementById('pRecPct').textContent = recPct + '%';
     document.getElementById('pRecBar').style.width = recPct + '%';
@@ -6305,16 +6323,39 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
                        ['family', '👨‍👩‍👧 ظروف عائلية'], ['noanswer', '📵 لا يرد'], ['other', '❓ أخرى']];
   function absenceReasonLabel(k) { const f = k ? ABS_REASONS.find(r => r[0] === k) : null; return f ? f[1] : ''; }
   function absenceReasonSelectHtml(id) {
-    const cur = ((absenceReasons[getToday()] || {})[id]) || '';
-    return '<select class="abs-reason-sel" title="سبب الغياب" onchange="setAbsenceReason(\'' + id + '\', this.value)">' +
-      ABS_REASONS.map(r => '<option value="' + r[0] + '"' + (r[0] === cur ? ' selected' : '') + '>' + r[1] + '</option>').join('') + '</select>';
+    const date = getToday();
+    const cur = ((absenceReasons[date] || {})[id]) || '';
+    const txt = ((absenceReasonTexts[date] || {})[id]) || '';
+    return '<div class="abs-reason-wrap">' +
+      '<select class="abs-reason-sel" title="سبب الغياب" onchange="setAbsenceReason(\'' + id + '\', this.value, this)">' +
+      ABS_REASONS.map(r => '<option value="' + r[0] + '"' + (r[0] === cur ? ' selected' : '') + '>' + r[1] + '</option>').join('') + '</select>' +
+      '<input type="text" class="abs-reason-txt" placeholder="✏️ اكتب سبب الغياب..." maxlength="200" value="' + _esc(txt) + '"' +
+      ' style="display:' + (cur === 'other' ? 'block' : 'none') + ';" oninput="setAbsenceReasonText(\'' + id + '\', this.value)">' +
+      '</div>';
   }
-  function setAbsenceReason(id, val) {
+  function setAbsenceReason(id, val, el) {
     const date = getToday();
     if (!isSessionEditable(date)) { blockEditExpired(); renderTable(); return; }
     if (((attendance[date] || {})[id]) !== 'absent') return;
     if (!absenceReasons[date]) absenceReasons[date] = {};
     if (val) absenceReasons[date][id] = val; else delete absenceReasons[date][id];
+    // نص السبب الآخر يخص خيار "أخرى" فقط
+    if (val !== 'other' && absenceReasonTexts[date]) delete absenceReasonTexts[date][id];
+    const inp = el && el.parentNode ? el.parentNode.querySelector('.abs-reason-txt') : null;
+    if (inp) {
+      inp.style.display = (val === 'other') ? 'block' : 'none';
+      if (val === 'other') inp.focus(); else inp.value = '';
+    }
+    touchSession(date);
+    save();
+  }
+  function setAbsenceReasonText(id, val) {
+    const date = getToday();
+    if (!isSessionEditable(date)) return;
+    if (((attendance[date] || {})[id]) !== 'absent') return;
+    if (!absenceReasonTexts[date]) absenceReasonTexts[date] = {};
+    const t = String(val || '').slice(0, 200);
+    if (t.trim()) absenceReasonTexts[date][id] = t; else delete absenceReasonTexts[date][id];
     touchSession(date);
     save();
   }
@@ -6322,7 +6363,14 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   function lastAbsenceReasonLabel(id) {
     const dates = Object.keys(attendance).sort().reverse();
     for (const d of dates) {
-      if ((attendance[d] || {})[id] === 'absent') return absenceReasonLabel((absenceReasons[d] || {})[id]);
+      if ((attendance[d] || {})[id] === 'absent') {
+        const k = (absenceReasons[d] || {})[id];
+        if (k === 'other') {
+          const t = String(((absenceReasonTexts[d] || {})[id]) || '').trim();
+          if (t) return '❓ ' + _esc(t);
+        }
+        return absenceReasonLabel(k);
+      }
     }
     return '';
   }
@@ -6334,6 +6382,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     const current = attendance[date][id] || 'none';
     attendance[date][id] = ATT_CYCLE[current] || 'present';
     if (attendance[date][id] !== 'absent' && absenceReasons[date]) delete absenceReasons[date][id];
+    if (attendance[date][id] !== 'absent' && absenceReasonTexts[date]) delete absenceReasonTexts[date][id];
     touchSession(date);
     save();
     renderAll();
@@ -6345,6 +6394,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     if (!attendance[date]) attendance[date] = {};
     students.forEach(s => { attendance[date][s.id] = status; });
     if (status !== 'absent' && absenceReasons[date]) delete absenceReasons[date];
+    if (status !== 'absent' && absenceReasonTexts[date]) delete absenceReasonTexts[date];
     touchSession(date);
     save();
     renderAll();
@@ -6512,6 +6562,10 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
             if (absenceReasons[d] && absenceReasons[d][editingId] !== undefined) {
               absenceReasons[d][id] = absenceReasons[d][editingId];
               delete absenceReasons[d][editingId];
+            }
+            if (absenceReasonTexts[d] && absenceReasonTexts[d][editingId] !== undefined) {
+              absenceReasonTexts[d][id] = absenceReasonTexts[d][editingId];
+              delete absenceReasonTexts[d][editingId];
             }
           });
           // نقل الاعتراف
@@ -6718,6 +6772,20 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         cell.border = { top:{style:s,color:c}, bottom:{style:s,color:c}, left:{style:s,color:c}, right:{style:s,color:c} };
       }
 
+      // إضافة صورة رمز QR (نفس رمز بطاقة الحضور) في عمود معيّن من صف معيّن
+      let _qrFailed = 0;
+      function addQrImageToSheet(wbk, ws, type, key, colIdx, rowIdx) {
+        try {
+          const dataUrl = qrDataUrl(qrPayload(type, key), 6, 1);
+          const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+          const extMatch = dataUrl.match(/^data:image\/(\w+);/);
+          const e = extMatch ? extMatch[1].toLowerCase() : 'png';
+          const ext = (e === 'gif' || e === 'png') ? e : 'png';
+          const imgId = wbk.addImage({ base64, extension: ext });
+          ws.addImage(imgId, { tl: { col: colIdx, row: rowIdx }, ext: { width: 68, height: 68 } });
+        } catch (err) { _qrFailed++; }
+      }
+
       // دالة لتلوين خلية الحالة
       function styleStatusCell(cell, statusKey) {
         if (statusKey === 'present') {
@@ -6794,6 +6862,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         { key:'recDone',  width:13 },
         { key:'extraN',   width:20 },
         { key:'dayNote',  width:22 },
+        { key:'qr',       width:13 },
       ];
       ws1.columns = studCols;
 
@@ -6803,7 +6872,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       ws1.addRow([]);
       ws1.getRow(2).height = 5;
 
-      const studHdr = ['م', 'الصورة', 'رقم المخدوم', 'اسم المخدوم', 'تاريخ الميلاد', 'المدرسة', 'الفصل', 'أب الاعتراف', 'مرات الاعتراف', 'حضور القداس', 'حضور الخدمة', 'إجمالي الغياب', 'نسبة الحضور', 'الحالة', 'موضوع التسميع', 'تم التسميع', 'ملاحظات عامة', 'ملاحظات اليوم'];
+      const studHdr = ['م', 'الصورة', 'رقم المخدوم', 'اسم المخدوم', 'تاريخ الميلاد', 'المدرسة', 'الفصل', 'أب الاعتراف', 'مرات الاعتراف', 'حضور القداس', 'حضور الخدمة', 'إجمالي الغياب', 'نسبة الحضور', 'الحالة', 'موضوع التسميع', 'تم التسميع', 'ملاحظات عامة', 'ملاحظات اليوم', 'رمز QR'];
       const hRow1 = ws1.addRow(studHdr);
       styleHeaderRow(hRow1, C.navyMid, studCols.length);
 
@@ -6849,6 +6918,9 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
             });
           } catch(e) { /* تجاهل أخطاء الصورة */ }
         }
+
+        // رمز QR الخاص بالمخدوم (آخر عمود)
+        addQrImageToSheet(wb, ws1, 'student', s.id, studCols.length - 1, 3 + i);
 
         row.eachCell({ includeEmpty:true }, (cell, cn) => {
           cell.font = { name:'Cairo', size:10, color:{argb:C.ink} };
@@ -6908,7 +6980,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       // صف إجمالي في النهاية
       let sp=0, sa=0, sl=0;
       students.forEach(s => { const t=getAttStatus(date, s.id); if(t==='present') sp++; else if(t==='absent') sa++; else if(t==='late') sl++; });
-      const totalRowData = ['', '', '', 'الإجمالي ▶', '', '', '', '', '', confessions ? Object.values(confessions).reduce((a,v)=>a+v,0) : 0, massAttendance ? Object.values(massAttendance).reduce((a,v)=>a+v,0) : 0, '', '', '', '', '', '', ''];
+      const totalRowData = ['', '', '', 'الإجمالي ▶', '', '', '', '', '', confessions ? Object.values(confessions).reduce((a,v)=>a+v,0) : 0, massAttendance ? Object.values(massAttendance).reduce((a,v)=>a+v,0) : 0, '', '', '', '', '', '', '', ''];
       const totRow = ws1.addRow(totalRowData);
       totRow.height = 22;
       totRow.eachCell({ includeEmpty:true }, (cell, cn) => {
@@ -6938,13 +7010,14 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         { key:'notes',   width:22 },
         { key:'absCnt',  width:13 },
         { key:'status',  width:12 },
+        { key:'qr',      width:13 },
       ];
       ws2.columns = srvCols;
 
       addTitleRow(ws2, 'كشف حضور وغياب الخدام  —  ' + date + (className ? '   |   الفصل: ' + className : '') + '   |   الإجمالي: ' + servants.length + ' خادم', srvCols.length, C.purpleDark);
       ws2.addRow([]); ws2.getRow(2).height = 5;
 
-      const srvHdr = ['م', 'الصورة', 'اسم الخادم', 'الدور / المسمى', 'الهاتف الأساسي', 'الهاتف الاحتياطي', 'تاريخ الميلاد', 'العنوان', 'ملاحظات', 'إجمالي الغياب', 'حالة اليوم'];
+      const srvHdr = ['م', 'الصورة', 'اسم الخادم', 'الدور / المسمى', 'الهاتف الأساسي', 'الهاتف الاحتياطي', 'تاريخ الميلاد', 'العنوان', 'ملاحظات', 'إجمالي الغياب', 'حالة اليوم', 'رمز QR'];
       const hRow2 = ws2.addRow(srvHdr);
       styleHeaderRow(hRow2, C.purpleMid, srvCols.length);
 
@@ -6973,6 +7046,9 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
             });
           } catch(e) { /* تجاهل أخطاء الصورة */ }
         }
+
+        // رمز QR الخاص بالخادم (آخر عمود)
+        addQrImageToSheet(wb, ws2, 'servant', sv.sid, srvCols.length - 1, 3 + i);
 
         row.eachCell({ includeEmpty:true }, (cell, cn) => {
           cell.font = { name:'Cairo', size:10, color:{argb:C.ink} };
@@ -7172,6 +7248,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       // =====================================================================
       // حفظ الملف
       // =====================================================================
+      if (_qrFailed > 0) { try { qrToast('⚠️ تعذر إدراج رموز QR في الملف (مكتبة QR غير محمّلة) — تأكد من الإنترنت', 'err'); } catch (e) {} }
       const buffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
@@ -8506,6 +8583,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       if (recitationDone[d]) delete recitationDone[d];
       if (sessionMeta[d]) delete sessionMeta[d];
       if (absenceReasons[d]) delete absenceReasons[d];
+      if (absenceReasonTexts[d]) delete absenceReasonTexts[d];
     });
 
     save();
@@ -8568,7 +8646,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
   // يحذف كل ما يخص مخدوماً (مباشرة أو داخل أيام/تواريخ)
   function _roomPurgeStudentData(id) {
-    [attendance, notes, recitations, recitationDone, confessions, massAttendance, followupStore, absenceReasons].forEach(function (o) {
+    [attendance, notes, recitations, recitationDone, confessions, massAttendance, followupStore, absenceReasons, absenceReasonTexts].forEach(function (o) {
       if (!o || typeof o !== 'object') return;
       delete o[id];
       Object.keys(o).forEach(function (k) {
@@ -9067,6 +9145,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   let _importMode    = 'students';
   let _importWB      = null;   // workbook كامل
   let _importSheets  = {};     // { sheetName: { headers, rows } }
+  let _importImageCols = {};   // { sheetName: { rowIndex: رقم عمود الصورة المعتمدة } } — لتفضيل عمود الصورة على رمز QR
   let _importImages  = {};     // { sheetName: { rowIndexInRows: photoDataURL } } — صور مستخرجة من الملف (ExcelJS)
 
   // ── فتح المودال ──────────────────────────────────────────────
@@ -9074,7 +9153,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     _importMode   = 'students';
     _importWB     = null;
     _importSheets = {};
-    _importImages = {};
+    _importImages = {}; _importImageCols = {};
     importedExcelHeaders = [];
     importedExcelRows    = [];
 
@@ -9202,7 +9281,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         const data = new Uint8Array(arrBuf);
         _importWB = XLSX.read(data, { type: 'array', cellDates: true });
         _importSheets = {};
-        _importImages = {};
+        _importImages = {}; _importImageCols = {};
 
         // بناء فهرس كل الأوراق — مع الاحتفاظ برقم الصف الأصلي (_origRow) لكل صف
         // وذلك لربط الصور المستخرجة لاحقاً بصفها الصحيح بدقة حتى بعد حذف الصفوف الفارغة
@@ -9291,6 +9370,12 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
           const dataUrl = `data:image/${mime};base64,${base64}`;
 
           if (!_importImages[ws.name]) _importImages[ws.name] = {};
+          if (!_importImageCols[ws.name]) _importImageCols[ws.name] = {};
+          // إن وُجدت أكثر من صورة في الصف (الصورة + رمز QR) نعتمد الأقرب لبداية الصف (عمود الصورة)
+          const _tl = img.range.tl;
+          const imgCol = Math.round((_tl.nativeCol !== undefined && _tl.nativeCol !== null) ? _tl.nativeCol : _tl.col);
+          if (_importImageCols[ws.name][rowIdx] !== undefined && _importImageCols[ws.name][rowIdx] <= imgCol) return;
+          _importImageCols[ws.name][rowIdx] = imgCol;
           _importImages[ws.name][rowIdx] = dataUrl;
         } catch(e) { /* تجاهل صورة فردية بها خطأ */ }
       });
@@ -9625,6 +9710,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     if (typeof attendance !== 'undefined') {
       for (const k in attendance) delete attendance[k];
       for (const k in absenceReasons) delete absenceReasons[k];
+      for (const k in absenceReasonTexts) delete absenceReasonTexts[k];
     }
     if (typeof servantsAttendance !== 'undefined') {
       for (const k in servantsAttendance) delete servantsAttendance[k];
