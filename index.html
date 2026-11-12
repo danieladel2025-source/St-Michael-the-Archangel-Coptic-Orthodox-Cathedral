@@ -6772,17 +6772,34 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         cell.border = { top:{style:s,color:c}, bottom:{style:s,color:c}, left:{style:s,color:c}, right:{style:s,color:c} };
       }
 
+      // أبعاد الخلايا الجديدة (أكبر) + مساعد لتوسيط الصورة داخل الخلية تماماً
+      const XL_ROW_PT = 120;      // ارتفاع الصف بالنقاط
+      const XL_IMG_COL_W = 24;    // عرض عمود الصورة / QR بوحدات إكسيل
+      const XL_PHOTO_PX = 140;    // حجم صورة الشخص بالبكسل
+      const XL_QR_PX = 140;       // حجم رمز QR بالبكسل (داخل الخلية مع هامش أبيض كافٍ)
+      function placeImageCentered(ws, imgId, colIdx, rowIdx, sizePx) {
+        const cellW = XL_IMG_COL_W * 7 + 5;            // عرض الخلية بالبكسل تقريباً
+        const cellH = XL_ROW_PT * 96 / 72;             // ارتفاع الخلية بالبكسل
+        const offX = Math.max(0, Math.round((cellW - sizePx) / 2 * 9525));
+        const offY = Math.max(0, Math.round((cellH - sizePx) / 2 * 9525));
+        ws.addImage(imgId, {
+          tl: { nativeCol: colIdx, nativeColOff: offX, nativeRow: rowIdx, nativeRowOff: offY },
+          ext: { width: sizePx, height: sizePx },
+          editAs: 'oneCell'
+        });
+      }
+
       // إضافة صورة رمز QR (نفس رمز بطاقة الحضور) في عمود معيّن من صف معيّن
       let _qrFailed = 0;
       function addQrImageToSheet(wbk, ws, type, key, colIdx, rowIdx) {
         try {
-          const dataUrl = qrDataUrl(qrPayload(type, key), 6, 1);
+          const dataUrl = qrDataUrl(qrPayload(type, key), 8, 3);
           const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
           const extMatch = dataUrl.match(/^data:image\/(\w+);/);
           const e = extMatch ? extMatch[1].toLowerCase() : 'png';
           const ext = (e === 'gif' || e === 'png') ? e : 'png';
           const imgId = wbk.addImage({ base64, extension: ext });
-          ws.addImage(imgId, { tl: { col: colIdx, row: rowIdx }, ext: { width: 68, height: 68 } });
+          placeImageCentered(ws, imgId, colIdx, rowIdx, XL_QR_PX);
         } catch (err) { _qrFailed++; }
       }
 
@@ -6845,7 +6862,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
       const studCols = [
         { key:'num',      width:6  },
-        { key:'photo',    width:12 },
+        { key:'photo',    width:24 },
         { key:'id',       width:14 },
         { key:'name',     width:24 },
         { key:'dob',      width:14 },
@@ -6862,7 +6879,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         { key:'recDone',  width:13 },
         { key:'extraN',   width:20 },
         { key:'dayNote',  width:22 },
-        { key:'qr',       width:13 },
+        { key:'qr',       width:24 },
       ];
       ws1.columns = studCols;
 
@@ -6900,7 +6917,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
         const rowData = [i+1, '', s.id, s.name, s.dob||'', s.school||'', s.class||'', s.confessor||'', confCount, massCount, svcCount, absentCount, attPct+'%', statusLabels[statusKey], recTxt, isDone, s.extraNotes||'', dayNote];
         const row = ws1.addRow(rowData);
-        row.height = 55;
+        row.height = XL_ROW_PT;
         const isAlt = i % 2 === 1;
         const rowBg = isAlt ? C.rowAlt : C.rowWhite;
 
@@ -6912,10 +6929,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
             const extMatch = _sPhoto.match(/^data:image\/(\w+);/);
             const ext = (extMatch && extMatch[1] === 'png') ? 'png' : 'jpeg';
             const imgId = wb.addImage({ base64, extension: ext });
-            ws1.addImage(imgId, {
-              tl: { col: 1, row: 3 + i },
-              ext: { width: 65, height: 65 }
-            });
+            placeImageCentered(ws1, imgId, 1, 3 + i, XL_PHOTO_PX);
           } catch(e) { /* تجاهل أخطاء الصورة */ }
         }
 
@@ -7000,7 +7014,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
       const srvCols = [
         { key:'num',     width:6  },
-        { key:'photo',   width:12 },
+        { key:'photo',   width:24 },
         { key:'name',    width:22 },
         { key:'role',    width:18 },
         { key:'phone',   width:16 },
@@ -7010,7 +7024,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         { key:'notes',   width:22 },
         { key:'absCnt',  width:13 },
         { key:'status',  width:12 },
-        { key:'qr',      width:13 },
+        { key:'qr',      width:24 },
       ];
       ws2.columns = srvCols;
 
@@ -7028,7 +7042,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
         const rowData = [i+1, '', sv.name, sv.role||'', sv.phone||'', sv.phone2||'', sv.dob||'', sv.address||'', sv.notes||'', absentCount, statusLabels[statusKey]];
         const row = ws2.addRow(rowData);
-        row.height = 55;
+        row.height = XL_ROW_PT;
         const isAlt = i % 2 === 1;
         const rowBg = isAlt ? C.rowAlt : C.rowWhite;
 
@@ -7040,10 +7054,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
             const extMatch = _svPhoto.match(/^data:image\/(\w+);/);
             const ext = (extMatch && extMatch[1] === 'png') ? 'png' : 'jpeg';
             const imgId = wb.addImage({ base64, extension: ext });
-            ws2.addImage(imgId, {
-              tl: { col: 1, row: 3 + i },
-              ext: { width: 65, height: 65 }
-            });
+            placeImageCentered(ws2, imgId, 1, 3 + i, XL_PHOTO_PX);
           } catch(e) { /* تجاهل أخطاء الصورة */ }
         }
 
