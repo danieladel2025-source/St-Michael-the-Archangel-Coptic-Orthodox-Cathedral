@@ -231,7 +231,7 @@
         return out;
       }
       var pub = kr && kr.data && kr.data.key;
-      if (!pub) { add(false, 'مفاتيح VAPID', (kr && kr.data && kr.data.error) || 'غير مضبوطة في Secrets الخاصة بالدالة'); return out; }
+      if (!pub) { add(false, 'مفاتيح VAPID', 'غير مضبوطة في Secrets الخاصة بالدالة'); return out; }
       try { localStorage.setItem(KEY_CACHE, pub); } catch (e) {}
       add(true, 'دالة push-notify ومفتاح VAPID');
 
@@ -359,6 +359,9 @@
   }
   // زر عائم صغير ثابت لفتح التشخيص في أي وقت (حتى لو كل شيء يعمل)
   function ensureFab() {
+    // تم إلغاء الدائرة العائمة 🔔 بطلب المشرف — يبقى زر «🔧 تشخيص» في الشريط السفلي فقط
+    var old = document.getElementById('pcFab'); if (old) old.remove();
+    return;
     if (document.getElementById('pcFab') || !document.body) return;
     var f = document.createElement('button');
     f.id = 'pcFab'; f.type = 'button'; f.title = 'تشخيص الإشعارات'; f.setAttribute('aria-label', 'تشخيص الإشعارات');
