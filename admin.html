@@ -1637,9 +1637,21 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     btn.disabled = false; btn.textContent = '📤 نشر الإعلان';
     if (error) { showToast(AN_MISSING(error) ? '⚠️ شغّل ملف announcements.sql على Supabase أولاً' : '⚠️ تعذر النشر: ' + (error.message || '')); return; }
     anEl('anTitle').value = ''; anEl('anBody').value = '';
-    showToast('✅ تم نشر الإعلان — يصل للخدام كإشعار على أجهزتهم');
-    try { PushClient.announce({ title: plainTitle, by_kind: asKind, by_name: pubName, body: body, target_type: type, target_value: val }); } catch (e) {}
+    showToast('✅ تم نشر الإعلان داخل التطبيق — جاري إرسال الإشعار الخارجي...');
     loadAnnouncementsAdmin();
+    try {
+      const pr = await PushClient.announce({ title: plainTitle, by_kind: asKind, by_name: pubName, body: body, target_type: type, target_value: val });
+      const codes = pr && pr.fails ? Object.keys(pr.fails).map(function (k) { return k + '×' + pr.fails[k]; }).join('، ') : '';
+      if (!pr || pr.ok === false) {
+        showToast('⚠️ الإعلان نُشر لكن الإشعار الخارجي لم يُرسل: ' + ((pr && pr.error) === 'unauthorized' ? 'الجلسة غير مصرّحة (أعد تسجيل الدخول)' : ((pr && pr.error) || 'تعذر الوصول لدالة push-notify')));
+      } else if (!pr.matched) {
+        showToast('⚠️ لا يوجد جهاز خادم مسجّل للإشعارات الخارجية ضمن هذا الاستهداف (إجمالي المسجّلين: ' + (pr.total || 0) + ') — سيظهر لهم عند فتح التطبيق فقط');
+      } else if (pr.sent < pr.matched) {
+        showToast('⚠️ وصل الإشعار لـ ' + pr.sent + ' من ' + pr.matched + ' جهاز' + (codes ? ' — رموز الفشل: ' + codes : ''));
+      } else {
+        showToast('📲 أُرسل الإشعار الخارجي إلى ' + pr.sent + ' جهاز');
+      }
+    } catch (e) {}
   }
 
   async function expireAnnouncement(i) {

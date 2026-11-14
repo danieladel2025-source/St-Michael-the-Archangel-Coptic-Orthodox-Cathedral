@@ -427,8 +427,8 @@
     var c = client();
     if (!c) return Promise.resolve({ ok: false });
     return c.functions.invoke(FN, { body: { mode: 'announce', by_kind: a.by_kind === 'priest' ? 'priest' : 'general', by_name: a.by_name || '', title: a.title || '', body: a.body || '', target_type: a.target_type || 'all', target_value: a.target_value || '' } })
-      .then(function (r) { return (r && r.data) || { ok: false }; })
-      .catch(function () { return { ok: false }; });
+      .then(function (r) { return (r && r.data) || { ok: false, error: (r && r.error && r.error.message) || 'no response' }; })
+      .catch(function (e) { return { ok: false, error: String((e && e.message) || e) }; });
   }
 
   root.PushClient = {
