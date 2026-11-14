@@ -54,16 +54,22 @@
   }
 
   // ---------- المفتاح العام (يُجلب من الدالة مرة واحدة ويُحفظ) ----------
+  var keyFreshAt = 0;   // آخر مرة تأكدنا فيها من مفتاح السيرفر (كل 10 دقائق كحد أقصى، وفي أول فتح للصفحة)
   function getVapidKey(c) {
     var cached = '';
     try { cached = localStorage.getItem(KEY_CACHE) || ''; } catch (e) {}
-    if (cached) return Promise.resolve(cached);
+    // المفتاح المخزّن يُستعمل فقط إن تأكدنا منه حديثاً؛ وإلا نسأل السيرفر لأن المفتاح قد يتغيّر (تدوير VAPID)
+    if (cached && keyFreshAt && Date.now() - keyFreshAt < 600000) return Promise.resolve(cached);
     return c.functions.invoke(FN, { body: { mode: 'key' } }).then(function (r) {
       var k = r && r.data && r.data.key;
       if (r && r.error) throw r.error;
       if (!k) throw new Error('لم تُضبط مفاتيح VAPID في الدالة');
+      keyFreshAt = Date.now();
       try { localStorage.setItem(KEY_CACHE, k); } catch (e) {}
       return k;
+    }).catch(function (e) {
+      if (cached) return cached;   // لا إنترنت/فشل مؤقت: نكمل بالمخزّن
+      throw e;
     });
   }
 
