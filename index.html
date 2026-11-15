@@ -39,6 +39,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./cloud-storage.js"></script>
 <script src="./sol-features.js"></script>
+<script src="./sol-awards.js"></script>
 <!-- مكتبات QR: qrcode-generator لتوليد الرموز + jsQR لقراءتها بالكاميرا -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0"></script>
@@ -2533,6 +2534,9 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       </button>
       <button class="btn" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;font-size:13px;font-weight:800;padding:9px 16px;border-radius:10px;box-shadow:0 3px 10px rgba(22,163,74,0.35);" onclick="SOL.openTagsManagerModal()" title="إدارة وسوم وتصنيفات المخدومين">
         🏷️ وسوم وتصنيفات الفصل
+      </button>
+      <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;font-size:13px;font-weight:800;padding:9px 16px;border-radius:10px;box-shadow:0 3px 10px rgba(124,58,237,0.35);" onclick="SOL.openAwardsCenter()">
+        🏅 النياشين والمميزون
       </button>
     </div>
   </div>
@@ -6515,7 +6519,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
           <div class="sc-top">
             <div class="sc-photo" onclick="viewStudent('${s.id}')">${_cardPhoto}</div>
             <div class="sc-main">
-              <strong class="sc-name">${_esc(s.name)}</strong>
+              <strong class="sc-name">${_esc(s.name)}</strong>${window.SOL&&SOL.badgeChips?SOL.badgeChips(s):''}
               <div class="call-btns-group" style="margin-top:4px;">
                 ${s.ownPhone ? `<a class="call-btn" href="tel:${s.ownPhone}" title="اتصال بالمخدوم مباشرة" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;">📱 ${s.ownPhone}</a>` : ''}
                 ${s.phone ? `<a class="call-btn" href="tel:${s.phone}" title="اتصال بولي الأمر">📞 ${s.phone}</a>` : ''}
@@ -7095,7 +7099,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         <tr>
           <td style="padding:8px;color:#888;width:40%">النقاط التراكمية</td>
           <td style="padding:8px">
-            <span style="font-weight:800;color:#d97706;font-size:15px;">🪙 ${(window._solData&&window._solData.points&&window._solData.points[s.id])||0} نقطة</span>
+            <span style="font-weight:800;color:#d97706;font-size:15px;">🪙 ${s.points||0} نقطة</span>
             <button onclick="if(typeof SOL!=='undefined')SOL.openPointsModal('${s.id}')" style="margin-right:8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;cursor:pointer;color:#92400e;">عرض السجل / إضافة</button>
           </td>
         </tr>
@@ -7103,7 +7107,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
           <td style="padding:8px;color:#888">الأوسمة الروحية</td>
           <td style="padding:8px">
             <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
-              ${(s.badges||[]).length ? (s.badges||[]).map(b => `<span style="background:#f3e8ff;color:#7c3aed;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;">🎖️ ${b}</span>`).join('') : '<span style="color:#aaa;">لا توجد أوسمة بعد</span>'}
+              ${(s.badges||[]).length ? (s.badges||[]).map(id => { const b = (window.SOL&&SOL.badgesList.find(x=>x.id===id)); return b ? `<span title="${b.desc||''}" style="background:#f3e8ff;color:#7c3aed;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;">${b.icon} ${b.name}${(s.badgeDates&&s.badgeDates[id])?` <small style="color:#a78bfa">${s.badgeDates[id]}</small>`:''}</span>` : ''; }).join('') : '<span style="color:#aaa;">لا توجد أوسمة بعد</span>'}
               <button onclick="if(typeof SOL!=='undefined')SOL.openBadgesModal('${s.id}')" style="margin-right:8px;background:#f3e8ff;border:1px solid #d8b4fe;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;cursor:pointer;color:#7c3aed;">إدارة الأوسمة</button>
             </div>
           </td>
@@ -7111,7 +7115,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         <tr>
           <td style="padding:8px;color:#888">الافتقادات المسجلة</td>
           <td style="padding:8px">
-            <span style="font-weight:700;color:#1e40af;">🚗 ${((window._solData&&window._solData.visits&&window._solData.visits[s.id])||[]).length} زيارة</span>
+            <span style="font-weight:700;color:#1e40af;">🚗 ${((window.SOL&&SOL.visitsData&&SOL.visitsData[s.id])||[]).length} زيارة</span>
             <button onclick="if(typeof SOL!=='undefined')SOL.openRecordVisitModal('${s.id}')" style="margin-right:8px;background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;cursor:pointer;color:#1e40af;">تسجيل افتقاد جديد</button>
           </td>
         </tr>
@@ -9638,6 +9642,13 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   }
 
   // حساب عدد غيابات مخدوم معين
+  // جسر بيانات: يسمح لملفات sol-*.js بقراءة المتغيرات المعرّفة بـ let (لا تظهر على window تلقائيًا)
+  [['students', () => students, v => { students = v; }],
+   ['attendance', () => attendance, v => { attendance = v; }],
+   ['massAttendance', () => massAttendance, v => { massAttendance = v; }],
+   ['confessions', () => confessions, v => { confessions = v; }]
+  ].forEach(([k, g, s]) => { try { Object.defineProperty(window, k, { get: g, set: s, configurable: true }); } catch (e) {} });
+
   function getStudentAbsenceCount(studentId) {
     let count = 0;
     Object.keys(attendance).forEach(d => {
