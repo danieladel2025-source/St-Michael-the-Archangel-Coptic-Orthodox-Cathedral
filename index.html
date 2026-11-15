@@ -37,6 +37,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./cloud-storage.js"></script>
+<script src="./sol-features.js"></script>
 <!-- مكتبات QR: qrcode-generator لتوليد الرموز + jsQR لقراءتها بالكاميرا -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0"></script>
@@ -2483,6 +2485,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       <button class="btn" style="background:#2980b9;color:white;font-size:12px;padding:6px 12px;" onclick="exportJSON(); updateBackupReminder();">📁 نسخة احتياطية</button>
       <button class="btn" style="background:#1a7a4a;color:white;font-size:12px;padding:6px 12px;" onclick="exportClassZip()" title="حفظ كل ملفات الفصل (JSON + CSV + تقرير) في ملفات باسم الفصل">📂 حفظ ملفات الفصل</button>
       <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="importJSON()">📂 استيراد</button>
+      <button class="btn" style="background:#0284c7;color:white;font-size:12px;padding:6px 12px;" onclick="openCloudStorageModal()" title="إعدادات وترحيل التخزين السحابي (نمط Sons of Light)">☁️ التخزين السحابي</button>
     </div>
   </div>
 
@@ -2507,6 +2510,31 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     <button class="btn btn-outline" onclick="openQrPrintModal()" style="font-size:15px;padding:12px 22px;min-width:175px;" title="طباعة بطاقات QR للمخدومين والخدام">
       🔳 طباعة بطاقات QR
     </button>
+  </div>
+
+  <!-- ===== ☀️ شريط مميزات أبناء النور (Sons of Light Suite) ===== -->
+  <div class="sol-features-bar" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:linear-gradient(135deg, #1e293b, #0f172a);padding:14px 20px;border-radius:14px;margin-bottom:18px;border:1px solid #334155;box-shadow:0 6px 18px rgba(0,0,0,0.2);">
+    <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
+      <span style="font-size:26px;">☀️</span>
+      <div>
+        <div style="font-size:14px;font-weight:900;color:#f8fafc;letter-spacing:0.5px;">منظومة أبناء النور الكاملة (Sons of Light Suite)</div>
+        <div style="font-size:11px;color:#94a3b8;">النقاط والأوسمة &bull; المناهج والدروس والواجبات &bull; الافتقاد الراعوي &bull; التصنيفات والوسوم</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <button class="btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-size:13px;font-weight:800;padding:9px 16px;border-radius:10px;box-shadow:0 3px 10px rgba(217,119,6,0.35);" onclick="SOL.openLeaderboardModal()" title="ترتيب المخدومين ولوحة الشرف">
+        🏆 لوحة الشرف والمتصدرين
+      </button>
+      <button class="btn" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;font-size:13px;font-weight:800;padding:9px 16px;border-radius:10px;box-shadow:0 3px 10px rgba(37,99,235,0.35);" onclick="SOL.openVisitsManagerModal()" title="سجل الافتقاد ومتابعة الغائبين بدون افتقاد">
+        🚗 سجل الافتقاد الراعوي
+      </button>
+      <button class="btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;font-size:13px;font-weight:800;padding:9px 16px;border-radius:10px;box-shadow:0 3px 10px rgba(220,38,38,0.35);" onclick="SOL.openCurriculumModal()" title="تحضير المنهج والدروس والواجبات والمهمات">
+        📖 تحضير الدروس والمنهج
+      </button>
+      <button class="btn" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;font-size:13px;font-weight:800;padding:9px 16px;border-radius:10px;box-shadow:0 3px 10px rgba(22,163,74,0.35);" onclick="SOL.openTagsManagerModal()" title="إدارة وسوم وتصنيفات المخدومين">
+        🏷️ وسوم وتصنيفات الفصل
+      </button>
+    </div>
   </div>
 
   <!-- ===== قسم كشف المخدومين ===== -->
@@ -2543,6 +2571,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
             <th>تم التسميع</th>
             <th>ملاحظات عامة</th>
             <th>ملاحظات اليوم</th>
+            <th style="background:#4a154b;color:#fef3c7;">🪙 النقاط والأوسمة</th>
+            <th style="background:#1e3a8a;color:#dbeafe;">🚗 الافتقاد والوسوم</th>
             <th>إجراءات</th>
           </tr>
         </thead>
@@ -3357,11 +3387,12 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   // <<< stage-fix:snap-end
 
   function makeSnapshot() {
-    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, servantConfessions, servantMass, sessionMeta, className: getClassName(), stage: _snapStage(), gender: _snapGender(), classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, absenceReasons: absenceReasons, absenceReasonTexts: absenceReasonTexts, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2 };
+    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, servantConfessions, servantMass, sessionMeta, className: getClassName(), stage: _snapStage(), gender: _snapGender(), classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, absenceReasons: absenceReasons, absenceReasonTexts: absenceReasonTexts, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2, ...(window.SOL ? window.SOL.exportToSnapshot() : {}) };
   }
 
   function applySnapshot(snap) {
     if (!snap || !snap.students) return false;
+    if (window.SOL) window.SOL.initFromSnapshot(snap);
     students   = snap.students   || [];
     attendance = snap.attendance || {};
     notes      = snap.notes      || {};
@@ -5620,6 +5651,171 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     input.click();
   }
 
+  // ===================================================
+  // ☁️ مودال التخزين السحابي ونقل الصور (Sons of Light S3)
+  // ===================================================
+  function openCloudStorageModal() {
+    if (!window.CloudStorage) {
+      alert('⚠️ لم يتم تحميل مكتبة التخزين السحابي بعد');
+      return;
+    }
+
+    const cfg = window.CloudStorage.config;
+    let legacyStudentPhotos = 0;
+    let legacyServantPhotos = 0;
+    let legacyClassPhoto = (currentClassPhoto && currentClassPhoto.startsWith('data:image')) ? 1 : 0;
+
+    if (Array.isArray(students)) {
+      students.forEach(s => { if (s.photo && s.photo.startsWith('data:image')) legacyStudentPhotos++; });
+    }
+    if (Array.isArray(servants)) {
+      servants.forEach(sv => { if (sv.photo && sv.photo.startsWith('data:image')) legacyServantPhotos++; });
+    }
+    const totalLegacy = legacyStudentPhotos + legacyServantPhotos + legacyClassPhoto;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay active';
+    overlay.style.cssText = 'display:flex;z-index:99999;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);position:fixed;inset:0;padding:16px;';
+    
+    overlay.innerHTML = `
+      <div style="background:var(--paper,#f5f0e8);border-radius:18px;padding:26px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);direction:rtl;border-top:5px solid #0284c7;font-family:'Cairo',sans-serif;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <h2 style="font-size:18px;font-weight:900;color:#0284c7;margin:0;">☁️ نظام التخزين السحابي (Sons of Light Cloud)</h2>
+          <button style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;" onclick="this.closest('.overlay').remove()">✕</button>
+        </div>
+
+        <div style="background:white;border-radius:12px;padding:14px;border:1px solid #bae6fd;margin-bottom:16px;font-size:13px;line-height:1.8;color:#0369a1;">
+          <strong>🎯 آلية التخزين السحابي المعتمدة:</strong><br>
+          • رفع صور المخدومين والخدام والفصول كملفات سحابية دائمة (URLs) بدلاً من Base64.<br>
+          • تقليص حجم الحفظ والمزامنة السحابية بنسبة تفوق 90% وتسريع التطبيق.<br>
+          • تنظيم المسارات السحابية بنفس هيكلية تطبيق أبناء النور:<br>
+          <code style="background:#f0f9ff;padding:2px 6px;border-radius:4px;font-size:11px;">defaults/user/{id}/...</code> &bull; <code style="background:#f0f9ff;padding:2px 6px;border-radius:4px;font-size:11px;">defaults/activityClass/{id}/...</code>
+        </div>
+
+        <div style="background:white;border-radius:12px;padding:16px;border:1px solid #e2e8f0;margin-bottom:16px;">
+          <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:10px;">📊 حالة الصور في الفصل الحالي:</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;">
+            <div style="background:#f8fafc;padding:10px;border-radius:8px;">
+              <span>صور المخدومين القديمة:</span> <strong>${legacyStudentPhotos}</strong>
+            </div>
+            <div style="background:#f8fafc;padding:10px;border-radius:8px;">
+              <span>صور الخدام القديمة:</span> <strong>${legacyServantPhotos}</strong>
+            </div>
+            <div style="background:#f8fafc;padding:10px;border-radius:8px;">
+              <span>صورة الفصل القديمة:</span> <strong>${legacyClassPhoto ? 'نعم (Base64)' : 'سحابية / فارغة'}</strong>
+            </div>
+            <div style="background:${totalLegacy > 0 ? '#fef3c7' : '#ecfdf5'};padding:10px;border-radius:8px;grid-column:span 2;color:${totalLegacy > 0 ? '#92400e' : '#065f46'};">
+              <strong>${totalLegacy > 0 ? `⚠️ يوجد ${totalLegacy} صورة مخزنة محلياً تحتاج ترحيل للسحابة` : '✅ جميع الصور مرفوعة على السحابة بنجاح!'}</strong>
+            </div>
+          </div>
+
+          ${totalLegacy > 0 ? `
+            <div style="margin-top:14px;">
+              <button id="btnStartMigration" class="btn" style="width:100%;background:#0284c7;color:white;font-weight:700;padding:10px;font-size:13px;" onclick="runLegacyPhotoMigration(this)">
+                🚀 ترحيل جميع الصور القديمة إلى التخزين السحابي الآن
+              </button>
+              <div id="migrationProgressWrap" style="display:none;margin-top:10px;">
+                <div style="font-size:12px;color:#555;margin-bottom:4px;" id="migrationStatusLabel">جارٍ الترحيل...</div>
+                <div style="background:#e2e8f0;border-radius:10px;height:10px;overflow:hidden;">
+                  <div id="migrationProgressBar" style="width:0%;height:100%;background:#0284c7;transition:width 0.2s;"></div>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <div style="background:white;border-radius:12px;padding:16px;border:1px solid #e2e8f0;margin-bottom:16px;">
+          <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:10px;">⚙️ موفر التخزين السحابي:</div>
+          <div style="display:flex;gap:16px;font-size:13px;margin-bottom:12px;">
+            <label style="cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <input type="radio" name="csProvider" value="supabase" ${cfg.provider === 'supabase' ? 'checked' : ''} onchange="toggleStorageProviderFields(this.value)">
+              <span>Supabase Storage (متوافق مع S3 - مدمج)</span>
+            </label>
+            <label style="cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <input type="radio" name="csProvider" value="aws-s3" ${cfg.provider === 'aws-s3' ? 'checked' : ''} onchange="toggleStorageProviderFields(this.value)">
+              <span>Amazon AWS S3 (نمط أبناء النور)</span>
+            </label>
+          </div>
+
+          <div id="s3Fields" style="display:${cfg.provider === 'aws-s3' ? 'block' : 'none'};background:#f8fafc;padding:12px;border-radius:8px;margin-top:10px;font-size:12px;">
+            <div style="margin-bottom:8px;">
+              <label style="display:block;margin-bottom:4px;font-weight:700;">اسم الحاوية (Bucket Name):</label>
+              <input type="text" id="csAwsBucket" class="input" style="width:100%;padding:6px 10px;font-size:12px;" value="${cfg.awsBucket || 'cathedral-media'}">
+            </div>
+            <div style="margin-bottom:8px;">
+              <label style="display:block;margin-bottom:4px;font-weight:700;">المنطقة (AWS Region):</label>
+              <input type="text" id="csAwsRegion" class="input" style="width:100%;padding:6px 10px;font-size:12px;" value="${cfg.awsRegion || 'us-east-2'}">
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:4px;font-weight:700;">رابط مخصص (Endpoint - اختياري):</label>
+              <input type="text" id="csAwsEndpoint" class="input" style="width:100%;padding:6px 10px;font-size:12px;" placeholder="اتركه فارغاً لـ AWS القياسي" value="${cfg.awsEndpoint || ''}">
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;gap:10px;">
+          <button class="btn btn-outline" style="font-size:13px;padding:8px 18px;" onclick="this.closest('.overlay').remove()">إغلاق</button>
+          <button class="btn" style="background:#1a7a4a;color:white;font-size:13px;padding:8px 18px;" onclick="saveCloudStorageSettings(this)">💾 حفظ الإعدادات</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+  }
+
+  function toggleStorageProviderFields(val) {
+    const el = document.getElementById('s3Fields');
+    if (el) el.style.display = (val === 'aws-s3') ? 'block' : 'none';
+  }
+
+  function saveCloudStorageSettings(btn) {
+    const prov = document.querySelector('input[name="csProvider"]:checked').value;
+    const cfg = window.CloudStorage.config;
+    cfg.provider = prov;
+    if (prov === 'aws-s3') {
+      cfg.awsBucket = (document.getElementById('csAwsBucket').value || 'cathedral-media').trim();
+      cfg.awsRegion = (document.getElementById('csAwsRegion').value || 'us-east-2').trim();
+      cfg.awsEndpoint = (document.getElementById('csAwsEndpoint').value || '').trim();
+    }
+    localStorage.setItem('sol_cathedral_cloud_storage_v1', JSON.stringify(cfg));
+    showToast('✅ تم حفظ إعدادات التخزين السحابي بنجاح');
+    btn.closest('.overlay').remove();
+  }
+
+  async function runLegacyPhotoMigration(btn) {
+    if (!confirm('سيتم رفع كل الصور المحفوظة محلياً إلى السحابة واستبدالها بروابط سريعة. هل تريد المتابعة؟')) return;
+    btn.disabled = true;
+    const progressWrap = document.getElementById('migrationProgressWrap');
+    const statusLabel = document.getElementById('migrationStatusLabel');
+    const progressBar = document.getElementById('migrationProgressBar');
+    if (progressWrap) progressWrap.style.display = 'block';
+
+    try {
+      const result = await window.CloudStorage.migrateLegacyPhotos(
+        students,
+        servants,
+        currentClassPhoto,
+        ({ current, total, name }) => {
+          if (statusLabel) statusLabel.textContent = `جارٍ ترحيل (${current}/${total}): ${name}`;
+          if (progressBar) progressBar.style.width = Math.round((current / total) * 100) + '%';
+        }
+      );
+
+      if (result.newClassPhoto) {
+        currentClassPhoto = result.newClassPhoto;
+        updateClassPhotoUI(currentClassPhoto);
+      }
+
+      save();
+      renderAll();
+      alert('🎉 ' + result.message);
+      btn.closest('.overlay').remove();
+    } catch (e) {
+      alert('⚠️ حدث خطأ أثناء الترحيل: ' + (e.message || e));
+      btn.disabled = false;
+    }
+  }
+
   function getToday() {
     return document.getElementById('attendanceDate').value;
   }
@@ -6406,17 +6602,36 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   }
 
   // =================== صورة الفصل ===================
-  function handleClassPhoto(event) {
+  async function handleClassPhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
-    setStatus('⏳ جاري معالجة الصورة...', '#d4a017', true);
-    compressImage(file).then(dataUrl => {
-      currentClassPhoto = dataUrl;
-      updateClassPhotoUI(currentClassPhoto);
-      save();
-    }).catch(() => {
-      setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
-    });
+    setStatus('⏳ جاري معالجة ورفع صورة الفصل إلى التخزين السحابي...', '#d4a017', true);
+    try {
+      if (window.CloudStorage) {
+        const classId = (typeof ACTIVE_CHAPTER_ID !== 'undefined' && ACTIVE_CHAPTER_ID) || 'general';
+        const res = await CloudStorage.uploadClassPhoto(classId, file);
+        currentClassPhoto = res.url;
+        updateClassPhotoUI(res.previewDataUrl || res.url);
+        setStatus('✅ تم رفع صورة الفصل إلى التخزين السحابي', '#1a7a4a', false);
+        save();
+      } else {
+        const dataUrl = await compressImage(file);
+        currentClassPhoto = dataUrl;
+        updateClassPhotoUI(currentClassPhoto);
+        save();
+      }
+    } catch (err) {
+      console.warn('تعذر الرفع السحابي لصورة الفصل، جاري الحفظ المحلي:', err);
+      try {
+        const dataUrl = await compressImage(file);
+        currentClassPhoto = dataUrl;
+        updateClassPhotoUI(currentClassPhoto);
+        setStatus('⚠️ تم الحفظ محلياً (تعذر الاتصال بالسحابة)', '#d4a017', false);
+        save();
+      } catch (e2) {
+        setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
+      }
+    }
   }
 
   function updateClassPhotoUI(src) {
@@ -6687,17 +6902,34 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     }
   }
 
-  function handlePhoto(event) {
+  async function handlePhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
-    setStatus('⏳ جاري معالجة الصورة...', '#d4a017', true);
-    compressImage(file).then(dataUrl => {
-      currentPhoto = dataUrl;
-      updatePhotoPreview(currentPhoto);
-      setStatus('✅ تم تحميل الصورة', '#1a7a4a', false);
-    }).catch(() => {
-      setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
-    });
+    setStatus('⏳ جاري معالجة ورفع صورة المخدوم للسحابة...', '#d4a017', true);
+    try {
+      const studentIdInput = (document.getElementById('studentId') && document.getElementById('studentId').value.trim()) || editingId || ('stu_' + Date.now());
+      if (window.CloudStorage) {
+        const res = await CloudStorage.uploadStudentPhoto(studentIdInput, file);
+        currentPhoto = res.url;
+        updatePhotoPreview(res.previewDataUrl || res.url);
+        setStatus('✅ تم رفع صورة المخدوم بنجاح إلى التخزين السحابي', '#1a7a4a', false);
+      } else {
+        const dataUrl = await compressImage(file);
+        currentPhoto = dataUrl;
+        updatePhotoPreview(currentPhoto);
+        setStatus('✅ تم تحميل الصورة', '#1a7a4a', false);
+      }
+    } catch (err) {
+      console.warn('تعذر الرفع السحابي لصورة المخدوم، جاري الحفظ المحلي:', err);
+      try {
+        const dataUrl = await compressImage(file);
+        currentPhoto = dataUrl;
+        updatePhotoPreview(currentPhoto);
+        setStatus('⚠️ تم الحفظ محلياً (تعذر الاتصال بالسحابة)', '#d4a017', false);
+      } catch (e2) {
+        setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
+      }
+    }
   }
 
   function saveStudent() {
@@ -6856,6 +7088,42 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       <div style="${sectionStyle}"><span>📝</span><span>ملاحظات</span></div>
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
         <tr><td style="padding:8px;">${s.extraNotes || '—'}</td></tr>
+      </table>
+
+      <div style="${sectionStyle}"><span>🪙</span><span>النقاط والأوسمة والافتقاد (أبناء النور)</span></div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <tr>
+          <td style="padding:8px;color:#888;width:40%">النقاط التراكمية</td>
+          <td style="padding:8px">
+            <span style="font-weight:800;color:#d97706;font-size:15px;">🪙 ${(window._solData&&window._solData.points&&window._solData.points[s.id])||0} نقطة</span>
+            <button onclick="if(typeof SOL!=='undefined')SOL.openPointsModal('${s.id}')" style="margin-right:8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;cursor:pointer;color:#92400e;">عرض السجل / إضافة</button>
+          </td>
+        </tr>
+        <tr style="background:#f9f9f7">
+          <td style="padding:8px;color:#888">الأوسمة الروحية</td>
+          <td style="padding:8px">
+            <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+              ${(s.badges||[]).length ? (s.badges||[]).map(b => `<span style="background:#f3e8ff;color:#7c3aed;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;">🎖️ ${b}</span>`).join('') : '<span style="color:#aaa;">لا توجد أوسمة بعد</span>'}
+              <button onclick="if(typeof SOL!=='undefined')SOL.openBadgesModal('${s.id}')" style="margin-right:8px;background:#f3e8ff;border:1px solid #d8b4fe;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;cursor:pointer;color:#7c3aed;">إدارة الأوسمة</button>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px;color:#888">الافتقادات المسجلة</td>
+          <td style="padding:8px">
+            <span style="font-weight:700;color:#1e40af;">🚗 ${((window._solData&&window._solData.visits&&window._solData.visits[s.id])||[]).length} زيارة</span>
+            <button onclick="if(typeof SOL!=='undefined')SOL.openRecordVisitModal('${s.id}')" style="margin-right:8px;background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;cursor:pointer;color:#1e40af;">تسجيل افتقاد جديد</button>
+          </td>
+        </tr>
+        <tr style="background:#f9f9f7">
+          <td style="padding:8px;color:#888">الوسوم والتصنيفات</td>
+          <td style="padding:8px">
+            <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+              ${(s.tags||[]).length ? (s.tags||[]).map(t => `<span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;">🏷️ ${t}</span>`).join('') : '<span style="color:#aaa;">بدون وسوم</span>'}
+              <button onclick="if(typeof SOL!=='undefined')SOL.openStudentTagsModal('${s.id}')" style="margin-right:8px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;cursor:pointer;color:#166534;">تعديل الوسوم</button>
+            </div>
+          </td>
+        </tr>
       </table>
       ${qrSectionHtml('student', s.id, sectionStyle)}`;
     document.getElementById('viewOverlay').classList.add('active');
@@ -7931,17 +8199,34 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   // =================== SERVANTS MOTOR ENGINE ===================
   function generateServantId() { return 'srv_' + Date.now() + '_' + Math.random().toString(36).substr(2,5); }
 
-  function handleServantPhoto(event) {
+  async function handleServantPhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
-    setStatus('⏳ جاري معالجة الصورة...', '#d4a017', true);
-    compressImage(file).then(dataUrl => {
-      currentServantPhoto = dataUrl;
-      updateServantPhotoPreview(currentServantPhoto);
-      setStatus('✅ تم تحميل الصورة', '#1a7a4a', false);
-    }).catch(() => {
-      setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
-    });
+    setStatus('⏳ جاري معالجة ورفع صورة الخادم للسحابة...', '#d4a017', true);
+    try {
+      const servantId = editingServantId || ('srv_' + Date.now());
+      if (window.CloudStorage) {
+        const res = await CloudStorage.uploadServantPhoto(servantId, file);
+        currentServantPhoto = res.url;
+        updateServantPhotoPreview(res.previewDataUrl || res.url);
+        setStatus('✅ تم رفع صورة الخادم بنجاح إلى التخزين السحابي', '#1a7a4a', false);
+      } else {
+        const dataUrl = await compressImage(file);
+        currentServantPhoto = dataUrl;
+        updateServantPhotoPreview(currentServantPhoto);
+        setStatus('✅ تم تحميل الصورة', '#1a7a4a', false);
+      }
+    } catch (err) {
+      console.warn('تعذر الرفع السحابي لصورة الخادم، جاري الحفظ المحلي:', err);
+      try {
+        const dataUrl = await compressImage(file);
+        currentServantPhoto = dataUrl;
+        updateServantPhotoPreview(currentServantPhoto);
+        setStatus('⚠️ تم الحفظ محلياً (تعذر الاتصال بالسحابة)', '#d4a017', false);
+      } catch (e2) {
+        setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
+      }
+    }
   }
 
   function removeServantPhoto() {
