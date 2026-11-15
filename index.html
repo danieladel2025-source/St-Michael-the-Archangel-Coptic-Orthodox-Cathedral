@@ -3929,11 +3929,11 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       { id: 'e1', name: 'الأول الإعدادي' }, { id: 'e2', name: 'الثاني الإعدادي' }, { id: 'e3', name: 'الثالث الإعدادي' } ] },
     { id: 'sec',  icon: '📗', name: 'المرحلة الثانوية', stages: [
       { id: 's1', name: 'الأول الثانوي' }, { id: 's2', name: 'الثاني الثانوي' }, { id: 's3', name: 'الثالث الثانوي' } ] },
-    { id: 'uni',  icon: '🎓', name: 'المرحلة الجامعية', stages: [
+    { id: 'uni',  icon: '🎓', name: 'اجتماع شباب(بيك هنقدر) المرحلة الجامعية', stages: [
       { id: 'u1', name: 'الفرقة الأولى (جامعة)' }, { id: 'u2', name: 'الفرقة الثانية (جامعة)' }, { id: 'u3', name: 'الفرقة الثالثة (جامعة)' },
       { id: 'u4', name: 'الفرقة الرابعة (جامعة)' }, { id: 'u5', name: 'الفرقة الخامسة فأعلى (جامعة)' } ] },
     { id: 'grad', icon: '🧑‍💼', name: 'الشباب والخريجين', stages: [
-      { id: 'grad', name: 'اجتماع شباب(بيك هنقدر)' }, { id: 'youth', name: 'خريجين' } ] }
+       { id: 'youth', name: 'خريجين' } ] }
   ];
   const STAGE_INDEX = {};
   STAGE_GROUPS.forEach((g, gi) => g.stages.forEach((st, si) => { STAGE_INDEX[st.id] = { stage: st, group: g, order: gi * 100 + si }; }));
