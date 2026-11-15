@@ -502,6 +502,30 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   }
   .remove-photo-btn:hover { background: #c8392b; color: #fff; }
 
+  .photo-actions { display: none; gap: 8px; margin-top: 8px; }
+  .photo-actions .remove-photo-btn { display: block; flex: 1; width: auto; margin-top: 0; }
+  .photo-dl-btn {
+    flex: 1; padding: 9px 12px; border: 2px solid var(--accent2); border-radius: 9px;
+    background: #fff; color: var(--accent2); font-family: 'Cairo', sans-serif;
+    font-weight: 800; font-size: 13px; cursor: pointer; transition: all 0.2s;
+  }
+  .photo-dl-btn:hover { background: var(--accent2); color: #fff; }
+
+  .ocr-box { border: 1.5px dashed var(--accent2); background: rgba(41,128,185,0.06); border-radius: 12px; padding: 12px; margin-bottom: 14px; }
+  .ocr-title { font-weight: 800; font-size: 13.5px; color: var(--accent2); margin-bottom: 4px; }
+  .ocr-hint { font-size: 11.5px; color: #777; line-height: 1.7; margin-bottom: 8px; }
+  .ocr-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ocr-btn { flex: 1; min-width: 130px; text-align: center; padding: 9px 10px; border-radius: 9px; border: 2px solid var(--accent2); background: var(--accent2); color: #fff; font-family: 'Cairo', sans-serif; font-weight: 800; font-size: 13px; cursor: pointer; }
+  .ocr-btn.alt { background: #fff; color: var(--accent2); }
+  .ocr-btn input { display: none; }
+  .ocr-status { font-size: 12px; color: #555; margin-top: 8px; line-height: 1.7; }
+  .ocr-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .ocr-row > label { font-size: 12.5px; font-weight: 700; min-width: 110px; display: flex; align-items: center; gap: 6px; }
+  .ocr-row input[type=text], .ocr-row input[type=date], .ocr-row select { flex: 1; min-width: 130px; padding: 7px 9px; border: 1.5px solid var(--line); border-radius: 8px; font-family: 'Cairo', sans-serif; font-size: 13px; background: #fff; }
+  .ocr-apply { width: 100%; margin-top: 10px; padding: 10px; border: none; border-radius: 9px; background: var(--green); color: #fff; font-family: 'Cairo', sans-serif; font-weight: 800; font-size: 14px; cursor: pointer; }
+  .ocr-raw summary { font-size: 12px; color: #666; cursor: pointer; margin-top: 8px; }
+  .ocr-raw pre { white-space: pre-wrap; font-family: 'Cairo', sans-serif; font-size: 12px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-top: 6px; max-height: 140px; overflow: auto; direction: rtl; }
+
   .modal-actions {
     display: flex;
     gap: 10px;
@@ -1675,6 +1699,45 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     .servants-table td:nth-child(1) img { width: 60px !important; height: 60px !important; }
     .students-table .call-btn, .students-table .call-btn-2 { font-size: 10px; padding: 3px 6px; }
   }
+
+  /* ===== بطاقة المخدوم/الخادم المضغوطة (صورة + اسم + اعتراف + قداس + حضور + إجراءات) ===== */
+  .cards-mode { min-width: 0 !important; width: 100% !important; display: block !important; }
+  .cards-mode thead { display: none !important; }
+  .cards-mode tbody { display: flex; flex-direction: column; gap: 10px; padding: 10px; }
+  .cards-mode tbody tr.sc-tr { display: block; border: none !important; background: transparent !important; }
+  .students-table.cards-mode td.sc-td, .servants-table.cards-mode td.sc-td {
+    position: static !important; display: block; width: auto !important; min-width: 0 !important; max-width: none !important;
+    padding: 0 !important; border: none !important; background: transparent !important; box-shadow: none !important;
+  }
+  .sc-card { background: #fff; border: 1.5px solid var(--line); border-radius: 14px; padding: 10px 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .servants-table.cards-mode .sc-card { border-color: #e9d5ff; }
+  .sc-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .sc-photo { width: 76px; height: 76px; flex: 0 0 76px; border-radius: 12px; overflow: hidden; border: 2px solid var(--line); background: var(--cream); display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer; }
+  .servants-table.cards-mode .sc-photo { border-color: #e9d5ff; background: #faf5ff; }
+  .sc-photo img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+  .sc-main { flex: 1 1 150px; min-width: 130px; }
+  .sc-name { display: block; font-size: 15.5px; font-weight: 800; line-height: 1.5; }
+  .sc-sub { font-size: 12px; color: #5b21b6; font-weight: 700; }
+  .sc-ctls { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+  .sc-ctl { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .sc-lbl { font-size: 11px; font-weight: 800; color: #666; white-space: nowrap; }
+  .sc-cnt { display: flex; align-items: center; gap: 4px; }
+  .sc-minus { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); background: #fff; font-weight: 900; font-size: 16px; line-height: 1; cursor: pointer; color: #666; padding: 0; }
+  .sc-minus:active { background: var(--cream); }
+  .sc-actions { display: flex; gap: 4px; flex-wrap: wrap; max-width: 100%; }
+  .sc-actions a { text-decoration: none; }
+  .sc-more-btn { margin-top: 8px; width: 100%; border: none; background: var(--cream); border-radius: 8px; padding: 5px; font-family: 'Cairo', sans-serif; font-size: 12px; font-weight: 700; color: #666; cursor: pointer; }
+  .sc-more { display: none; margin-top: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .sc-card.open .sc-more { display: grid; }
+  .sc-f { background: #faf8f3; border-radius: 8px; padding: 6px 8px; font-size: 12.5px; }
+  .sc-f b { display: block; font-size: 10.5px; color: #888; font-weight: 700; margin-bottom: 2px; }
+  .sc-f input[type=text] { width: 100%; border: 1px solid #ddd; border-radius: 6px; padding: 5px 8px; font-family: 'Cairo', sans-serif; font-size: 13px; background: #fff; }
+  .sc-chk { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; }
+  @media (max-width: 600px) {
+    .sc-photo { width: 64px; height: 64px; flex-basis: 64px; }
+    .sc-ctls { width: 100%; justify-content: space-around; }
+    .sc-actions { width: 100%; justify-content: center; }
+  }
 </style>
 
 <style>
@@ -2461,7 +2524,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       </div>
     </div>
     <div class="table-wrapper" style="box-shadow:none;border:1px solid #bee3f8;border-radius:12px;">
-      <table class="students-table">
+      <table class="students-table cards-mode">
         <thead>
           <tr>
             <th>صورة المخدوم</th>
@@ -2532,7 +2595,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       <input type="search" id="servantSearchBox" class="search-box" style="width:100%;max-width:420px;border-color:#d8b4fe;" placeholder="🔍  ابحث باسم الخادم أو دوره..." oninput="filterServants(this.value)" />
     </div>
     <div class="servants-table-wrapper">
-      <table class="servants-table">
+      <table class="servants-table cards-mode">
         <thead>
           <tr>
             <th>صورة الخادم</th><th>اسم الخادم</th><th>الدور / المسمى</th><th>📞 الهاتف الأساسي</th><th>📱 الهاتف الاحتياطي</th>
@@ -2595,6 +2658,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         <option value="phone">هاتف</option>
         <option value="visit">زيارة</option>
       </select>
+      <span style="margin:0 6px;color:#ccc;">|</span>
+      <button type="button" class="map-mini-btn" style="font-size:13px;padding:8px 14px;" onclick="openFollowupMap()">🗺️ خريطة الافتقاد</button>
     </div>
 
     <div class="followup-table-wrapper">
@@ -2701,6 +2766,17 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 <div class="overlay" id="addOverlay">
   <div class="modal">
     <h2><span>👤</span> <span id="modalTitle">إضافة مخدوم جديد</span></h2>
+
+    <div class="ocr-box">
+      <div class="ocr-title">✨ استخراج البيانات من صورة</div>
+      <div class="ocr-hint">صوّر استمارة أو ورقة مكتوب عليها البيانات (أو اختر صورة من المعرض) وسيتم ملء الحقول تلقائيًا، وتقدر تراجعها وتعدّلها قبل التطبيق.</div>
+      <div class="ocr-btns">
+        <label class="ocr-btn">📷 التقاط بالكاميرا<input type="file" accept="image/*" capture="environment" onchange="ocrFromFile(event,'student')"></label>
+        <label class="ocr-btn alt">🖼️ اختيار صورة<input type="file" accept="image/*" onchange="ocrFromFile(event,'student')"></label>
+      </div>
+      <div class="ocr-status" id="ocrStatus_student"></div>
+      <div id="ocrResult_student"></div>
+    </div>
     
     <div class="field-group">
       <label>صورة المخدوم</label>
@@ -2711,7 +2787,10 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
           <div class="upload-text">اضغط لرفع صورة للمخدوم</div>
         </div>
       </div>
-      <button type="button" id="removeStudentPhotoBtn" class="remove-photo-btn" onclick="removeStudentPhoto()">🗑️ حذف الصورة</button>
+      <div class="photo-actions" id="studentPhotoActions">
+        <button type="button" class="photo-dl-btn" onclick="downloadPersonPhoto('student')">⬇️ تنزيل الصورة</button>
+        <button type="button" id="removeStudentPhotoBtn" class="remove-photo-btn" onclick="removeStudentPhoto()">🗑️ حذف الصورة</button>
+      </div>
     </div>
 
     <div class="field-group">
@@ -2805,6 +2884,17 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 <div class="servant-overlay" id="addServantOverlay">
   <div class="servant-modal">
     <h2>👨‍💼 <span id="servantModalTitle">إضافة خادم جديد</span></h2>
+
+    <div class="ocr-box">
+      <div class="ocr-title">✨ استخراج البيانات من صورة</div>
+      <div class="ocr-hint">صوّر استمارة أو ورقة مكتوب عليها البيانات (أو اختر صورة من المعرض) وسيتم ملء الحقول تلقائيًا، وتقدر تراجعها وتعدّلها قبل التطبيق.</div>
+      <div class="ocr-btns">
+        <label class="ocr-btn">📷 التقاط بالكاميرا<input type="file" accept="image/*" capture="environment" onchange="ocrFromFile(event,'servant')"></label>
+        <label class="ocr-btn alt">🖼️ اختيار صورة<input type="file" accept="image/*" onchange="ocrFromFile(event,'servant')"></label>
+      </div>
+      <div class="ocr-status" id="ocrStatus_servant"></div>
+      <div id="ocrResult_servant"></div>
+    </div>
     <div class="field-group">
       <label>صورة الخادم</label>
       <div class="photo-upload" id="servantPhotoUploadArea">
@@ -2814,7 +2904,10 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
           <div class="upload-text">اضغط لرفع صورة الخادم</div>
         </div>
       </div>
-      <button type="button" id="removeServantPhotoBtn" class="remove-photo-btn" onclick="removeServantPhoto()">🗑️ حذف الصورة</button>
+      <div class="photo-actions" id="servantPhotoActions">
+        <button type="button" class="photo-dl-btn" onclick="downloadPersonPhoto('servant')">⬇️ تنزيل الصورة</button>
+        <button type="button" id="removeServantPhotoBtn" class="remove-photo-btn" onclick="removeServantPhoto()">🗑️ حذف الصورة</button>
+      </div>
     </div>
     <div class="field-group">
       <label>اسم الخادم *</label>
@@ -3038,6 +3131,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     servants = [];
     attendance = {};
     servantsAttendance = {};
+    servantConfessions = {};
+    servantMass = {};
     notes = {};
     recitations = {};
     recitationDone = {};
@@ -3165,6 +3260,9 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   let massAttendance = {};
   let servants = [];
   let servantsAttendance = {};
+  let _scOpen = {};              // حالة فتح تفاصيل البطاقات (تبقى مفتوحة بعد إعادة الرسم)
+  let servantConfessions = {};   // اعترافات الخدام: servantConfessions[sid] = عدد
+  let servantMass = {};          // حضور قداس الخدام: servantMass[sid] = عدد
   let editingServantId = null;
   let currentServantPhoto = null;
   let editingId  = null;
@@ -3259,7 +3357,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   // <<< stage-fix:snap-end
 
   function makeSnapshot() {
-    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, sessionMeta, className: getClassName(), stage: _snapStage(), gender: _snapGender(), classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, absenceReasons: absenceReasons, absenceReasonTexts: absenceReasonTexts, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2 };
+    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, servantConfessions, servantMass, sessionMeta, className: getClassName(), stage: _snapStage(), gender: _snapGender(), classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, absenceReasons: absenceReasons, absenceReasonTexts: absenceReasonTexts, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2 };
   }
 
   function applySnapshot(snap) {
@@ -3274,6 +3372,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     massAttendance = snap.massAttendance || {};
     servants = snap.servants || [];
     servantsAttendance = snap.servantsAttendance || {};
+    servantConfessions = (snap.servantConfessions && typeof snap.servantConfessions === 'object') ? snap.servantConfessions : {};
+    servantMass = (snap.servantMass && typeof snap.servantMass === 'object') ? snap.servantMass : {};
     followupStore = snap.followup || {};
     absenceReasons = (snap.absenceReasons && typeof snap.absenceReasons === 'object') ? snap.absenceReasons : {};
     absenceReasonTexts = (snap.absenceReasonTexts && typeof snap.absenceReasonTexts === 'object') ? snap.absenceReasonTexts : {};
@@ -6210,71 +6310,73 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         ? `<img src="${s.photo}" loading="lazy" decoding="async" style="width:100px;height:100px;object-fit:cover;border-radius:8px;cursor:zoom-in;display:block;" onclick="event.stopPropagation();openPhotoLightbox('${s.id}')" title="اضغط لعرض الصورة كاملة">`
         : `<span style="font-size:20px;">👤</span>`;
 
-      return `<tr>
-        <td>
-          <div class="student-photo" onclick="viewStudent('${s.id}')" style="cursor:pointer;width:100px;height:100px;">${photoHtml}</div>
-        </td>
-        <td>
-          <div class="student-info">
-            <strong>${s.name}</strong>
-            <div class="call-btns-group" style="margin-top:5px;">
-              ${s.ownPhone ? `<a class="call-btn" href="tel:${s.ownPhone}" title="اتصال بالمخدوم مباشرة" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;">📱 ${s.ownPhone}</a>` : ''}
-              ${s.phone ? `<a class="call-btn" href="tel:${s.phone}" title="اتصال بولي الأمر">📞 ${s.phone}</a>` : ''}
-              ${s.phone2 ? `<a class="call-btn-2" href="tel:${s.phone2}" title="اتصال بولي الأمر(الأم)">📞 ${s.phone2}</a>` : ''}
+      const _open = _scOpen['s:' + s.id] ? ' open' : '';
+      const _cardPhoto = s.photo
+        ? `<img src="${s.photo}" loading="lazy" decoding="async" alt="" onclick="event.stopPropagation();openPhotoLightbox('${s.id}')" title="اضغط لعرض الصورة كاملة">`
+        : `<span>👤</span>`;
+      return `<tr class="sc-tr"><td colspan="17" class="sc-td">
+        <div class="sc-card${_open}">
+          <div class="sc-top">
+            <div class="sc-photo" onclick="viewStudent('${s.id}')">${_cardPhoto}</div>
+            <div class="sc-main">
+              <strong class="sc-name">${_esc(s.name)}</strong>
+              <div class="call-btns-group" style="margin-top:4px;">
+                ${s.ownPhone ? `<a class="call-btn" href="tel:${s.ownPhone}" title="اتصال بالمخدوم مباشرة" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;">📱 ${s.ownPhone}</a>` : ''}
+                ${s.phone ? `<a class="call-btn" href="tel:${s.phone}" title="اتصال بولي الأمر">📞 ${s.phone}</a>` : ''}
+                ${s.phone2 ? `<a class="call-btn-2" href="tel:${s.phone2}" title="اتصال بولي الأمر(الأم)">📞 ${s.phone2}</a>` : ''}
+              </div>
+            </div>
+            <div class="sc-ctls">
+              <div class="sc-ctl">
+                <span class="sc-lbl">✝️ الاعتراف</span>
+                <div class="sc-cnt">
+                  <button type="button" class="sc-minus" title="إنقاص" onclick="changeConfession('${s.id}', -1)">−</button>
+                  <button type="button" class="confession-count-btn" onclick="changeConfession('${s.id}', 1)" title="اضغط لإضافة اعتراف">✝️ ${confCount}</button>
+                </div>
+              </div>
+              <div class="sc-ctl">
+                <span class="sc-lbl">⛪ حضور القداس</span>
+                <div class="sc-cnt">
+                  <button type="button" class="sc-minus" title="إنقاص" onclick="changeMassAttendance('${s.id}', -1)">−</button>
+                  <button type="button" class="mass-count-btn" onclick="changeMassAttendance('${s.id}', 1)" title="اضغط لإضافة حضور قداس">⛪ ${massCount}</button>
+                </div>
+              </div>
+              <div class="sc-ctl">
+                <span class="sc-lbl">📋 تسجيل الحضور</span>
+                <button type="button" class="status-badge ${status}" onclick="cycleStatus('${s.id}')">${statusLabels[status]}</button>
+                ${status === 'absent' ? absenceReasonSelectHtml(s.id) : ''}
+              </div>
+            </div>
+            <div class="sc-actions">
+              ${s.ownPhone ? `<a class="action-btn" title="اتصال بالمخدوم" href="tel:${s.ownPhone}">📱</a>` : ''}
+              ${s.phone ? `<a class="action-btn" title="اتصال بولي الأمر" href="tel:${s.phone}">📞</a>` : ''}
+              ${mapActionBtn(s)}
+              <button class="action-btn" title="سجل الحضور والغياب" onclick="openAbsenceHistory('${s.id}')">📅</button>
+              <button class="action-btn" title="عرض" onclick="viewStudent('${s.id}')">👁️</button>
+              <button class="action-btn" title="تعديل" onclick="openEditModal('${s.id}')">✏️</button>
+              <button class="action-btn admin-only-del" title="حذف" onclick="deleteStudent('${s.id}')">🗑️</button>
             </div>
           </div>
-        </td>
-        <td><strong>${s.id}</strong></td>
-        <td><span style="font-family:monospace; font-weight:bold;">${formattedDob}</span></td>
-        <td>${s.school || '—'}</td>
-        <td>${s.class || '—'}</td>
-        <td><span style="font-size:13px;color:#555;">${s.confessor || '—'}</span></td>
-        <td style="text-align:center;">
-          <button class="confession-count-btn" onclick="changeConfession('${s.id}', 1)" title="اضغط لإضافة اعتراف، اضغط بزر الفأرة الأيمن للإنقاص">
-            ✝️ ${confCount}
-          </button>
-        </td>
-        <td style="text-align:center;">
-          <button class="mass-count-btn" onclick="changeMassAttendance('${s.id}', 1)" title="اضغط لإضافة حضور قداس، اضغط بزر الفأرة الأيمن للإنقاص">
-            ⛪ ${massCount}
-          </button>
-        </td>
-        <td style="text-align:center;">
-          <span class="attendance-count-btn" title="عدد مرات حضور الخدمة (يُحسب تلقائياً)">
-            🎓 ${serviceAttCount}
-          </span>
-        </td>
-        <td style="text-align:center;">${absentWarningHtml}</td>
-        <td>
-          <button class="status-badge ${status}" onclick="cycleStatus('${s.id}')">
-            ${statusLabels[status]}
-          </button>
-          ${status === 'absent' ? absenceReasonSelectHtml(s.id) : ''}
-        </td>
-        <td>
-          <input type="text" value="${recTxt}" placeholder="مثال: محفوظة, مزمور"
-            style="border:1px solid #ddd;border-radius:6px;padding:5px 10px;font-family:Cairo,sans-serif;font-size:13px;width:250px;background:white;"
-            onchange="setRecitationText('${s.id}', this.value)" />
-        </td>
-        <td style="text-align:center;">
-          <input type="checkbox" ${isDone} class="recitation-checkbox" onchange="toggleRecitationDone('${s.id}', this.checked)" />
-        </td>
-        <td><span style="font-size:12px; color:#555;">${s.extraNotes || '—'}</span></td>
-        <td>
-          <input type="text" value="${note}" placeholder="ملاحظة اليوم..."
-            style="border:1px solid #ddd;border-radius:6px;padding:5px 10px;font-family:Cairo,sans-serif;font-size:13px;width:120px;background:white;"
-            onchange="setNote('${s.id}', this.value)" />
-        </td>
-        <td>
-          ${s.ownPhone ? `<a class="action-btn" title="اتصال بالمخدوم" href="tel:${s.ownPhone}">📱</a>` : ''}
-          ${s.phone ? `<a class="action-btn" title="اتصال بولي الأمر" href="tel:${s.phone}">📞</a>` : ''}
-          ${mapActionBtn(s)}
-          <button class="action-btn" title="سجل الحضور والغياب" onclick="openAbsenceHistory('${s.id}')">📅</button>
-          <button class="action-btn" title="عرض" onclick="viewStudent('${s.id}')">👁️</button>
-          <button class="action-btn" title="تعديل" onclick="openEditModal('${s.id}')">✏️</button>
-          <button class="action-btn admin-only-del" title="حذف" onclick="deleteStudent('${s.id}')">🗑️</button>
-        </td>
-      </tr>`;
+          <button type="button" class="sc-more-btn" onclick="scToggleMore(this,'s:${s.id}')">${_open ? '▴ إخفاء التفاصيل' : '▾ المزيد من التفاصيل'}${note ? ' 📝' : ''}</button>
+          <div class="sc-more">
+            <div class="sc-f"><b>رقم المخدوم</b>${_esc(s.id)}</div>
+            <div class="sc-f"><b>تاريخ الميلاد</b>${formattedDob}</div>
+            <div class="sc-f"><b>المدرسة</b>${_esc(s.school || '—')}</div>
+            <div class="sc-f"><b>الفصل</b>${_esc(s.class || '—')}</div>
+            <div class="sc-f"><b>اب الاعتراف</b>${_esc(s.confessor || '—')}</div>
+            <div class="sc-f"><b>🎓 حضور الخدمة</b>${serviceAttCount}</div>
+            <div class="sc-f"><b>الغياب المتكرر</b>${absentWarningHtml}</div>
+            <div class="sc-f"><b>ملاحظات عامة</b>${_esc(s.extraNotes || '—')}</div>
+            <div class="sc-f"><b>إنجاز التسميع</b>
+              <input type="text" value="${_esc(recTxt)}" placeholder="مثال: محفوظة, مزمور" onchange="setRecitationText('${s.id}', this.value)" />
+              <label class="sc-chk"><input type="checkbox" ${isDone} class="recitation-checkbox" onchange="toggleRecitationDone('${s.id}', this.checked)" /> تم التسميع</label>
+            </div>
+            <div class="sc-f"><b>ملاحظات اليوم</b>
+              <input type="text" value="${_esc(note)}" placeholder="ملاحظة اليوم..." onchange="setNote('${s.id}', this.value)" />
+            </div>
+          </div>
+        </div>
+      </td></tr>`;
     }).join('');
 
     updateStats();
@@ -6523,6 +6625,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
   // =================== ADD / EDIT ===================
   function openAddModal() {
+    ocrReset('student');
     editingId = null;
     currentPhoto = null;
     document.getElementById('modalTitle').textContent = 'إضافة مخدوم جديد';
@@ -6544,6 +6647,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
   function openEditModal(id) {
     if (!checkRecordsPassword()) return;
+    ocrReset('student');
     editingId = id;
     const s = students.find(x => x.id === id);
     if (!s) return;
@@ -6574,8 +6678,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
   function updatePhotoPreview(src) {
     const wrap = document.getElementById('photoPreviewWrap');
-    const rmBtn = document.getElementById('removeStudentPhotoBtn');
-    if (rmBtn) rmBtn.style.display = src ? 'block' : 'none';
+    const pa = document.getElementById('studentPhotoActions');
+    if (pa) pa.style.display = src ? 'flex' : 'none';
     if (src) {
       wrap.innerHTML = `<img src="${src}" class="preview"><div class="upload-text">اضغط لتغيير الصورة</div>`;
     } else {
@@ -7492,6 +7596,338 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closePhotoLightbox(); });
 
+  // =================== تنزيل صورة المخدوم / الخادم ===================
+  async function downloadPersonPhoto(kind) {
+    const src = kind === 'student' ? currentPhoto : currentServantPhoto;
+    if (!src) { setStatus('⚠️ لا توجد صورة لتنزيلها', '#c8392b', false); return; }
+    const nameEl = document.getElementById(kind === 'student' ? 'studentName' : 'servantName');
+    const base = ((nameEl && nameEl.value.trim()) || (kind === 'student' ? 'مخدوم' : 'خادم')).replace(/[\\/:*?"<>|]+/g, '_');
+    let href = src, revoke = false;
+    try {
+      if (!/^data:/i.test(src)) {            // الصورة رابط (Storage) وليست Base64
+        const res = await fetch(src);
+        const blob = await res.blob();
+        href = URL.createObjectURL(blob);
+        revoke = true;
+      }
+    } catch (e) {
+      window.open(src, '_blank');            // لو منع المتصفح الجلب: نفتحها في تبويب ليحفظها المستخدم
+      return;
+    }
+    const mime = (/^data:(image\/[a-z0-9.+-]+)/i.exec(src) || [])[1] || 'image/jpeg';
+    const ext = mime.indexOf('png') > -1 ? 'png' : mime.indexOf('webp') > -1 ? 'webp' : 'jpg';
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = base + '.' + ext;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    if (revoke) setTimeout(() => URL.revokeObjectURL(href), 4000);
+    setStatus('✅ تم تنزيل الصورة', '#1a7a4a', false);
+  }
+
+  // =================== استخراج البيانات من صورة / كاميرا (OCR) ===================
+  // يستخدم Tesseract.js (يُحمَّل عند أول استخدام فقط، ويحتاج إنترنت في أول مرة)
+  const OCR_CFG = {
+    student: {
+      fields: {
+        name: ['اسم المخدوم', 'studentName'], dob: ['تاريخ الميلاد', 'studentDob'],
+        school: ['المدرسة', 'studentSchool'], cls: ['الفصل الدراسي', 'studentClass'],
+        address: ['العنوان', 'studentAddress'], confessor: ['اب الاعتراف', 'studentConfessor']
+      },
+      phones: [['هاتف الأب', 'studentPhone'], ['هاتف الأم', 'studentPhone2'], ['هاتف المخدوم', 'studentOwnPhone']]
+    },
+    servant: {
+      fields: {
+        name: ['اسم الخادم', 'servantName'], role: ['الدور / المسمى', 'servantRole'],
+        dob: ['تاريخ الميلاد', 'servantDob'], address: ['العنوان', 'servantAddress']
+      },
+      phones: [['الهاتف الأساسي', 'servantPhone'], ['الهاتف الاحتياطي', 'servantPhone2']]
+    }
+  };
+  const OCR_LIB_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+  let _ocrLibPromise = null;
+
+  function ocrEsc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function ocrLoadLib() {
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+    if (_ocrLibPromise) return _ocrLibPromise;
+    _ocrLibPromise = new Promise((resolve, reject) => {
+      const sc = document.createElement('script');
+      sc.src = OCR_LIB_URL;
+      sc.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('lib'));
+      sc.onerror = () => reject(new Error('lib'));
+      document.head.appendChild(sc);
+    }).catch(e => { _ocrLibPromise = null; throw e; });
+    return _ocrLibPromise;
+  }
+
+  // تجهيز الصورة: تصغير/تكبير مناسب + تدرّج رمادي + تباين لتحسين دقة القراءة
+  function ocrPrepareCanvas(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('read'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('img'));
+        img.onload = () => {
+          const target = 1800;
+          let w = img.width, h = img.height;
+          const k = target / Math.max(w, h);
+          if (k < 1 || Math.max(w, h) < 1000) { w = Math.round(w * k); h = Math.round(h * k); }
+          const cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          const ctx = cv.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          try {
+            const d = ctx.getImageData(0, 0, w, h), px = d.data;
+            for (let i = 0; i < px.length; i += 4) {
+              let g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+              g = (g - 128) * 1.3 + 128;
+              g = g < 0 ? 0 : g > 255 ? 255 : g;
+              px[i] = px[i + 1] = px[i + 2] = g;
+            }
+            ctx.putImageData(d, 0, 0);
+          } catch (e) { /* نكمل بالصورة كما هي */ }
+          resolve(cv);
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function ocrNormalizeDigits(t) {
+    return String(t || '')
+      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+      .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+  }
+
+  // توحيد الحروف للمقارنة فقط (أ/إ/آ→ا ، ة→ه ، ى→ي)
+  function ocrNcl(x) {
+    return String(x || '').replace(/[ً-ٟـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').trim();
+  }
+
+  function ocrDate(a, b, c) {
+    let y, m, d;
+    if (String(a).length === 4) { y = +a; m = +b; d = +c; }
+    else if (String(c).length === 4) { d = +a; m = +b; y = +c; }
+    else if (String(c).length === 2) { d = +a; m = +b; y = +c; y += y > 30 ? 1900 : 2000; }
+    else return null;
+    const now = new Date().getFullYear();
+    if (!(m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 1930 && y <= now)) return null;
+    return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+
+  const OCR_KEYS = {
+    name: /^(?:ال)?اسم(?: (?:ال)?(?:مخدوم|خادم|طالب|طفل|كامل|رباعي|ثلاثي))?$|^(?:ال)?(?:مخدوم|خادم)$/,
+    dob: /^تاريخ (?:ال)?(?:ميلاد|ميلادي)$|^(?:ال)?ميلاد$/,
+    school: /^(?:اسم )?(?:ال)?مدرسه$/,
+    cls: /^(?:ال)?(?:فصل|صف)(?: (?:ال)?دراسي)?$|^(?:ال)?سنه (?:ال)?دراسيه$/,
+    address: /^(?:ال)?عنوان(?: (?:ال)?سكن)?$|^(?:ال)?سكن$/,
+    confessor: /^(?:اب|الاب) (?:ال)?اعتراف$|^(?:اب|الاب) (?:ال)?روحي$|^(?:اب|الاب) (?:ال)?كاهن$/,
+    role: /^(?:ال)?(?:دور|مسمي|مسمى|وظيفه)(?: ?\/ ?(?:ال)?(?:مسمي|مسمى|دور))?$/
+  };
+  const OCR_NOT_NAME = /جمهوري|مصر|بطاق|استمار|بيانات|كنيس|كاتدرائ|رئيس الملائك|ميخائيل|نموذج|اسم |تاريخ|عنوان|هاتف|تليفون|موبايل|مدرس|فصل/;
+
+  function ocrParseText(raw) {
+    const text = ocrNormalizeDigits(raw || '');
+    const lines = text.split(/\r?\n/).map(l => l.replace(/[|_«»"]+/g, ' ').replace(/\s+/g, ' ').trim()).filter(l => l.length > 1);
+    const out = { phones: [] };
+    const used = new Set();
+
+    // 1) الحقول ذات العناوين (مثال: "العنوان: ش الجيش")
+    lines.forEach((line, idx) => {
+      let key = null, val = '';
+      const ci = line.search(/[:：]/);
+      if (ci > 0) {
+        const left = ocrNcl(line.slice(0, ci));
+        for (const k in OCR_KEYS) { if (OCR_KEYS[k].test(left)) { key = k; val = line.slice(ci + 1).trim(); break; } }
+      }
+      if (!key) {
+        const words = line.split(' ');
+        for (let n = Math.min(3, words.length - 1); n >= 1 && !key; n--) {
+          const left = ocrNcl(words.slice(0, n).join(' '));
+          for (const k in OCR_KEYS) { if (OCR_KEYS[k].test(left)) { key = k; val = words.slice(n).join(' ').replace(/^[-–:：]\s*/, '').trim(); break; } }
+        }
+      }
+      if (key) {
+        used.add(idx);
+        if (val && !out[key]) out[key] = val;
+      }
+    });
+
+    // 2) الهواتف المصرية (نشيل الفواصل بين الأرقام ونستبعد الرقم القومي)
+    const flat = text.replace(/(\d)[\s\-.]+(?=\d)/g, '$1');
+    const ids = flat.match(/\b[23]\d{13}\b/g) || [];
+    const noId = ids.reduce((t, id) => t.replace(id, ' '), flat);
+    const phoneRx = /(?:^|\D)((?:\+?20|0)?1[0125]\d{8})(?!\d)/g;
+    let m;
+    while ((m = phoneRx.exec(noId))) {
+      let d = m[1].replace(/\D/g, '');
+      if (d.startsWith('20') && d.length === 12) d = '0' + d.slice(2);
+      else if (d.length === 10) d = '0' + d;
+      if (/^01[0125]\d{8}$/.test(d) && out.phones.indexOf(d) === -1) out.phones.push(d);
+    }
+
+    // 3) تاريخ الميلاد: من الحقل المعنون، أو أول تاريخ في الورقة، أو من الرقم القومي
+    const dateRx = /(\d{1,4})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*(\d{1,4})/;
+    if (out.dob) {
+      const dm = dateRx.exec(out.dob);
+      out.dob = dm ? ocrDate(dm[1], dm[2], dm[3]) : null;
+      if (!out.dob) delete out.dob;
+    }
+    if (!out.dob) {
+      for (const line of lines) {
+        const dm = dateRx.exec(line);
+        const iso = dm && ocrDate(dm[1], dm[2], dm[3]);
+        if (iso) { out.dob = iso; break; }
+      }
+    }
+    if (!out.dob && ids.length) {
+      const id = ids[0], cent = id[0] === '2' ? '19' : '20';
+      const iso = ocrDate(cent + id.slice(1, 3), id.slice(3, 5), id.slice(5, 7));
+      if (iso) out.dob = iso;
+    }
+
+    // 4) الاسم: لو مفيش عنوان "الاسم" ناخد أول سطر عربي من 2–5 كلمات
+    if (!out.name) {
+      for (let i = 0; i < lines.length; i++) {
+        if (used.has(i)) continue;
+        const l = lines[i].replace(/[ً-ٟ]/g, '');
+        if (!/^[؀-ۿ ]+$/.test(l) || OCR_NOT_NAME.test(ocrNcl(l))) continue;
+        const w = l.split(' ').filter(x => x.length >= 2);
+        if (w.length >= 2 && w.length <= 5) { out.name = w.join(' '); used.add(i); break; }
+      }
+    }
+
+    // 5) العنوان: لو مفيش عنوان معنون، أول سطر فيه كلمات عناوين شائعة
+    if (!out.address) {
+      for (let i = 0; i < lines.length; i++) {
+        if (used.has(i)) continue;
+        if (/(شارع|ش\s|عماره|عمارة|برج|منطقه|منطقة|مدينه|مدينة|قريه|قرية|ميدان|حي\s)/.test(lines[i])) { out.address = lines[i]; break; }
+      }
+    }
+    return out;
+  }
+
+  function ocrReset(kind) {
+    const st = document.getElementById('ocrStatus_' + kind);
+    const rs = document.getElementById('ocrResult_' + kind);
+    if (st) st.textContent = '';
+    if (rs) rs.innerHTML = '';
+  }
+
+  async function ocrFromFile(event, kind) {
+    const input = event.target;
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const st = document.getElementById('ocrStatus_' + kind);
+    const rs = document.getElementById('ocrResult_' + kind);
+    rs.innerHTML = '';
+    const say = (msg, color) => { st.style.color = color || '#555'; st.textContent = msg; };
+    let worker = null;
+    try {
+      say('⏳ جاري تجهيز الصورة...');
+      const canvas = await ocrPrepareCanvas(file);
+      say('⏳ جاري تحميل أداة القراءة (أول مرة فقط وتحتاج إنترنت)...');
+      const T = await ocrLoadLib();
+      worker = await T.createWorker('ara+eng', 1, {
+        logger: m => {
+          if (m.status === 'recognizing text') say('🔎 جاري قراءة النص... ' + Math.round((m.progress || 0) * 100) + '%');
+          else if (/loading/i.test(m.status || '')) say('⏳ تحميل بيانات اللغة العربية (أول مرة فقط)...');
+        }
+      });
+      const res = await worker.recognize(canvas);
+      const raw = (res && res.data && res.data.text) || '';
+      const parsed = ocrParseText(raw);
+      ocrRender(kind, parsed, raw);
+    } catch (e) {
+      say('⚠️ تعذّر استخراج البيانات. تأكد من الاتصال بالإنترنت (في أول استخدام) وجرّب صورة أوضح.', '#c8392b');
+    } finally {
+      if (worker) { try { await worker.terminate(); } catch (e) {} }
+      input.value = '';
+    }
+  }
+
+  function ocrRender(kind, parsed, raw) {
+    const cfg = OCR_CFG[kind];
+    const st = document.getElementById('ocrStatus_' + kind);
+    const rs = document.getElementById('ocrResult_' + kind);
+    let html = '', count = 0;
+    Object.keys(cfg.fields).forEach(k => {
+      if (!parsed[k]) return;
+      count++;
+      html += `<div class="ocr-row"><label><input type="checkbox" checked data-ocr-use="${k}"> ${ocrEsc(cfg.fields[k][0])}</label>` +
+              `<input type="${k === 'dob' ? 'date' : 'text'}" data-ocr-val="${k}" value="${ocrEsc(parsed[k])}"></div>`;
+    });
+    parsed.phones.slice(0, cfg.phones.length).forEach((p, i) => {
+      count++;
+      const opts = cfg.phones.map((t, j) => `<option value="${t[1]}"${j === i ? ' selected' : ''}>${ocrEsc(t[0])}</option>`).join('');
+      html += `<div class="ocr-row"><label><input type="checkbox" checked data-ocr-phone-use="${i}"> رقم هاتف</label>` +
+              `<select data-ocr-phone-target="${i}">${opts}</select>` +
+              `<input type="text" dir="ltr" data-ocr-phone-val="${i}" value="${ocrEsc(p)}"></div>`;
+    });
+    if (!count) {
+      st.style.color = '#c8392b';
+      st.textContent = '⚠️ لم أتمكن من التعرف على بيانات واضحة. جرّب صورة أوضح وبإضاءة جيدة، أو أدخل البيانات يدويًا.';
+    } else {
+      st.style.color = '#1a7a4a';
+      st.textContent = '✅ تم استخراج ' + count + ' بيان. راجعها وعدّل أي خطأ ثم اضغط «تطبيق».';
+      html += `<button type="button" class="ocr-apply" onclick="ocrApply('${kind}')">✔️ تطبيق على النموذج</button>`;
+    }
+    html += `<details class="ocr-raw"><summary>عرض النص المقروء من الصورة</summary><pre>${ocrEsc(raw.trim() || '— لا يوجد نص —')}</pre></details>`;
+    rs.innerHTML = html;
+  }
+
+  function ocrApply(kind) {
+    const cfg = OCR_CFG[kind];
+    const rs = document.getElementById('ocrResult_' + kind);
+    const st = document.getElementById('ocrStatus_' + kind);
+    let n = 0;
+    const put = (id, v) => {
+      const el = document.getElementById(id);
+      if (el && v) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); n++; }
+    };
+    rs.querySelectorAll('[data-ocr-use]').forEach(cb => {
+      if (!cb.checked) return;
+      const k = cb.getAttribute('data-ocr-use');
+      const inp = rs.querySelector('[data-ocr-val="' + k + '"]');
+      if (inp && cfg.fields[k]) put(cfg.fields[k][1], inp.value.trim());
+    });
+    rs.querySelectorAll('[data-ocr-phone-use]').forEach(cb => {
+      if (!cb.checked) return;
+      const i = cb.getAttribute('data-ocr-phone-use');
+      const target = rs.querySelector('[data-ocr-phone-target="' + i + '"]').value;
+      const val = rs.querySelector('[data-ocr-phone-val="' + i + '"]').value.trim();
+      put(target, val);
+    });
+    st.style.color = '#1a7a4a';
+    st.textContent = '✅ تم ملء ' + n + ' حقل في النموذج — راجعها ثم اضغط «حفظ».';
+  }
+
+  // =================== بطاقة المخدوم/الخادم: فتح/إغلاق التفاصيل + عدّادات الخدام ===================
+  function scToggleMore(btn, key) {
+    const card = btn.closest('.sc-card');
+    if (!card) return;
+    const open = card.classList.toggle('open');
+    _scOpen[key] = open;
+    btn.textContent = open ? '▴ إخفاء التفاصيل' : '▾ المزيد من التفاصيل';
+  }
+  function changeServantConfession(sid, delta) {
+    servantConfessions[sid] = Math.max(0, (servantConfessions[sid] || 0) + delta);
+    save();
+    renderServantsTable();
+  }
+  function changeServantMass(sid, delta) {
+    servantMass[sid] = Math.max(0, (servantMass[sid] || 0) + delta);
+    save();
+    renderServantsTable();
+  }
+
   // =================== SERVANTS MOTOR ENGINE ===================
   function generateServantId() { return 'srv_' + Date.now() + '_' + Math.random().toString(36).substr(2,5); }
 
@@ -7517,8 +7953,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 
   function updateServantPhotoPreview(src) {
     const wrap = document.getElementById('servantPhotoPreviewWrap');
-    const rmBtn = document.getElementById('removeServantPhotoBtn');
-    if (rmBtn) rmBtn.style.display = src ? 'block' : 'none';
+    const pa = document.getElementById('servantPhotoActions');
+    if (pa) pa.style.display = src ? 'flex' : 'none';
     if (!wrap) return;
     if (src) {
       wrap.innerHTML = '<img src="' + src + '" class="preview"><div class="upload-text">اضغط لتغيير الصورة</div>';
@@ -7528,6 +7964,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   }
 
   function openAddServantModal() {
+    ocrReset('servant');
     editingServantId = null;
     currentServantPhoto = null;
     document.getElementById('servantModalTitle').textContent = 'إضافة خادم جديد';
@@ -7540,6 +7977,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     if (!checkRecordsPassword()) return;
     const sv = servants.find(x => x.sid === sid);
     if (!sv) return;
+    ocrReset('servant');
     editingServantId = sid;
     currentServantPhoto = sv.photo || null;
     document.getElementById('servantModalTitle').textContent = 'تعديل بيانات الخادم';
@@ -7592,6 +8030,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     if (!sv) return;
     if (!confirm('هل أنت متأكد من حذف الخادم "' + sv.name + '"؟')) return;
     servants = servants.filter(x => x.sid !== sid);
+    delete servantConfessions[sid];
+    delete servantMass[sid];
     save();
     renderAll();
   }
@@ -7658,21 +8098,61 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       let absentBadge = absentCount === 0 ? '<span class="servant-absent-badge s-none">✅ لا غياب</span>' : absentCount >= 3 ? '<span class="servant-absent-badge s-danger">🚨 ' + absentCount + ' غيابات</span>' : '<span class="servant-absent-badge s-warn">⚠️ ' + absentCount + ' غيابات</span>';
       const photoHtml = sv.photo ? '<img src="' + sv.photo + '" loading="lazy" decoding="async" style="width:100px;height:100px;object-fit:cover;border-radius:8px;border:2px solid #e9d5ff;cursor:zoom-in;display:block;" onclick="openServantPhotoLightbox(\'' + sv.sid + '\')">' : '<span style="font-size:36px;display:block;text-align:center;">👤</span>';
 
-      return '<tr>' +
-        '<td><div style="width:100px;height:100px;border-radius:8px;background:#faf5ff;display:flex;align-items:center;justify-content:center;overflow:hidden;border:2px solid #e9d5ff;">' + photoHtml + '</div></td>' +
-        '<td><strong>' + sv.name + '</strong></td><td><span style="color:#5b21b6;font-weight:700;">' + (sv.role || '—') + '</span></td>' +
-        '<td>' + (sv.phone ? '<a class="call-btn-servant" href="tel:' + sv.phone + '">📞 ' + sv.phone + '</a>' : '—') + '</td>' +
-        '<td>' + (sv.phone2 ? '<a class="call-btn-servant" style="background:#e0f2fe;color:#0369a1;border-color:#7dd3fc;" href="tel:' + sv.phone2 + '">📱 ' + sv.phone2 + '</a>' : '—') + '</td>' +
-        '<td style="font-size:12px;color:#555;">' + (sv.address || '—') + '</td><td style="font-size:12px;color:#777;">' + (sv.notes || '—') + '</td>' +
-        '<td style="text-align:center;">' + absentBadge + '</td>' +
-        '<td><button class="status-badge ' + status + '" onclick="cycleServantStatus(\'' + sv.sid + '\')">' + statusLabels[status] + '</button></td>' +
-        '<td>' + (sv.phone ? '<a class="action-btn" href="tel:' + sv.phone + '" title="اتصال أساسي">📞</a>' : '') +
-          (sv.phone2 ? '<a class="action-btn" href="tel:' + sv.phone2 + '" title="اتصال احتياطي" style="background:#e0f2fe;color:#0369a1;">📱</a>' : '') +
-          mapActionBtn(sv) +
-          '<button class="action-btn" onclick="viewServant(\'' + sv.sid + '\')">👁️</button>' +
-          '<button class="action-btn" onclick="openEditServantModal(\'' + sv.sid + '\')">✏️</button>' +
-          '<button class="action-btn admin-only-del" onclick="deleteServant(\'' + sv.sid + '\')">🗑️</button>' +
-        '</td></tr>';
+      const _open = _scOpen['v:' + sv.sid] ? ' open' : '';
+      const _cardPhoto = sv.photo
+        ? `<img src="${sv.photo}" loading="lazy" decoding="async" alt="" onclick="event.stopPropagation();openServantPhotoLightbox('${sv.sid}')" title="اضغط لعرض الصورة كاملة">`
+        : `<span>👨‍💼</span>`;
+      const _conf = servantConfessions[sv.sid] || 0;
+      const _mass = servantMass[sv.sid] || 0;
+      return `<tr class="sc-tr"><td colspan="10" class="sc-td">
+        <div class="sc-card${_open}">
+          <div class="sc-top">
+            <div class="sc-photo" onclick="viewServant('${sv.sid}')">${_cardPhoto}</div>
+            <div class="sc-main">
+              <strong class="sc-name">${_esc(sv.name)}</strong>
+              <div class="sc-sub">${_esc(sv.role || '—')}</div>
+              <div class="call-btns-group" style="margin-top:4px;">
+                ${sv.phone ? `<a class="call-btn-servant" href="tel:${sv.phone}">📞 ${sv.phone}</a>` : ''}
+                ${sv.phone2 ? `<a class="call-btn-servant" style="background:#e0f2fe;color:#0369a1;border-color:#7dd3fc;" href="tel:${sv.phone2}">📱 ${sv.phone2}</a>` : ''}
+              </div>
+            </div>
+            <div class="sc-ctls">
+              <div class="sc-ctl">
+                <span class="sc-lbl">✝️ الاعتراف</span>
+                <div class="sc-cnt">
+                  <button type="button" class="sc-minus" title="إنقاص" onclick="changeServantConfession('${sv.sid}', -1)">−</button>
+                  <button type="button" class="confession-count-btn" onclick="changeServantConfession('${sv.sid}', 1)" title="اضغط لإضافة اعتراف">✝️ ${_conf}</button>
+                </div>
+              </div>
+              <div class="sc-ctl">
+                <span class="sc-lbl">⛪ حضور القداس</span>
+                <div class="sc-cnt">
+                  <button type="button" class="sc-minus" title="إنقاص" onclick="changeServantMass('${sv.sid}', -1)">−</button>
+                  <button type="button" class="mass-count-btn" onclick="changeServantMass('${sv.sid}', 1)" title="اضغط لإضافة حضور قداس">⛪ ${_mass}</button>
+                </div>
+              </div>
+              <div class="sc-ctl">
+                <span class="sc-lbl">📋 تسجيل الحضور</span>
+                <button type="button" class="status-badge ${status}" onclick="cycleServantStatus('${sv.sid}')">${statusLabels[status]}</button>
+              </div>
+            </div>
+            <div class="sc-actions">
+              ${sv.phone ? `<a class="action-btn" href="tel:${sv.phone}" title="اتصال أساسي">📞</a>` : ''}
+              ${sv.phone2 ? `<a class="action-btn" href="tel:${sv.phone2}" title="اتصال احتياطي" style="background:#e0f2fe;color:#0369a1;">📱</a>` : ''}
+              ${mapActionBtn(sv)}
+              <button class="action-btn" title="عرض" onclick="viewServant('${sv.sid}')">👁️</button>
+              <button class="action-btn" title="تعديل" onclick="openEditServantModal('${sv.sid}')">✏️</button>
+              <button class="action-btn admin-only-del" title="حذف" onclick="deleteServant('${sv.sid}')">🗑️</button>
+            </div>
+          </div>
+          <button type="button" class="sc-more-btn" onclick="scToggleMore(this,'v:${sv.sid}')">${_open ? '▴ إخفاء التفاصيل' : '▾ المزيد من التفاصيل'}</button>
+          <div class="sc-more">
+            <div class="sc-f"><b>مرات الغياب</b>${absentBadge}</div>
+            <div class="sc-f"><b>العنوان</b>${_esc(sv.address || '—')}</div>
+            <div class="sc-f"><b>ملاحظات</b>${_esc(sv.notes || '—')}</div>
+          </div>
+        </div>
+      </td></tr>`;
     }).join('');
 
     updateServantsStats();
@@ -10675,6 +11155,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   update();
 })();
 </script>
+<script src="./followup-map.js"></script>
 <script src="./welcome.js"></script>
 <script src="./lesson-reminder.js"></script>
 <script src="./live-chat.js"></script>
