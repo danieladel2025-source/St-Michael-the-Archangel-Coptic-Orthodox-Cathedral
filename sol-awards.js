@@ -244,3 +244,15 @@
     win.document.close();
   };
 })(window);
+
+/* ---- سلاسة الاستخدام: إغلاق نوافذ المنظومة بالضغط خارجها أو بزر الرجوع/ESC ---- */
+(function (w) {
+  'use strict';
+  const isSol = (el) => el && el.classList && el.classList.contains('overlay') && /99999/.test(el.getAttribute('style') || '');
+  document.addEventListener('click', (e) => { if (isSol(e.target)) e.target.remove(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const all = [...document.querySelectorAll('.overlay')].filter(isSol);
+    if (all.length) all[all.length - 1].remove();
+  });
+})(window);

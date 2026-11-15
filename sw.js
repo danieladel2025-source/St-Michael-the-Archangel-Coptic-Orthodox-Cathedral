@@ -1,5 +1,7 @@
 // ===== Service Worker: نظام تسجيل غياب ومتابعة المخدومين — كاتدرائية رئيس الملائكة الجليل ميخائيل - طنطا =====
-const CACHE_VERSION = 'church-attendance-v20261116'; // رفع الإصدار يجبر الأجهزة على جلب الملفات المُحدّثة
+// اسم الكاش ثابت: لا حاجة لرفع الإصدار يدويًا بعد الآن — ملفات الموقع تُجلب من الشبكة أولًا (فحص بالـ ETag)
+// وتُجدَّد نسخ العمل بدون إنترنت تلقائيًا عند كل فتح (REFRESH_CACHE) وعند تفعيل أي نسخة جديدة من هذا الملف.
+const CACHE_VERSION = 'church-attendance-auto';
 const CACHE_NAME = CACHE_VERSION;
 
 // الملفات الأساسية التي يتم تخزينها مسبقًا (App Shell)
@@ -10,9 +12,13 @@ const PRECACHE_URLS = [
   './library.html',
   './qr-map.js',
   './qr-map.css',
+  './mobile-fit.css',
   './lesson-reminder.js',
   './live-chat.js',
   './welcome.js',
+  './auto-update.js',
+  './guide.html',
+  './curriculum.html',
   './sol-features.js',
   './sol-awards.js',
   './followup-map.js',
@@ -53,6 +59,17 @@ function fetchCdn(url) {
   });
 }
 
+// تجديد النسخ المخزّنة للملفات الأساسية من الخادم (تعمل بدون إنترنت لاحقًا وتبقى محدّثة)
+function refreshPrecache() {
+  return caches.open(CACHE_NAME).then((cache) =>
+    Promise.all(PRECACHE_URLS.map((url) =>
+      fetch(url, { cache: 'reload' })
+        .then((res) => { if (res && res.status === 200) return cache.put(url, res); })
+        .catch(() => {})
+    ))
+  );
+}
+
 // ----- التثبيت: تخزين الملفات الأساسية (فشل ملف واحد لا يُفشل التثبيت كله) -----
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -78,7 +95,7 @@ self.addEventListener('activate', (event) => {
       Promise.all(
         keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
       )
-    ).then(() => self.clients.claim())
+    ).then(() => self.clients.claim()).then(() => refreshPrecache())
   );
 });
 
@@ -115,7 +132,7 @@ self.addEventListener('fetch', (event) => {
     (req.mode === 'navigate' || /\.(html|js|css|json)$/i.test(url.pathname));
   if (isAppFile) {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-cache' }) // يتحقق من الخادم دائمًا (ETag) فلا يُقدَّم ملف قديم من كاش المتصفح
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
@@ -158,6 +175,11 @@ self.addEventListener('message', (event) => {
 
   if (d.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+
+  if (d.type === 'REFRESH_CACHE') {
+    event.waitUntil(refreshPrecache());
     return;
   }
 
