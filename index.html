@@ -37,9 +37,6 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./cloud-storage.js"></script>
-<script src="./sol-features.js"></script>
-<script src="./sol-awards.js"></script>
 <!-- مكتبات QR: qrcode-generator لتوليد الرموز + jsQR لقراءتها بالكاميرا -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0"></script>
@@ -1801,8 +1798,6 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   #scrollNavAsk .sn-no  { background: transparent; color: #fff; border-color: rgba(255,255,255,.35); }
   #scrollNavAsk button:active { transform: scale(.96); }
 </style>
-<link rel="stylesheet" href="./mobile-fit.css">
-<script src="./auto-update.js" defer></script>
 </head>
 <body>
 
@@ -2488,7 +2483,6 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       <button class="btn" style="background:#2980b9;color:white;font-size:12px;padding:6px 12px;" onclick="exportJSON(); updateBackupReminder();">📁 نسخة احتياطية</button>
       <button class="btn" style="background:#1a7a4a;color:white;font-size:12px;padding:6px 12px;" onclick="exportClassZip()" title="حفظ كل ملفات الفصل (JSON + CSV + تقرير) في ملفات باسم الفصل">📂 حفظ ملفات الفصل</button>
       <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;" onclick="importJSON()">📂 استيراد</button>
-      <button class="btn" style="background:#0284c7;color:white;font-size:12px;padding:6px 12px;" onclick="openCloudStorageModal()" title="إعدادات وترحيل التخزين السحابي (نمط Sons of Light)">☁️ التخزين السحابي</button>
     </div>
   </div>
 
@@ -2513,37 +2507,6 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     <button class="btn btn-outline" onclick="openQrPrintModal()" style="font-size:15px;padding:12px 22px;min-width:175px;" title="طباعة بطاقات QR للمخدومين والخدام">
       🔳 طباعة بطاقات QR
     </button>
-  </div>
-
-  <!-- ===== ☀️ شريط مميزات أبناء النور (Sons of Light Suite) ===== -->
-  <div class="sol-features-bar" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:linear-gradient(135deg, #1e293b, #0f172a);padding:14px 20px;border-radius:14px;margin-bottom:18px;border:1px solid #334155;box-shadow:0 6px 18px rgba(0,0,0,0.2);">
-    <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
-      <span style="font-size:26px;">☀️</span>
-      <div>
-        <div style="font-size:14px;font-weight:900;color:#f8fafc;letter-spacing:0.5px;">منظومة أبناء النور الكاملة (Sons of Light Suite)</div>
-        <div style="font-size:11px;color:#94a3b8;">النقاط والأوسمة &bull; المناهج والدروس والواجبات &bull; الافتقاد الراعوي &bull; التصنيفات والوسوم</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-      <button class="btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;font-size:13px;font-weight:800;padding:9px 16px;border-radius:10px;box-shadow:0 3px 10px rgba(217,119,6,0.35);" onclick="SOL.openLeaderboardModal()" title="ترتيب المخدومين ولوحة الشرف">
-        🏆 لوحة الشرف والمتصدرين
-      </button>
-      <button class="btn" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;font-size:13px;font-weight:800;padding:9px 16px;border-radius:10px;box-shadow:0 3px 10px rgba(37,99,235,0.35);" onclick="SOL.openVisitsManagerModal()" title="سجل الافتقاد ومتابعة الغائبين بدون افتقاد">
-        🚗 سجل الافتقاد الراعوي
-      </button>
-      <button class="btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;font-size:13px;font-weight:800;padding:9px 16px;border-radius:10px;box-shadow:0 3px 10px rgba(220,38,38,0.35);" onclick="SOL.openCurriculumModal()" title="تحضير المنهج والدروس والواجبات والمهمات">
-        📖 تحضير الدروس والمنهج
-      </button>
-      <button class="btn" style="background:linear-gradient(135deg,#16a34a,#15803d);color:white;font-size:13px;font-weight:800;padding:9px 16px;border-radius:10px;box-shadow:0 3px 10px rgba(22,163,74,0.35);" onclick="SOL.openTagsManagerModal()" title="إدارة وسوم وتصنيفات المخدومين">
-        🏷️ وسوم وتصنيفات الفصل
-      </button>
-      <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;font-size:13px;font-weight:800;padding:9px 16px;border-radius:10px;box-shadow:0 3px 10px rgba(124,58,237,0.35);" onclick="SOL.openAwardsCenter()">
-        🏅 النياشين والمميزون
-      </button>
-      <a class="btn" href="./guide.html#s24" style="background:linear-gradient(135deg,#475569,#334155);color:white;font-size:13px;font-weight:800;padding:9px 16px;border-radius:10px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">
-        📘 شرح المنظومة
-      </a>
-    </div>
   </div>
 
   <!-- ===== قسم كشف المخدومين ===== -->
@@ -2580,8 +2543,6 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
             <th>تم التسميع</th>
             <th>ملاحظات عامة</th>
             <th>ملاحظات اليوم</th>
-            <th style="background:#4a154b;color:#fef3c7;">🪙 النقاط والأوسمة</th>
-            <th style="background:#1e3a8a;color:#dbeafe;">🚗 الافتقاد والوسوم</th>
             <th>إجراءات</th>
           </tr>
         </thead>
@@ -2743,6 +2704,17 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     .room-pw-box h3{margin:0 0 6px;font-size:16px;color:#7f1d1d}
     .room-pw-box p{margin:0 0 10px;font-size:13px;color:#475569;line-height:1.7}
     .room-pw-box input{width:100%;box-sizing:border-box;padding:10px;border:2px solid #e2e8f0;border-radius:9px;font-family:Cairo,sans-serif;font-size:15px}
+    .tr-ov{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px}
+    .tr-box{background:#fff;border-radius:14px;max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;padding:18px;font-family:Cairo,sans-serif;direction:rtl;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+    .tr-box h3{margin:0 0 6px;font-size:16px;color:#1b4f72}
+    .tr-sub{margin:0 0 10px;font-size:12.5px;color:#475569;line-height:1.7}
+    .tr-search{width:100%;box-sizing:border-box;padding:10px;border:2px solid #e2e8f0;border-radius:9px;font-family:Cairo,sans-serif;font-size:15px;margin-bottom:8px}
+    .tr-list{overflow-y:auto;flex:1 1 auto;min-height:60px}
+    .tr-empty{text-align:center;color:#777;font-size:13px;padding:18px 6px;line-height:1.8}
+    .tr-item{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:right;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:6px;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;color:#222;cursor:pointer}
+    .tr-item:hover{background:#eef6ff;border-color:#bcd9f2}
+    .tr-item:disabled{opacity:.5;cursor:wait}
+    .tr-go{color:#2980b9;font-size:12.5px;font-weight:800}
     .room-pw-err{color:#c8392b;font-size:12px;font-weight:700;min-height:18px;margin-top:6px}
     .room-pw-btns{display:flex;gap:8px;margin-top:10px}
     .room-pw-btns button{flex:1;padding:10px;border:none;border-radius:9px;font-family:Cairo,sans-serif;font-weight:800;font-size:14px;cursor:pointer}
@@ -2909,6 +2881,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     <div id="viewContent"></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeViewModal()">إغلاق</button>
+      <button class="btn btn-outline" id="transferStudentBtn" style="display:none;border-color:#2980b9;color:#2980b9;" onclick="openTransferModal(viewingId)">🔀 نقل لفصل آخر</button>
       <button class="btn btn-primary" onclick="editFromView()">✏️ تعديل</button>
     </div>
   </div>
@@ -3396,12 +3369,11 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   // <<< stage-fix:snap-end
 
   function makeSnapshot() {
-    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, servantConfessions, servantMass, sessionMeta, className: getClassName(), stage: _snapStage(), gender: _snapGender(), classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, absenceReasons: absenceReasons, absenceReasonTexts: absenceReasonTexts, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2, ...(window.SOL ? window.SOL.exportToSnapshot() : {}) };
+    return { students, attendance, notes, recitations, recitationDone, confessions, massAttendance, servants, servantsAttendance, servantConfessions, servantMass, sessionMeta, className: getClassName(), stage: _snapStage(), gender: _snapGender(), classPhoto: currentClassPhoto, absenceDay: getAbsenceDayOfWeek(), followup: followupStore, absenceReasons: absenceReasons, absenceReasonTexts: absenceReasonTexts, activityLog: activityLog, savedAt: new Date().toISOString(), v: 2 };
   }
 
   function applySnapshot(snap) {
     if (!snap || !snap.students) return false;
-    if (window.SOL) window.SOL.initFromSnapshot(snap);
     students   = snap.students   || [];
     attendance = snap.attendance || {};
     notes      = snap.notes      || {};
@@ -5660,171 +5632,6 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     input.click();
   }
 
-  // ===================================================
-  // ☁️ مودال التخزين السحابي ونقل الصور (Sons of Light S3)
-  // ===================================================
-  function openCloudStorageModal() {
-    if (!window.CloudStorage) {
-      alert('⚠️ لم يتم تحميل مكتبة التخزين السحابي بعد');
-      return;
-    }
-
-    const cfg = window.CloudStorage.config;
-    let legacyStudentPhotos = 0;
-    let legacyServantPhotos = 0;
-    let legacyClassPhoto = (currentClassPhoto && currentClassPhoto.startsWith('data:image')) ? 1 : 0;
-
-    if (Array.isArray(students)) {
-      students.forEach(s => { if (s.photo && s.photo.startsWith('data:image')) legacyStudentPhotos++; });
-    }
-    if (Array.isArray(servants)) {
-      servants.forEach(sv => { if (sv.photo && sv.photo.startsWith('data:image')) legacyServantPhotos++; });
-    }
-    const totalLegacy = legacyStudentPhotos + legacyServantPhotos + legacyClassPhoto;
-
-    const overlay = document.createElement('div');
-    overlay.className = 'overlay active';
-    overlay.style.cssText = 'display:flex;z-index:99999;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);position:fixed;inset:0;padding:16px;';
-    
-    overlay.innerHTML = `
-      <div style="background:var(--paper,#f5f0e8);border-radius:18px;padding:26px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.3);direction:rtl;border-top:5px solid #0284c7;font-family:'Cairo',sans-serif;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <h2 style="font-size:18px;font-weight:900;color:#0284c7;margin:0;">☁️ نظام التخزين السحابي (Sons of Light Cloud)</h2>
-          <button style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;" onclick="this.closest('.overlay').remove()">✕</button>
-        </div>
-
-        <div style="background:white;border-radius:12px;padding:14px;border:1px solid #bae6fd;margin-bottom:16px;font-size:13px;line-height:1.8;color:#0369a1;">
-          <strong>🎯 آلية التخزين السحابي المعتمدة:</strong><br>
-          • رفع صور المخدومين والخدام والفصول كملفات سحابية دائمة (URLs) بدلاً من Base64.<br>
-          • تقليص حجم الحفظ والمزامنة السحابية بنسبة تفوق 90% وتسريع التطبيق.<br>
-          • تنظيم المسارات السحابية بنفس هيكلية تطبيق أبناء النور:<br>
-          <code style="background:#f0f9ff;padding:2px 6px;border-radius:4px;font-size:11px;">defaults/user/{id}/...</code> &bull; <code style="background:#f0f9ff;padding:2px 6px;border-radius:4px;font-size:11px;">defaults/activityClass/{id}/...</code>
-        </div>
-
-        <div style="background:white;border-radius:12px;padding:16px;border:1px solid #e2e8f0;margin-bottom:16px;">
-          <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:10px;">📊 حالة الصور في الفصل الحالي:</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;">
-            <div style="background:#f8fafc;padding:10px;border-radius:8px;">
-              <span>صور المخدومين القديمة:</span> <strong>${legacyStudentPhotos}</strong>
-            </div>
-            <div style="background:#f8fafc;padding:10px;border-radius:8px;">
-              <span>صور الخدام القديمة:</span> <strong>${legacyServantPhotos}</strong>
-            </div>
-            <div style="background:#f8fafc;padding:10px;border-radius:8px;">
-              <span>صورة الفصل القديمة:</span> <strong>${legacyClassPhoto ? 'نعم (Base64)' : 'سحابية / فارغة'}</strong>
-            </div>
-            <div style="background:${totalLegacy > 0 ? '#fef3c7' : '#ecfdf5'};padding:10px;border-radius:8px;grid-column:span 2;color:${totalLegacy > 0 ? '#92400e' : '#065f46'};">
-              <strong>${totalLegacy > 0 ? `⚠️ يوجد ${totalLegacy} صورة مخزنة محلياً تحتاج ترحيل للسحابة` : '✅ جميع الصور مرفوعة على السحابة بنجاح!'}</strong>
-            </div>
-          </div>
-
-          ${totalLegacy > 0 ? `
-            <div style="margin-top:14px;">
-              <button id="btnStartMigration" class="btn" style="width:100%;background:#0284c7;color:white;font-weight:700;padding:10px;font-size:13px;" onclick="runLegacyPhotoMigration(this)">
-                🚀 ترحيل جميع الصور القديمة إلى التخزين السحابي الآن
-              </button>
-              <div id="migrationProgressWrap" style="display:none;margin-top:10px;">
-                <div style="font-size:12px;color:#555;margin-bottom:4px;" id="migrationStatusLabel">جارٍ الترحيل...</div>
-                <div style="background:#e2e8f0;border-radius:10px;height:10px;overflow:hidden;">
-                  <div id="migrationProgressBar" style="width:0%;height:100%;background:#0284c7;transition:width 0.2s;"></div>
-                </div>
-              </div>
-            </div>
-          ` : ''}
-        </div>
-
-        <div style="background:white;border-radius:12px;padding:16px;border:1px solid #e2e8f0;margin-bottom:16px;">
-          <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:10px;">⚙️ موفر التخزين السحابي:</div>
-          <div style="display:flex;gap:16px;font-size:13px;margin-bottom:12px;">
-            <label style="cursor:pointer;display:flex;align-items:center;gap:6px;">
-              <input type="radio" name="csProvider" value="supabase" ${cfg.provider === 'supabase' ? 'checked' : ''} onchange="toggleStorageProviderFields(this.value)">
-              <span>Supabase Storage (متوافق مع S3 - مدمج)</span>
-            </label>
-            <label style="cursor:pointer;display:flex;align-items:center;gap:6px;">
-              <input type="radio" name="csProvider" value="aws-s3" ${cfg.provider === 'aws-s3' ? 'checked' : ''} onchange="toggleStorageProviderFields(this.value)">
-              <span>Amazon AWS S3 (نمط أبناء النور)</span>
-            </label>
-          </div>
-
-          <div id="s3Fields" style="display:${cfg.provider === 'aws-s3' ? 'block' : 'none'};background:#f8fafc;padding:12px;border-radius:8px;margin-top:10px;font-size:12px;">
-            <div style="margin-bottom:8px;">
-              <label style="display:block;margin-bottom:4px;font-weight:700;">اسم الحاوية (Bucket Name):</label>
-              <input type="text" id="csAwsBucket" class="input" style="width:100%;padding:6px 10px;font-size:12px;" value="${cfg.awsBucket || 'cathedral-media'}">
-            </div>
-            <div style="margin-bottom:8px;">
-              <label style="display:block;margin-bottom:4px;font-weight:700;">المنطقة (AWS Region):</label>
-              <input type="text" id="csAwsRegion" class="input" style="width:100%;padding:6px 10px;font-size:12px;" value="${cfg.awsRegion || 'us-east-2'}">
-            </div>
-            <div>
-              <label style="display:block;margin-bottom:4px;font-weight:700;">رابط مخصص (Endpoint - اختياري):</label>
-              <input type="text" id="csAwsEndpoint" class="input" style="width:100%;padding:6px 10px;font-size:12px;" placeholder="اتركه فارغاً لـ AWS القياسي" value="${cfg.awsEndpoint || ''}">
-            </div>
-          </div>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;gap:10px;">
-          <button class="btn btn-outline" style="font-size:13px;padding:8px 18px;" onclick="this.closest('.overlay').remove()">إغلاق</button>
-          <button class="btn" style="background:#1a7a4a;color:white;font-size:13px;padding:8px 18px;" onclick="saveCloudStorageSettings(this)">💾 حفظ الإعدادات</button>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(overlay);
-  }
-
-  function toggleStorageProviderFields(val) {
-    const el = document.getElementById('s3Fields');
-    if (el) el.style.display = (val === 'aws-s3') ? 'block' : 'none';
-  }
-
-  function saveCloudStorageSettings(btn) {
-    const prov = document.querySelector('input[name="csProvider"]:checked').value;
-    const cfg = window.CloudStorage.config;
-    cfg.provider = prov;
-    if (prov === 'aws-s3') {
-      cfg.awsBucket = (document.getElementById('csAwsBucket').value || 'cathedral-media').trim();
-      cfg.awsRegion = (document.getElementById('csAwsRegion').value || 'us-east-2').trim();
-      cfg.awsEndpoint = (document.getElementById('csAwsEndpoint').value || '').trim();
-    }
-    localStorage.setItem('sol_cathedral_cloud_storage_v1', JSON.stringify(cfg));
-    showToast('✅ تم حفظ إعدادات التخزين السحابي بنجاح');
-    btn.closest('.overlay').remove();
-  }
-
-  async function runLegacyPhotoMigration(btn) {
-    if (!confirm('سيتم رفع كل الصور المحفوظة محلياً إلى السحابة واستبدالها بروابط سريعة. هل تريد المتابعة؟')) return;
-    btn.disabled = true;
-    const progressWrap = document.getElementById('migrationProgressWrap');
-    const statusLabel = document.getElementById('migrationStatusLabel');
-    const progressBar = document.getElementById('migrationProgressBar');
-    if (progressWrap) progressWrap.style.display = 'block';
-
-    try {
-      const result = await window.CloudStorage.migrateLegacyPhotos(
-        students,
-        servants,
-        currentClassPhoto,
-        ({ current, total, name }) => {
-          if (statusLabel) statusLabel.textContent = `جارٍ ترحيل (${current}/${total}): ${name}`;
-          if (progressBar) progressBar.style.width = Math.round((current / total) * 100) + '%';
-        }
-      );
-
-      if (result.newClassPhoto) {
-        currentClassPhoto = result.newClassPhoto;
-        updateClassPhotoUI(currentClassPhoto);
-      }
-
-      save();
-      renderAll();
-      alert('🎉 ' + result.message);
-      btn.closest('.overlay').remove();
-    } catch (e) {
-      alert('⚠️ حدث خطأ أثناء الترحيل: ' + (e.message || e));
-      btn.disabled = false;
-    }
-  }
-
   function getToday() {
     return document.getElementById('attendanceDate').value;
   }
@@ -6524,7 +6331,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
           <div class="sc-top">
             <div class="sc-photo" onclick="viewStudent('${s.id}')">${_cardPhoto}</div>
             <div class="sc-main">
-              <strong class="sc-name">${_esc(s.name)}</strong>${window.SOL&&SOL.badgeChips?SOL.badgeChips(s):''}
+              <strong class="sc-name">${_esc(s.name)}</strong>
               <div class="call-btns-group" style="margin-top:4px;">
                 ${s.ownPhone ? `<a class="call-btn" href="tel:${s.ownPhone}" title="اتصال بالمخدوم مباشرة" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;">📱 ${s.ownPhone}</a>` : ''}
                 ${s.phone ? `<a class="call-btn" href="tel:${s.phone}" title="اتصال بولي الأمر">📞 ${s.phone}</a>` : ''}
@@ -6611,36 +6418,17 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   }
 
   // =================== صورة الفصل ===================
-  async function handleClassPhoto(event) {
+  function handleClassPhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
-    setStatus('⏳ جاري معالجة ورفع صورة الفصل إلى التخزين السحابي...', '#d4a017', true);
-    try {
-      if (window.CloudStorage) {
-        const classId = (typeof ACTIVE_CHAPTER_ID !== 'undefined' && ACTIVE_CHAPTER_ID) || 'general';
-        const res = await CloudStorage.uploadClassPhoto(classId, file);
-        currentClassPhoto = res.url;
-        updateClassPhotoUI(res.previewDataUrl || res.url);
-        setStatus('✅ تم رفع صورة الفصل إلى التخزين السحابي', '#1a7a4a', false);
-        save();
-      } else {
-        const dataUrl = await compressImage(file);
-        currentClassPhoto = dataUrl;
-        updateClassPhotoUI(currentClassPhoto);
-        save();
-      }
-    } catch (err) {
-      console.warn('تعذر الرفع السحابي لصورة الفصل، جاري الحفظ المحلي:', err);
-      try {
-        const dataUrl = await compressImage(file);
-        currentClassPhoto = dataUrl;
-        updateClassPhotoUI(currentClassPhoto);
-        setStatus('⚠️ تم الحفظ محلياً (تعذر الاتصال بالسحابة)', '#d4a017', false);
-        save();
-      } catch (e2) {
-        setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
-      }
-    }
+    setStatus('⏳ جاري معالجة الصورة...', '#d4a017', true);
+    compressImage(file).then(dataUrl => {
+      currentClassPhoto = dataUrl;
+      updateClassPhotoUI(currentClassPhoto);
+      save();
+    }).catch(() => {
+      setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
+    });
   }
 
   function updateClassPhotoUI(src) {
@@ -6911,34 +6699,17 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     }
   }
 
-  async function handlePhoto(event) {
+  function handlePhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
-    setStatus('⏳ جاري معالجة ورفع صورة المخدوم للسحابة...', '#d4a017', true);
-    try {
-      const studentIdInput = (document.getElementById('studentId') && document.getElementById('studentId').value.trim()) || editingId || ('stu_' + Date.now());
-      if (window.CloudStorage) {
-        const res = await CloudStorage.uploadStudentPhoto(studentIdInput, file);
-        currentPhoto = res.url;
-        updatePhotoPreview(res.previewDataUrl || res.url);
-        setStatus('✅ تم رفع صورة المخدوم بنجاح إلى التخزين السحابي', '#1a7a4a', false);
-      } else {
-        const dataUrl = await compressImage(file);
-        currentPhoto = dataUrl;
-        updatePhotoPreview(currentPhoto);
-        setStatus('✅ تم تحميل الصورة', '#1a7a4a', false);
-      }
-    } catch (err) {
-      console.warn('تعذر الرفع السحابي لصورة المخدوم، جاري الحفظ المحلي:', err);
-      try {
-        const dataUrl = await compressImage(file);
-        currentPhoto = dataUrl;
-        updatePhotoPreview(currentPhoto);
-        setStatus('⚠️ تم الحفظ محلياً (تعذر الاتصال بالسحابة)', '#d4a017', false);
-      } catch (e2) {
-        setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
-      }
-    }
+    setStatus('⏳ جاري معالجة الصورة...', '#d4a017', true);
+    compressImage(file).then(dataUrl => {
+      currentPhoto = dataUrl;
+      updatePhotoPreview(currentPhoto);
+      setStatus('✅ تم تحميل الصورة', '#1a7a4a', false);
+    }).catch(() => {
+      setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
+    });
   }
 
   function saveStudent() {
@@ -7098,43 +6869,9 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
         <tr><td style="padding:8px;">${s.extraNotes || '—'}</td></tr>
       </table>
-
-      <div style="${sectionStyle}"><span>🪙</span><span>النقاط والأوسمة والافتقاد (أبناء النور)</span></div>
-      <table style="width:100%;border-collapse:collapse;font-size:14px;">
-        <tr>
-          <td style="padding:8px;color:#888;width:40%">النقاط التراكمية</td>
-          <td style="padding:8px">
-            <span style="font-weight:800;color:#d97706;font-size:15px;">🪙 ${s.points||0} نقطة</span>
-            <button onclick="if(typeof SOL!=='undefined')SOL.openPointsModal('${s.id}')" style="margin-right:8px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;cursor:pointer;color:#92400e;">عرض السجل / إضافة</button>
-          </td>
-        </tr>
-        <tr style="background:#f9f9f7">
-          <td style="padding:8px;color:#888">الأوسمة الروحية</td>
-          <td style="padding:8px">
-            <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
-              ${(s.badges||[]).length ? (s.badges||[]).map(id => { const b = (window.SOL&&SOL.badgesList.find(x=>x.id===id)); return b ? `<span title="${b.desc||''}" style="background:#f3e8ff;color:#7c3aed;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;">${b.icon} ${b.name}${(s.badgeDates&&s.badgeDates[id])?` <small style="color:#a78bfa">${s.badgeDates[id]}</small>`:''}</span>` : ''; }).join('') : '<span style="color:#aaa;">لا توجد أوسمة بعد</span>'}
-              <button onclick="if(typeof SOL!=='undefined')SOL.openBadgesModal('${s.id}')" style="margin-right:8px;background:#f3e8ff;border:1px solid #d8b4fe;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;cursor:pointer;color:#7c3aed;">إدارة الأوسمة</button>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:8px;color:#888">الافتقادات المسجلة</td>
-          <td style="padding:8px">
-            <span style="font-weight:700;color:#1e40af;">🚗 ${((window.SOL&&SOL.visitsData&&SOL.visitsData[s.id])||[]).length} زيارة</span>
-            <button onclick="if(typeof SOL!=='undefined')SOL.openRecordVisitModal('${s.id}')" style="margin-right:8px;background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;cursor:pointer;color:#1e40af;">تسجيل افتقاد جديد</button>
-          </td>
-        </tr>
-        <tr style="background:#f9f9f7">
-          <td style="padding:8px;color:#888">الوسوم والتصنيفات</td>
-          <td style="padding:8px">
-            <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
-              ${(s.tags||[]).length ? (s.tags||[]).map(t => `<span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;">🏷️ ${t}</span>`).join('') : '<span style="color:#aaa;">بدون وسوم</span>'}
-              <button onclick="if(typeof SOL!=='undefined')SOL.openStudentTagsModal('${s.id}')" style="margin-right:8px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;cursor:pointer;color:#166534;">تعديل الوسوم</button>
-            </div>
-          </td>
-        </tr>
-      </table>
       ${qrSectionHtml('student', s.id, sectionStyle)}`;
+    const trBtn = document.getElementById('transferStudentBtn');
+    if (trBtn) trBtn.style.display = _canShowTransfer() ? '' : 'none';
     document.getElementById('viewOverlay').classList.add('active');
   }
 
@@ -8208,34 +7945,17 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   // =================== SERVANTS MOTOR ENGINE ===================
   function generateServantId() { return 'srv_' + Date.now() + '_' + Math.random().toString(36).substr(2,5); }
 
-  async function handleServantPhoto(event) {
+  function handleServantPhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
-    setStatus('⏳ جاري معالجة ورفع صورة الخادم للسحابة...', '#d4a017', true);
-    try {
-      const servantId = editingServantId || ('srv_' + Date.now());
-      if (window.CloudStorage) {
-        const res = await CloudStorage.uploadServantPhoto(servantId, file);
-        currentServantPhoto = res.url;
-        updateServantPhotoPreview(res.previewDataUrl || res.url);
-        setStatus('✅ تم رفع صورة الخادم بنجاح إلى التخزين السحابي', '#1a7a4a', false);
-      } else {
-        const dataUrl = await compressImage(file);
-        currentServantPhoto = dataUrl;
-        updateServantPhotoPreview(currentServantPhoto);
-        setStatus('✅ تم تحميل الصورة', '#1a7a4a', false);
-      }
-    } catch (err) {
-      console.warn('تعذر الرفع السحابي لصورة الخادم، جاري الحفظ المحلي:', err);
-      try {
-        const dataUrl = await compressImage(file);
-        currentServantPhoto = dataUrl;
-        updateServantPhotoPreview(currentServantPhoto);
-        setStatus('⚠️ تم الحفظ محلياً (تعذر الاتصال بالسحابة)', '#d4a017', false);
-      } catch (e2) {
-        setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
-      }
-    }
+    setStatus('⏳ جاري معالجة الصورة...', '#d4a017', true);
+    compressImage(file).then(dataUrl => {
+      currentServantPhoto = dataUrl;
+      updateServantPhotoPreview(currentServantPhoto);
+      setStatus('✅ تم تحميل الصورة', '#1a7a4a', false);
+    }).catch(() => {
+      setStatus('⚠️ تعذّر تحميل هذه الصورة، حاول بصورة أخرى', '#c8392b', false);
+    });
   }
 
   function removeServantPhoto() {
@@ -9580,6 +9300,187 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   document.addEventListener('DOMContentLoaded', function () { try { renderRoomStudents(); } catch (e) {} });
 </script>
 
+<!-- ===== نقل مخدوم من فصل إلى فصل (صلاحية مفوَّضة من الأمين) ===== -->
+<script>
+  // أقصى عدد فصول تُعرض كأهداف نقل دفعة واحدة (البحث يضيّق القائمة)
+  const TRANSFER_LIST_MAX = 60;
+  let _transferStudentId = null;
+
+  function _groupOfStage(stageId) { return (stageId && STAGE_INDEX[stageId]) ? STAGE_INDEX[stageId].group.id : ''; }
+
+  // فصول نفس المرحلة ونفس الفئة (بنين/بنات) عدا الفصل المفتوح حالياً
+  function _transferCandidates() {
+    const grp = _groupOfStage(_stageOf(ACTIVE_CHAPTER_ID) || ACTIVE_CHAPTER_STAGE);
+    const gen = _genderOf(ACTIVE_CHAPTER_ID) || ACTIVE_CHAPTER_GENDER;
+    if (!grp || !gen) return [];
+    return (_chaptersCache || [])
+      .filter(c => String(c.chapter_id) !== String(ACTIVE_CHAPTER_ID) &&
+                   _groupOfStage(_stageOf(String(c.chapter_id))) === grp &&
+                   _genderOf(String(c.chapter_id)) === gen)
+      .map(c => ({ id: String(c.chapter_id), name: c.chapter_name || 'بدون اسم' }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  }
+
+  function _canShowTransfer() {
+    try { return !!(window.WelcomeGate && WelcomeGate.canTransfer && WelcomeGate.canTransfer()); } catch (e) { return false; }
+  }
+
+  function closeTransferModal() { const m = document.getElementById('transferModal'); if (m) m.remove(); }
+
+  function openTransferModal(studentId) {
+    if (!_canShowTransfer()) return;
+    const s = students.find(x => x.id === studentId);
+    if (!s) return;
+    _transferStudentId = studentId;
+    closeTransferModal();
+    const list = _transferCandidates();
+    const m = document.createElement('div');
+    m.id = 'transferModal';
+    m.className = 'tr-ov';
+    m.innerHTML =
+      '<div class="tr-box" role="dialog" aria-modal="true">' +
+        '<h3>🔀 نقل المخدوم «' + _esc(s.name) + '» إلى فصل آخر</h3>' +
+        '<p class="tr-sub">اختر الفصل الذي سينتقل إليه المخدوم. يُنقل معه تاريخ حضوره وغيابه واعترافه وملاحظاته بالكامل، ويختفي من فصل «' + _esc(ACTIVE_CHAPTER_NAME || '') + '».</p>' +
+        '<input type="search" id="trSearch" class="tr-search" placeholder="🔍 ابحث عن اسم الفصل" autocomplete="off">' +
+        '<div id="trList" class="tr-list"></div>' +
+        '<button type="button" class="btn btn-outline" id="trCancel" style="width:100%;margin-top:10px;">إلغاء</button>' +
+      '</div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m) closeTransferModal(); });
+    document.getElementById('trCancel').addEventListener('click', closeTransferModal);
+    document.getElementById('trSearch').addEventListener('input', _renderTransferList);
+    document.getElementById('trList').addEventListener('click', e => {
+      const b = e.target.closest ? e.target.closest('button[data-tid]') : null;
+      if (b && !b.disabled) _confirmTransfer(b.getAttribute('data-tid'), b.getAttribute('data-tname'));
+    });
+    m._candidates = list;
+    _renderTransferList();
+  }
+
+  function _renderTransferList() {
+    const box = document.getElementById('trList');
+    const m = document.getElementById('transferModal');
+    if (!box || !m) return;
+    const q = _normAr((document.getElementById('trSearch') || {}).value || '');
+    const all = m._candidates || [];
+    const list = all.filter(c => !q || _normAr(c.name).indexOf(q) !== -1).slice(0, TRANSFER_LIST_MAX);
+    if (!all.length) { box.innerHTML = '<div class="tr-empty">لا توجد فصول أخرى في نفس المرحلة والفئة لنقل المخدوم إليها.</div>'; return; }
+    if (!list.length) { box.innerHTML = '<div class="tr-empty">لا توجد نتائج مطابقة.</div>'; return; }
+    box.innerHTML = list.map(c =>
+      '<button type="button" class="tr-item" data-tid="' + _esc(c.id) + '" data-tname="' + _esc(c.name) + '">' +
+        '<span>🏫 ' + _esc(c.name) + '</span><span class="tr-go">نقل ←</span></button>'
+    ).join('');
+  }
+
+  async function _confirmTransfer(targetId, targetName) {
+    const studentId = _transferStudentId;
+    const s = students.find(x => x.id === studentId);
+    if (!s || !targetId) return;
+    if (!confirm('⚠️ سيُنقل المخدوم «' + s.name + '» نهائياً إلى فصل «' + targetName + '» بكل بياناته وتاريخه. هل أنت متأكد؟')) return;
+    const box = document.getElementById('trList');
+    if (box) box.querySelectorAll('button[data-tid]').forEach(b => b.disabled = true);
+    if (typeof setStatus === 'function') setStatus('⟳ جاري نقل المخدوم...', '#2980b9', true);
+    try {
+      await _doTransferStudent(studentId, targetId, targetName);
+      if (typeof setStatus === 'function') setStatus('✅ تم نقل المخدوم بنجاح', '#1a7a4a', false);
+      closeTransferModal();
+      if (typeof closeViewModal === 'function') closeViewModal();
+      alert('✅ تم نقل المخدوم «' + s.name + '» إلى فصل «' + targetName + '» بنجاح.');
+    } catch (e) {
+      alert('❌ تعذّر نقل المخدوم: ' + _errText(e));
+      if (box) box.querySelectorAll('button[data-tid]').forEach(b => b.disabled = false);
+      if (typeof setStatus === 'function') setStatus('⚠️ فشل النقل', '#c8392b', false);
+    }
+  }
+
+  // ينقل مخدوماً وكل بياناته المرتبطة به (حضور/غياب/اعتراف/قداس/ملاحظات/تسميع/افتقاد)
+  // من الفصل المفتوح حالياً إلى فصل آخر، عبر كتابة مباشرة على السحابة (بمعزل عن قفل العرض فقط)
+  // حتى تعمل الصلاحية المفوَّضة من الأمين سواء كان الفصل المفتوح فصل المستخدم نفسه أو لا.
+  async function _doTransferStudent(studentId, targetId, targetName) {
+    if (!_supabaseClient) throw new Error('لا يوجد اتصال بالسحابة');
+    const sObj = students.find(x => x.id === studentId);
+    if (!sObj) throw new Error('تعذّر العثور على المخدوم');
+
+    // 1) قراءة أحدث نسخة من الفصل الهدف
+    const { data: tdata, error: terr } = await _supabaseClient.rpc('get_class_record', { p_class_id: targetId });
+    if (terr) throw terr;
+    let tsnap = _unwrapSnap(tdata);
+    if (!tsnap) {
+      if (_hasUnparsedSnapshot(tdata)) throw new Error('سجل الفصل الهدف في السحابة بصيغة غير مفهومة');
+      tsnap = {
+        students: [], servants: [], attendance: {}, notes: {}, recitations: {}, recitationDone: {},
+        confessions: {}, massAttendance: {}, followup: {}, absenceReasons: {}, absenceReasonTexts: {},
+        activityLog: [], className: targetName, stage: _stageOf(targetId) || ACTIVE_CHAPTER_STAGE,
+        gender: _genderOf(targetId) || ACTIVE_CHAPTER_GENDER, savedAt: new Date().toISOString(), v: 2
+      };
+    }
+    if ((tsnap.students || []).some(x => x.id === studentId)) {
+      throw new Error('رقم المخدوم موجود بالفعل في الفصل الهدف — غيّر رقم المخدوم في فصله الحالي أولاً ثم أعد المحاولة');
+    }
+
+    // 2) تجميع كل ما يخص هذا المخدوم من الحالة الحالية (المحمّلة في الذاكرة لهذا الفصل)
+    const pickKeyed = obj => {
+      const out = {};
+      Object.keys(obj || {}).forEach(d => { if (obj[d] && obj[d][studentId] !== undefined) out[d] = obj[d][studentId]; });
+      return out;
+    };
+    const moved = {
+      attendance: pickKeyed(attendance), notes: pickKeyed(notes),
+      recitations: pickKeyed(recitations), recitationDone: pickKeyed(recitationDone),
+      absenceReasons: pickKeyed(absenceReasons), absenceReasonTexts: pickKeyed(absenceReasonTexts),
+      confession: confessions[studentId], mass: massAttendance[studentId],
+      followup: (typeof followupStore !== 'undefined') ? followupStore[studentId] : undefined
+    };
+
+    // 3) دمجها داخل سجل الفصل الهدف
+    const mergeKeyed = (base, src) => {
+      base = base || {};
+      Object.keys(src).forEach(d => { base[d] = base[d] || {}; base[d][studentId] = src[d]; });
+      return base;
+    };
+    tsnap.students = (tsnap.students || []).concat([{ ...sObj }]);
+    tsnap.attendance = mergeKeyed(tsnap.attendance, moved.attendance);
+    tsnap.notes = mergeKeyed(tsnap.notes, moved.notes);
+    tsnap.recitations = mergeKeyed(tsnap.recitations, moved.recitations);
+    tsnap.recitationDone = mergeKeyed(tsnap.recitationDone, moved.recitationDone);
+    tsnap.absenceReasons = mergeKeyed(tsnap.absenceReasons, moved.absenceReasons);
+    tsnap.absenceReasonTexts = mergeKeyed(tsnap.absenceReasonTexts, moved.absenceReasonTexts);
+    if (moved.confession !== undefined) { tsnap.confessions = tsnap.confessions || {}; tsnap.confessions[studentId] = moved.confession; }
+    if (moved.mass !== undefined) { tsnap.massAttendance = tsnap.massAttendance || {}; tsnap.massAttendance[studentId] = moved.mass; }
+    if (moved.followup !== undefined) { tsnap.followup = tsnap.followup || {}; tsnap.followup[studentId] = moved.followup; }
+    tsnap.activityLog = Array.isArray(tsnap.activityLog) ? tsnap.activityLog : [];
+    tsnap.activityLog.push({ t: 'transfer_student', by: _actorNow(), studentId, studentName: sObj.name, dir: 'in', other: ACTIVE_CHAPTER_NAME || '', at: new Date().toISOString() });
+    if (tsnap.activityLog.length > 300) tsnap.activityLog = tsnap.activityLog.slice(-300);
+    tsnap.savedAt = new Date().toISOString();
+
+    // 4) رفع الفصل الهدف أولاً — إن فشل، لا شيء تغيّر بعد
+    const { error: uerr1 } = await _supabaseClient.rpc('upsert_class_record', {
+      p_class_id: targetId, p_class_name: tsnap.className || targetName || 'بدون اسم', p_data: tsnap
+    });
+    if (uerr1) throw uerr1;
+
+    // 5) إزالته من الفصل الحالي في الذاكرة وتسجيل الحركة
+    students = students.filter(x => x.id !== studentId);
+    _roomPurgeStudentData(studentId);
+    activityLog.push({ t: 'transfer_student', by: _actorNow(), studentId, studentName: sObj.name, dir: 'out', other: targetName, at: new Date().toISOString() });
+    if (activityLog.length > 300) activityLog = activityLog.slice(-300);
+    if (typeof renderActivityLog === 'function') { try { renderActivityLog(); } catch (e) {} }
+
+    // 6) رفع الفصل الحالي مباشرة على السحابة (بمعزل عن قفل "العرض فقط" الخاص بالأمين على فصول غير فصله)
+    const sourceSnap = makeSnapshot();
+    const { error: uerr2 } = await _supabaseClient.rpc('upsert_class_record', {
+      p_class_id: ACTIVE_CHAPTER_ID, p_class_name: getClassName() || sourceSnap.className || 'بدون اسم', p_data: sourceSnap
+    });
+    if (uerr2) {
+      // الهدف استُلم المخدوم بالفعل؛ أبلغ المستخدم بوضوح بدلاً من تكرار المحاولة تلقائياً بصمت
+      throw new Error('تم نسخ المخدوم إلى الفصل الهدف، لكن تعذّر تحديث فصله الحالي (' + _errText(uerr2) + '). أعد تحميل الصفحة وتحقق من الفصلين.');
+    }
+    try { _touchChapterMeta(sourceSnap); } catch (e) {}
+    if (typeof setCloudDot === 'function') setCloudDot('on');
+    renderAll();
+  }
+</script>
+
 <!-- ===== نظام الافتقاد ===== -->
 <script>
   // تخزين حالة الافتقاد (تم / لم يتم) ونوعه وملاحظاته
@@ -9647,13 +9548,6 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   }
 
   // حساب عدد غيابات مخدوم معين
-  // جسر بيانات: يسمح لملفات sol-*.js بقراءة المتغيرات المعرّفة بـ let (لا تظهر على window تلقائيًا)
-  [['students', () => students, v => { students = v; }],
-   ['attendance', () => attendance, v => { attendance = v; }],
-   ['massAttendance', () => massAttendance, v => { massAttendance = v; }],
-   ['confessions', () => confessions, v => { confessions = v; }]
-  ].forEach(([k, g, s]) => { try { Object.defineProperty(window, k, { get: g, set: s, configurable: true }); } catch (e) {} });
-
   function getStudentAbsenceCount(studentId) {
     let count = 0;
     Object.keys(attendance).forEach(d => {

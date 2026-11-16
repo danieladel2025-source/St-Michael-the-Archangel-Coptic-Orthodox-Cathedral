@@ -215,6 +215,32 @@
     try { await c.rpc('set_servant_phone', { p_device: deviceId(), p_phone: phone }); } catch (e) {}
   }
 
+  /* ---------------------- صلاحية «نقل مخدوم» (يمنحها الأمين لخدام مرحلته) ---------------------- */
+  var PERMS_KEY = 'church_perms_v1';
+  var perms = (function () {
+    var p = readJSON(localStorage, PERMS_KEY);
+    return { can_transfer: !!(p && p.can_transfer), granted_by_name: (p && p.granted_by_name) || '' };
+  })();
+  // يرجع الصلاحيات من السيرفر، أو null إن تعذّر (الملف غير مثبّت / لا اتصال) فتبقى النسخة المخزّنة
+  async function refreshPerms() {
+    var c = anonClient();
+    if (!c || !profile) return null;
+    try {
+      var r = await c.rpc('get_my_perms', { p_device: deviceId() });
+      if (r.error || !r.data || typeof r.data !== 'object') return null;
+      perms = { can_transfer: r.data.can_transfer === true, granted_by_name: r.data.granted_by_name || '' };
+      writeJSON(localStorage, PERMS_KEY, perms);
+      return perms;
+    } catch (e) { return null; }
+  }
+  // المشرف العام والأمناء يملكونها أصلاً · الخادم العادي فقط إذا منحه إياها أمين مرحلته
+  function canTransfer() {
+    if (admin) return true;
+    if (!profile) return false;
+    if (isSecProfile(profile)) return true;
+    return !!perms.can_transfer;
+  }
+
   function stageName() {
     if (isSecProfile(profile)) return groupName(profile.stage_group);   // الأمين: اسم المرحلة (مثل «المرحلة الابتدائية»)
     return profile && stageValid(profile.stage) ? STAGE_INDEX[profile.stage].stage.name : '';
@@ -486,7 +512,32 @@
       '#wgPermModal li.view{border-right:4px solid #d4a017}',
       '#wgPermModal li.no{border-right:4px solid #c8392b}',
       '#wgPermModal .wgp-ok{margin-top:8px;width:100%;padding:12px;border:none;border-radius:12px;background:var(--green,#1a7a4a);color:#fff;',
-      ' font-family:inherit;font-size:15px;font-weight:900;cursor:pointer}'
+      ' font-family:inherit;font-size:15px;font-weight:900;cursor:pointer}',
+      '#wgPermModal .wgp-team{margin-top:8px;width:100%;padding:11px;border:2px solid var(--gold,#d4a017);border-radius:12px;background:#fff8e1;color:#7a5600;',
+      ' font-family:inherit;font-size:14px;font-weight:900;cursor:pointer}',
+      '#wgHeaderTeam{display:inline-flex !important;align-items:center;gap:5px;padding:4px 12px !important;border-radius:30px !important;',
+      ' background:rgba(26,122,74,.25) !important;border:1px solid rgba(26,122,74,.8) !important;font-weight:800;font-size:12.5px}',
+      /* نافذة صلاحيات الخدام (للأمين) */
+      '#wgTeamModal{position:fixed;inset:0;z-index:1000002;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;',
+      ' padding:14px;direction:rtl;font-family:"Cairo",sans-serif}',
+      '#wgTeamModal .wgt-box{background:var(--paper,#f5f0e8);width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;',
+      ' border-radius:18px;padding:16px 14px calc(14px + env(safe-area-inset-bottom,0px));border-top:5px solid var(--green,#1a7a4a);box-shadow:0 20px 60px rgba(0,0,0,.5)}',
+      '#wgTeamModal .wgt-head{font-size:17px;font-weight:900;color:var(--ink,#0d1117);margin-bottom:2px}',
+      '#wgTeamModal .wgt-sub{font-size:12.5px;color:#666;margin-bottom:10px;line-height:1.7}',
+      '#wgTeamModal .wgt-search{width:100%;padding:10px 12px;border:2px solid var(--line,#b5a98a);border-radius:10px;font-family:inherit;font-size:15px;background:#fff;outline:none}',
+      '#wgTeamModal .wgt-count{font-size:12px;font-weight:800;color:#17613a;margin:8px 2px 4px}',
+      '#wgTeamModal .wgt-list{overflow-y:auto;flex:1 1 auto;min-height:80px}',
+      '#wgTeamModal .wgt-empty{text-align:center;color:#777;font-size:13.5px;padding:22px 8px;line-height:1.8}',
+      '#wgTeamModal .wgt-grp{font-size:13px;font-weight:900;color:#444;margin:10px 2px 5px}',
+      '#wgTeamModal .wgt-own{background:#fdf0d5;color:#8a5a06;border:1px solid #f0cf72;border-radius:20px;padding:1px 8px;font-size:11px;margin-inline-start:4px}',
+      '#wgTeamModal .wgt-row{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:11px;padding:9px 11px;margin-bottom:6px}',
+      '#wgTeamModal .wgt-nm{flex:1 1 auto;font-size:14px;font-weight:800;color:#222;line-height:1.5}',
+      '#wgTeamModal .wgt-nm small{display:block;font-size:11.5px;font-weight:700;color:#888}',
+      '#wgTeamModal .wgt-sw{flex:0 0 auto;width:46px;height:26px;border:none;border-radius:20px;background:#c9c9c9;position:relative;cursor:pointer;transition:background .2s}',
+      '#wgTeamModal .wgt-sw::after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:right .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}',
+      '#wgTeamModal .wgt-sw.on{background:#1a7a4a}',
+      '#wgTeamModal .wgt-sw.on::after{right:23px}',
+      '#wgTeamModal .wgt-sw:disabled{opacity:.5;cursor:wait}'
     ].join('');
     document.head.appendChild(st);
   }
@@ -1146,6 +1197,7 @@
             '<div class="wg-chips">' + chips + '</div>' +
           '</div>' +
           '<button type="button" class="wg-btn" id="wgPermBtn">🛡️ صلاحياتي</button>' +
+          (isSecretary() ? '<button type="button" class="wg-btn" id="wgTeamBtn">🔑 صلاحيات الخدام</button>' : '') +
           '<button type="button" class="wg-btn" id="wgChangeBtn">' +
             (r === 'admin' ? '🚪 تسجيل الخروج' : '🔒 تغيير البيانات (للمشرف)') + '</button>' +
           (r === 'admin' ? '<button type="button" class="wg-btn" id="wgServBtn">👥 الخدام المسجّلون</button>' : '') +
@@ -1154,6 +1206,7 @@
           (r === 'servant' ? '<div class="wg-team" id="wgTeam" style="display:none"></div>' : '');
         $('wgChangeBtn').addEventListener('click', changeUser);
         $('wgPermBtn').addEventListener('click', openPermissions);
+        if ($('wgTeamBtn')) $('wgTeamBtn').addEventListener('click', openPermTeam);
         if ($('wgUnlockBtn')) $('wgUnlockBtn').addEventListener('click', adminUnlockProfile);
         if ($('wgServBtn')) $('wgServBtn').addEventListener('click', openServants);
         if ($('wgAnnBtn')) { $('wgAnnBtn').addEventListener('click', function () { showAnnouncements(false); }); updateAnnBtn(); ensureAnnLoaded(); }
@@ -1189,6 +1242,21 @@
         hdr.insertBefore(pb, hb.nextSibling);
       }
       pb.style.display = r ? '' : 'none';
+      // زر «صلاحيات الخدام» في الهيدر — للأمين فقط
+      var tb = $('wgHeaderTeam');
+      if (isSecretary()) {
+        if (!tb) {
+          tb = document.createElement('button');
+          tb.id = 'wgHeaderTeam';
+          tb.type = 'button';
+          tb.className = 'switch-chapter-btn';
+          tb.textContent = '🔑 صلاحيات الخدام';
+          tb.title = 'امنح خدام مرحلتك صلاحية نقل المخدومين بين الفصول';
+          tb.addEventListener('click', openPermTeam);
+          hdr.insertBefore(tb, pb.nextSibling);
+        }
+        tb.style.display = '';
+      } else if (tb) tb.style.display = 'none';
     }
   }
 
@@ -1439,27 +1507,118 @@
       L.push(pli('ok', '✅', 'يضيف الفصول ويعدّل أسماءها وكلمات سرها ومراحلها ويحذفها.'));
       L.push(pli('ok', '🎖️', 'يعيّن <b>أمين الخدمة</b> و<b>الأمين المساعد</b> لكل مرحلة (للبنين وللبنات) ويغيّر صفة أي خادم، من زر «👥 الخدام المسجّلون».'));
       L.push(pli('ok', '✅', 'يعدّل بيانات أي خادم مسجّل (الاسم / السنة أو المرحلة / الفئة / الفصل / الصفة) ويفتح قفلها.'));
+      L.push(pli('ok', '🔀', 'ينقل أي مخدوم من فصل إلى فصل آخر (بنفس الفئة بنين/بنات).'));
     } else if (t === 'assistant' || t === 'coordinator') {
       var st = esc(stageName()), g = esc(genderName()), other = profile.gender === 'girls' ? 'البنين' : 'البنات';
       L.push(pli('ok', '👀', 'يرى <b>كل فصول ' + st + ' (' + g + ')</b> فقط، ولا يرى فصول ' + other + '.'));
       if (profile.class_name) L.push(pli('ok', '✏️', 'يعدّل بيانات مخدومي <b>فصله «' + esc(profile.class_name) + '» فقط</b>: إضافة وتعديل وحذف وتسجيل الحضور والافتقاد.'));
       else L.push(pli('no', '⚠️', 'لم تحدّد <b>اسم فصلك</b> بعد — لن تستطيع تعديل أي فصل حتى تكمل بياناتك (سيُطلب منك ذلك).'));
-      L.push(pli('view', '🔒', 'بقية فصول ' + st + ': <b>عرض فقط</b> — يطّلع على البيانات ولا يعدّل ولا يحذف ولا يسجّل حضوراً.'));
+      L.push(pli('view', '🔒', 'بقية فصول ' + st + ': <b>عرض فقط</b> — يطّلع على البيانات ولا يعدّل ولا يحذف ولا يسجّل حضوراً (عدا نقل المخدومين).'));
+      L.push(pli('ok', '🔀', '<b>ينقل مخدوماً</b> من أي فصل في ' + st + ' (' + g + ') إلى فصل آخر من نفس المرحلة، من زر «🔀 نقل لفصل آخر» في بيانات المخدوم.'));
+      L.push(pli('ok', '🔑', '<b>يمنح خدام مرحلته</b> (في فصله أو في أي فصل آخر من المرحلة) صلاحية «نقل مخدوم» ويسحبها منهم، من زر «🔑 صلاحيات الخدام».'));
       L.push(pli('no', '⛔', 'لا يرى فصول المراحل الأخرى.'));
       L.push(pli('no', '⛔', 'لا يغيّر صفته أو مرحلته أو بياناته بنفسه — التغيير عن طريق <b>المشرف العام</b>.'));
       L.push(pli('ok', 'ℹ️', 'صلاحيات «الأمين المساعد» و«أمين الخدمة» <b>متطابقة</b>.'));
     } else if (t === 'servant') {
       L.push(pli('ok', '👀', 'يرى <b>فصله فقط</b>' + (profile.class_name ? ': «' + esc(profile.class_name) + '»' : ' (' + esc(stageName()) + ' - ' + esc(genderName()) + ')') + '.'));
       L.push(pli('ok', '✏️', 'يعدّل بيانات مخدومي فصله: إضافة وتعديل وحذف وتسجيل الحضور والافتقاد.'));
+      if (perms.can_transfer) L.push(pli('ok', '🔀', 'منحك ' + (perms.granted_by_name ? '<b>' + esc(perms.granted_by_name) + '</b>' : 'أمين مرحلتك') + ' صلاحية <b>نقل مخدوم</b> من فصلك إلى أي فصل آخر من نفس المرحلة والفئة (من زر «🔀 نقل لفصل آخر» في بيانات المخدوم).'));
+      else L.push(pli('no', '⛔', 'لا ينقل مخدوماً إلى فصل آخر إلا إذا منحه <b>أمين المرحلة</b> هذه الصلاحية.'));
       L.push(pli('no', '⛔', 'لا يرى فصول الآخرين ولا يستطيع تعديلها.'));
       L.push(pli('no', '⛔', 'لا يغيّر بياناته (الاسم / السنة / الفصل / الصفة) بنفسه — التغيير عن طريق <b>المشرف العام</b>.'));
     }
     return L.join('');
   }
 
+  /* ---------------------------- الأمين: منح / سحب صلاحية «نقل مخدوم» لخدام مرحلته ---------------------------- */
+  var permTeam = [];
+  function closePermTeam() { var m = $('wgTeamModal'); if (m) m.remove(); }
+  function permTeamMsg(t) { var l = $('wgtList'); if (l) l.innerHTML = '<div class="wgt-empty">' + esc(t) + '</div>'; }
+  function openPermTeam() {
+    if (!isSecretary()) return;
+    injectCss(); closePermTeam(); closePerms();
+    var m = document.createElement('div');
+    m.id = 'wgTeamModal';
+    m.innerHTML =
+      '<div class="wgt-box" role="dialog" aria-modal="true">' +
+        '<div class="wgt-head">🔑 صلاحيات الخدام — نقل المخدومين</div>' +
+        '<div class="wgt-sub">فعّل المفتاح لأي خادم من خدام ' + esc(stageName()) + ' (' + esc(genderName()) + ') ليستطيع نقل مخدوم من فصله إلى أي فصل آخر في نفس المرحلة — سواء كان الخادم في فصلك أو في فصل آخر. ويمكنك سحبها منه في أي وقت.</div>' +
+        '<input type="search" class="wgt-search" id="wgtSearch" placeholder="🔍 ابحث باسم الخادم أو الفصل" autocomplete="off">' +
+        '<div class="wgt-count" id="wgtCount"></div>' +
+        '<div class="wgt-list" id="wgtList"><div class="wgt-empty">⏳ جاري التحميل...</div></div>' +
+        '<button type="button" class="wgp-ok" id="wgtClose">إغلاق</button>' +
+      '</div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', function (e) { if (e.target === m) closePermTeam(); });
+    $('wgtClose').addEventListener('click', closePermTeam);
+    $('wgtSearch').addEventListener('input', renderPermTeam);
+    $('wgtList').addEventListener('click', onPermToggle);
+    loadPermTeam();
+  }
+  async function loadPermTeam() {
+    var c = anonClient();
+    if (!c) return permTeamMsg('لا يوجد اتصال بالسيرفر.');
+    try {
+      var r = await c.rpc('secretary_list_team', { p_device: deviceId() });
+      if (r.error) {
+        var msg = r.error.message || '';
+        return permTeamMsg(missingFn(r.error) ? 'شغّل ملف servant_perms.sql على Supabase أولاً.'
+          : (/not_secretary/.test(msg) ? 'صفتك كأمين غير محفوظة على السيرفر — اطلب من المشرف العام تأكيدها.' : 'تعذّر التحميل: ' + msg));
+      }
+      permTeam = Array.isArray(r.data) ? r.data : [];
+      renderPermTeam();
+    } catch (e) { permTeamMsg('تعذّر الاتصال بالسيرفر.'); }
+  }
+  function renderPermTeam() {
+    var box = $('wgtList'); if (!box) return;
+    var q = normName(($('wgtSearch') || {}).value || '');
+    var on = permTeam.filter(function (x) { return x.can_transfer; }).length;
+    if ($('wgtCount')) $('wgtCount').textContent = permTeam.length ? ('لديهم الصلاحية: ' + on + ' من ' + permTeam.length + ' خادم') : '';
+    var list = permTeam.filter(function (x) { return !q || normName(x.name).indexOf(q) !== -1 || normName(x.class_name).indexOf(q) !== -1; });
+    if (!list.length) return permTeamMsg(permTeam.length ? 'لا توجد نتائج مطابقة.' : 'لا يوجد خدام مسجّلون في مرحلتك بعد.');
+    var groups = {}, order = [];
+    list.forEach(function (x) {
+      var k = x.class_name || '— فصل غير محدد —';
+      if (!groups[k]) { groups[k] = []; order.push(k); }
+      groups[k].push(x);
+    });
+    order.sort(function (a, b) { return a.localeCompare(b, 'ar'); });
+    box.innerHTML = order.map(function (k) {
+      var own = profile && profile.class_name && normName(k) === normName(profile.class_name);
+      return '<div class="wgt-grp">🏫 ' + esc(k) + (own ? ' <span class="wgt-own">⭐ فصلك</span>' : '') + '</div>' +
+        groups[k].map(function (x) {
+          return '<div class="wgt-row"><div class="wgt-nm">' + esc(x.name) +
+            '<small>' + (x.can_transfer ? '✅ يستطيع نقل المخدومين' : 'بدون صلاحية نقل') + '</small></div>' +
+            '<button type="button" class="wgt-sw' + (x.can_transfer ? ' on' : '') + '" role="switch" aria-checked="' + (x.can_transfer ? 'true' : 'false') +
+            '" data-dev="' + esc(x.device_id) + '" aria-label="صلاحية النقل لـ ' + esc(x.name) + '"></button></div>';
+        }).join('');
+    }).join('');
+  }
+  async function onPermToggle(e) {
+    var b = e.target.closest ? e.target.closest('.wgt-sw') : null;
+    if (!b || b.disabled) return;
+    var dev = b.getAttribute('data-dev'), want = !b.classList.contains('on');
+    var c = anonClient(); if (!c) return alert('لا يوجد اتصال بالسيرفر.');
+    b.disabled = true;
+    try {
+      var r = await c.rpc('secretary_set_transfer_perm', { p_device: deviceId(), p_target: dev, p_allowed: want });
+      if (r.error || r.data !== true) {
+        alert(r.error ? (missingFn(r.error) ? 'شغّل ملف servant_perms.sql على Supabase أولاً.' : 'تعذّر الحفظ: ' + (r.error.message || ''))
+                      : 'لا يمكنك تغيير صلاحية هذا الخادم (خارج مرحلتك أو فئتك).');
+      } else {
+        permTeam.forEach(function (x) { if (x.device_id === dev) x.can_transfer = want; });
+      }
+    } catch (err) { alert('تعذّر الاتصال بالسيرفر.'); }
+    renderPermTeam();
+  }
+
   function openPermissions() {
     if (!role()) return;
     injectCss(); closePerms();
+    if (role() === 'servant' && !isSecretary()) {   // قد يكون الأمين منح/سحب الصلاحية منذ آخر فتح
+      var before = perms.can_transfer;
+      refreshPerms().then(function (p) { if (p && p.can_transfer !== before && $('wgPermModal')) openPermissions(); });
+    }
     var t = roleType(), id = activeId(), now = '';
     if (id && t) {
       var editable = canEditChapter(id), nm = (typeof ACTIVE_CHAPTER_NAME !== 'undefined' && ACTIVE_CHAPTER_NAME) || chapterName(id);
@@ -1476,11 +1635,13 @@
         '<div class="wgp-head">🛡️ صلاحياتي — ' + esc(roleLabel()) + '</div>' +
         '<div class="wgp-sub">' + esc(who) + ' · ' + esc(scope) + '</div>' +
         '<div class="wgp-body">' + now + '<ul>' + permItems() + '</ul></div>' +
+        (isSecretary() ? '<button type="button" class="wgp-team" id="wgpTeam">🔑 صلاحيات الخدام (نقل المخدومين)</button>' : '') +
         '<button type="button" class="wgp-ok" id="wgpOk">فهمت</button>' +
       '</div>';
     document.body.appendChild(m);
     m.addEventListener('click', function (e) { if (e.target === m) closePerms(); });
     $('wgpOk').addEventListener('click', closePerms);
+    if ($('wgpTeam')) $('wgpTeam').addEventListener('click', openPermTeam);
   }
 
   /* ---------------------------- وضع العرض فقط (خارج فصل الأمين) ---------------------------- */
@@ -1618,6 +1779,9 @@
     ownClass: ownClass,
     stageInScope: stageInScope,
     permissions: openPermissions,
+    canTransfer: canTransfer,
+    refreshPerms: refreshPerms,
+    openTeam: openPermTeam,
     role: role,
     actor: actor,
     summary: summary,
@@ -1695,5 +1859,7 @@
 
   applyRole();
   if (!role() || forceOpen || needsInfo()) show();
-  syncProfile().then(function () { showAnnouncements(true); pingTeam(); });
+  syncProfile().then(function () { refreshPerms(); showAnnouncements(true); pingTeam(); });
+  // الأمين قد يمنح/يسحب الصلاحية أثناء فتح التطبيق عند الخادم: نحدّثها عند الرجوع للتبويب
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && profile && !admin) refreshPerms(); });
 })();
