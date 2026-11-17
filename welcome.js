@@ -1831,7 +1831,24 @@
     try { sessionStorage.removeItem(CHAPTER_SESSION); } catch (e) {}
   }
   // مزامنة مع السيرفر: السيرفر هو المرجع، فلا يفيد تعديل البيانات من المتصفح
+  // فحص فتح القفل عن بُعد (من صفحة الدعم الفني — servant_unlock) دون الحاجة لجهاز المشرف نفسه
+  async function checkRemoteUnlock() {
+    if (admin || !profile || unlocked) return;
+    var c = anonClient();
+    if (!c) return;
+    try {
+      var r = await c.rpc('get_my_unlock', { p_device: deviceId() });
+      if (!r.error && r.data === true) {
+        try { sessionStorage.setItem(UNLOCK_KEY, '1'); } catch (e) {}
+        unlocked = true;
+        if (el) { applyLock(); prefill(); }
+        if (typeof showToast === 'function') { try { showToast('🔓 فتح الدعم الفني بياناتك للتعديل'); } catch (e2) {} }
+      }
+    } catch (e) {}
+  }
+
   async function syncProfile() {
+    await checkRemoteUnlock();
     var c = anonClient();
     if (!c || unlocked) return;
     try {
@@ -1883,4 +1900,33 @@
   syncProfile().then(function () { refreshPerms(); showAnnouncements(true); pingTeam(); });
   // الأمين قد يمنح/يسحب الصلاحية أثناء فتح التطبيق عند الخادم: نحدّثها عند الرجوع للتبويب
   document.addEventListener('visibilitychange', function () { if (!document.hidden && profile && !admin) refreshPerms(); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && profile && !admin) checkRemoteUnlock(); });
+
+  /* ---------------------------- 🧯 رفع أخطاء المتصفح تلقائياً (لصفحة الدعم الفني) ---------------------------- */
+  var _errLogCount = 0;
+  var _errLogSeen = {};
+  function _reportClientError(message, stack, source) {
+    try {
+      if (_errLogCount >= 15) return;                 // سقف لكل جلسة حتى لا نُغرق السيرفر عند خطأ متكرر
+      var key = String(message || '').slice(0, 120);
+      var now = Date.now();
+      if (_errLogSeen[key] && (now - _errLogSeen[key]) < 30000) return;   // نفس الخطأ خلال 30 ثانية: تجاهل
+      _errLogSeen[key] = now;
+      _errLogCount++;
+      var c = anonClient();
+      if (!c) return;
+      c.rpc('log_client_error', {
+        p_device: deviceId(), p_message: String(message || '').slice(0, 500),
+        p_stack: String(stack || '').slice(0, 2000), p_url: location.href.slice(0, 300),
+        p_ua: navigator.userAgent.slice(0, 300)
+      }).then(function () {}, function () {});
+    } catch (e) { /* صامت تماماً: لا نريد لخطأ في الإبلاغ نفسه أن يسبب خطأ آخر */ }
+  }
+  window.addEventListener('error', function (e) {
+    _reportClientError(e && e.message, e && e.error && e.error.stack, 'error');
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e && e.reason;
+    _reportClientError(r && r.message ? r.message : String(r), r && r.stack, 'unhandledrejection');
+  });
 })();

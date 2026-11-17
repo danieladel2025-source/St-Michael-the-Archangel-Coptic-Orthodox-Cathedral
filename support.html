@@ -112,6 +112,26 @@
   .ai-input-row textarea { flex:1; padding:10px 12px; border:1.5px solid var(--cream); border-radius:9px; font-family:inherit; font-size:14px; resize:vertical; min-height:44px; max-height:140px; }
   .ai-input-row button { border:none; border-radius:9px; background:var(--ink); color:#fff; padding:0 18px; font-family:inherit; font-weight:700; cursor:pointer; }
   .ai-input-row button:disabled { opacity:.5; cursor:wait; }
+
+  #alertBanner { padding:12px 22px; font-size:13.5px; font-weight:800; line-height:1.8; }
+  #alertBanner.warn { background:#fff8e1; color:#7a5600; border-bottom:2px solid #f0cf72; }
+  #alertBanner.bad { background:#fee2e2; color:#991b1b; border-bottom:2px solid #fca5a5; }
+
+  .sv-wrap { overflow-x:auto; background:#fff; border-radius:12px; border:1px solid var(--cream); }
+  table.data-table { width:100%; border-collapse:collapse; min-width:600px; }
+  table.data-table th, table.data-table td { padding:10px 12px; text-align:right; font-size:13px; border-bottom:1px solid var(--cream); white-space:nowrap; }
+  table.data-table th { background:var(--cream); font-weight:800; }
+  table.data-table td:first-child, table.data-table th:first-child { white-space:normal; }
+  .tg-sw { width:42px; height:24px; border:none; border-radius:20px; background:#c9c9c9; position:relative; cursor:pointer; }
+  .tg-sw::after { content:''; position:absolute; top:3px; right:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:right .2s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .tg-sw.on { background:var(--accent); }
+  .tg-sw.on::after { right:21px; }
+  .sm-btn { border:none; background:var(--cream); border-radius:8px; padding:4px 9px; cursor:pointer; font-size:11.5px; font-family:inherit; }
+  .bk-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .bk-row input[type=file] { font-size:12.5px; }
+  .settings-row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .settings-row label { font-size:12.5px; font-weight:700; color:#555; display:flex; align-items:center; gap:6px; }
+  .settings-row input[type=number] { width:80px; padding:7px 9px; border:1.5px solid var(--cream); border-radius:7px; font-family:inherit; }
 </style>
 </head>
 <body>
@@ -151,10 +171,15 @@
     </div>
   </div>
 
+  <div id="alertBanner" style="display:none;"></div>
   <div class="container">
     <div class="nav-row">
       <button class="btn btn-outline active" id="navSync" onclick="showPanel('sync')">🔄 حالة المزامنة والأخطاء</button>
       <button class="btn btn-outline" id="navLoad" onclick="showPanel('load')">📊 تحميل قاعدة البيانات</button>
+      <button class="btn btn-outline" id="navServants" onclick="showPanel('servants')">👥 الخدام</button>
+      <button class="btn btn-outline" id="navBackup" onclick="showPanel('backup')">💾 نسخ احتياطي</button>
+      <button class="btn btn-outline" id="navAnalytics" onclick="showPanel('analytics')">📈 التحليلات</button>
+      <button class="btn btn-outline" id="navErrors" onclick="showPanel('errors')">🧯 الأخطاء<span id="errBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-right:6px;"></span></button>
       <button class="btn btn-outline" id="navAi" onclick="showPanel('ai')">🤖 المساعد الذكي</button>
     </div>
 
@@ -167,6 +192,16 @@
 
     <!-- ========== تحميل قاعدة البيانات ========== -->
     <div class="panel" id="panel-load">
+      <div class="item" style="border-right-color:var(--gold);">
+        <b>🔔 عتبات التنبيه الاستباقي</b>
+        <div style="font-size:12px;color:#666;margin:6px 0 10px;">لما أي رقم يتجاوز العتبة دي، يظهرلك شريط تنبيه أعلى الصفحة + إشعار متصفح (لو مفعّل) طول ما الصفحة مفتوحة عندك.</div>
+        <div class="settings-row">
+          <label>نسبة الاتصالات % <input type="number" id="thConn" value="80" min="1" max="100" onchange="saveAlertThresholds()"></label>
+          <label>حجم القاعدة (ميجا، 0=تجاهل) <input type="number" id="thDb" value="0" min="0" onchange="saveAlertThresholds()"></label>
+          <label>زمن الاستجابة (ms) <input type="number" id="thLat" value="1500" min="100" onchange="saveAlertThresholds()"></label>
+          <button class="sm-btn" onclick="requestNotifyPermission()">🔔 فعّل إشعارات المتصفح</button>
+        </div>
+      </div>
       <div id="loadCards" class="cards"><div class="empty-state"><div class="ic">⏳</div>جاري القياس...</div></div>
       <div class="item" style="border-right-color:var(--accent2);">
         <b>كيف تُقرأ هذه الأرقام؟</b>
@@ -177,6 +212,52 @@
           • زمن الاستجابة هو وقت الرحلة الكاملة لهذا الفحص نفسه، كمؤشر تقريبي على سرعة استجابة قاعدة البيانات الآن.
         </div>
       </div>
+    </div>
+
+    <!-- ========== الخدام: فك القفل عن بُعد + عرض فصل أي خادم ========== -->
+    <div class="panel" id="panel-servants">
+      <input type="text" class="search-box" id="svSearch" placeholder="🔍 ابحث بالاسم أو اسم الفصل..." oninput="renderServants()">
+      <div id="svList"><div class="empty-state"><div class="ic">⏳</div>جاري التحميل...</div></div>
+    </div>
+
+    <!-- ========== نسخ احتياطي واسترجاع ========== -->
+    <div class="panel" id="panel-backup">
+      <div class="item" style="border-right-color:var(--accent2);">
+        <b>⬇️ تصدير نسخة كاملة</b>
+        <div style="font-size:12.5px;color:#666;margin:6px 0 10px;">يُنزّل ملف JSON واحد يحتوي كل الفصول كما هي الآن (مخدومين، خدام، حضور، كل شيء). احتفظ به قبل أي عملية خطرة.</div>
+        <button class="btn btn-outline" style="background:var(--ink);color:#fff;" onclick="exportBackup()">⬇️ تنزيل نسخة الآن</button>
+      </div>
+      <div class="item" style="border-right-color:var(--gold);">
+        <b>⬆️ استرجاع فصل من نسخة قديمة</b>
+        <div style="font-size:12.5px;color:#666;margin:6px 0 10px;">ارفع ملف نسخة احتياطية سبق تنزيله من هنا، ثم اختر فصلاً واحداً لاستعادته. سيُستبدل محتوى هذا الفصل بالكامل بما في الملف.</div>
+        <div class="bk-row">
+          <input type="file" id="bkFile" accept="application/json" onchange="loadBackupFile(event)">
+        </div>
+        <div id="bkChapters"></div>
+      </div>
+    </div>
+
+    <!-- ========== التحليلات: النمو + الأكثر/الأقل نشاطاً ========== -->
+    <div class="panel" id="panel-analytics">
+      <div class="item" style="border-right-color:var(--accent2);">
+        <div class="top"><b>📸 لقطات النمو</b><button class="btn btn-outline" style="background:var(--ink);color:#fff;" onclick="takeSnapshot()">📸 خذ لقطة الآن</button></div>
+        <div style="font-size:12.5px;color:#666;margin:6px 0 10px;">لا توجد جدولة تلقائية — اضغط الزر وقت ما تحب تسجّل نقطة جديدة على الخط الزمني لمتابعة النمو بمرور الوقت.</div>
+        <div id="snapList"><div class="empty-state" style="padding:20px;"><div class="ic">⏳</div>جاري التحميل...</div></div>
+      </div>
+      <div class="item" style="border-right-color:var(--green);">
+        <b>🏆 الأكثر نشاطاً</b>
+        <div id="topActive" style="margin-top:8px;"></div>
+      </div>
+      <div class="item" style="border-right-color:#999;">
+        <b>💤 الأقل نشاطاً (أو بلا نشاط مسجَّل)</b>
+        <div id="lowActive" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- ========== أخطاء المتصفح من أجهزة الخدام ========== -->
+    <div class="panel" id="panel-errors">
+      <input type="text" class="search-box" id="errSearch" placeholder="🔍 ابحث برسالة الخطأ أو الصفحة..." oninput="renderErrors()">
+      <div id="errList"><div class="empty-state"><div class="ic">⏳</div>جاري التحميل...</div></div>
     </div>
 
     <!-- ========== المساعد الذكي ========== -->
@@ -263,16 +344,28 @@
 
   // ================== التنقل بين التبويبات ==================
   function showPanel(name) {
-    ['sync', 'load', 'ai'].forEach(n => {
+    ['sync', 'load', 'servants', 'backup', 'analytics', 'errors', 'ai'].forEach(n => {
       document.getElementById('panel-' + n).classList.toggle('active', n === name);
       document.getElementById('nav' + n[0].toUpperCase() + n.slice(1)).classList.toggle('active', n === name);
     });
+    if (name === 'servants') loadServants();
+    if (name === 'analytics') { loadSnapshots(); renderActivity(); }
+    if (name === 'errors') loadErrors();
   }
 
   // ================== تحميل البيانات ==================
   let allClasses = [];
 
+  function initThresholdInputs() {
+    const t = alertThresholds();
+    document.getElementById('thConn').value = t.connPct;
+    document.getElementById('thDb').value = t.dbMb;
+    document.getElementById('thLat').value = t.latMs;
+  }
+
   async function loadAll(manual) {
+    initThresholdInputs();
+    loadErrors();
     const { data, error } = await sb.from('class_records').select('class_id, class_name, data, updated_at').order('updated_at', { ascending: false });
     if (!error) { allClasses = data || []; renderSync(); }
     else if (manual) alert('تعذر تحميل الفصول: ' + error.message);
@@ -356,9 +449,257 @@
       <div class="metric"><div class="lbl">كتابة خلال آخر يوم</div><div class="val">${h.writes_last_day != null ? h.writes_last_day : '—'}</div><div class="sub">فصل تمت مزامنته</div></div>
     `;
     window._lastHealth = h; window._lastHealthMs = ms;
+    evaluateAlerts(h, ms);
   }
 
-  // ================== المساعد الذكي ==================
+  // ---------- 🔔 تنبيهات استباقية (فحص عتبات + إشعار متصفح عند الفتح) ----------
+  const ALERT_KEY = 'support_alert_thresholds_v1';
+  function alertThresholds() {
+    try { return Object.assign({ connPct: 80, dbMb: 0, latMs: 1500 }, JSON.parse(localStorage.getItem(ALERT_KEY) || '{}')); }
+    catch (e) { return { connPct: 80, dbMb: 0, latMs: 1500 }; }
+  }
+  function saveAlertThresholds() {
+    const t = {
+      connPct: parseInt(document.getElementById('thConn').value, 10) || 80,
+      dbMb: parseInt(document.getElementById('thDb').value, 10) || 0,
+      latMs: parseInt(document.getElementById('thLat').value, 10) || 1500
+    };
+    try { localStorage.setItem(ALERT_KEY, JSON.stringify(t)); } catch (e) {}
+    loadDbHealth();
+  }
+  let _notifiedOnce = {};
+  function evaluateAlerts(h, ms) {
+    const t = alertThresholds();
+    const problems = [];
+    const connPct = (h.active_connections != null && h.max_connections) ? Math.round((h.active_connections / h.max_connections) * 100) : null;
+    if (connPct != null && connPct >= t.connPct) problems.push('الاتصالات النشطة ' + connPct + '٪ من الحد الأقصى (العتبة ' + t.connPct + '٪)');
+    if (t.dbMb > 0 && h.db_size_bytes != null && h.db_size_bytes / (1024 * 1024) >= t.dbMb) problems.push('حجم القاعدة تجاوز ' + t.dbMb + ' ميجا');
+    if (ms >= t.latMs) problems.push('زمن الاستجابة ' + ms + 'ms تجاوز العتبة ' + t.latMs + 'ms');
+
+    const banner = document.getElementById('alertBanner');
+    if (!problems.length) { banner.style.display = 'none'; return; }
+    banner.className = connPct != null && connPct >= 90 ? 'bad' : 'warn';
+    banner.style.display = 'block';
+    banner.innerHTML = '⚠️ ' + problems.join(' • ');
+
+    const sig = problems.join('|');
+    if (_notifiedOnce.sig !== sig && 'Notification' in window && Notification.permission === 'granted') {
+      try { new Notification('🛠️ تنبيه الدعم الفني', { body: problems.join('\n'), icon: '' }); } catch (e) {}
+    }
+    _notifiedOnce.sig = sig;
+  }
+  function requestNotifyPermission() {
+    if (!('Notification' in window)) { alert('المتصفح لا يدعم إشعارات سطح المكتب.'); return; }
+    Notification.requestPermission().then(p => {
+      if (p === 'granted') new Notification('🛠️ تم تفعيل إشعارات الدعم الفني', { body: 'سيصلك إشعار هنا عند تجاوز أي عتبة أثناء فتح هذه الصفحة.' });
+    });
+  }
+
+  // ================== 👥 الخدام: فك القفل عن بُعد + عرض فصل أي خادم ==================
+  let allServants = [];
+  let unlockAvail = false;
+
+  async function loadServants() {
+    const wrap = document.getElementById('svList');
+    wrap.innerHTML = '<div class="empty-state"><div class="ic">⏳</div>جاري التحميل...</div>';
+    const [r1, r2] = await Promise.all([
+      sb.rpc('admin_list_servants_phone'),
+      sb.rpc('admin_list_unlocked')
+    ]);
+    if (r1.error) {
+      const missing = r1.error.code === 'PGRST202' || r1.error.code === '42883' || /could not find|does not exist|schema cache/i.test(r1.error.message || '');
+      wrap.innerHTML = `<div class="empty-state"><div class="ic">⚠️</div>${missing ? 'شغّل ملفات servant_profiles.sql الخاصة بالخدام أولاً.' : 'تعذر التحميل: ' + escapeHtml(r1.error.message || '')}</div>`;
+      return;
+    }
+    allServants = r1.data || [];
+    unlockAvail = !r2.error;
+    const unlockedSet = new Set((r2.data || []).map(x => x.device_id));
+    allServants.forEach(s => { s.unlocked = unlockedSet.has(s.device_id); });
+    renderServants();
+  }
+
+  function renderServants() {
+    const wrap = document.getElementById('svList');
+    const q = (document.getElementById('svSearch').value || '').trim().toLowerCase();
+    const list = allServants.filter(s => !q || ((s.name || '') + ' ' + (s.class_name || '')).toLowerCase().includes(q));
+    if (!list.length) { wrap.innerHTML = '<div class="empty-state"><div class="ic">📭</div>' + (allServants.length ? 'لا توجد نتائج مطابقة.' : 'لا يوجد خدام مسجَّلون بعد.') + '</div>'; return; }
+    wrap.innerHTML = `<div class="sv-wrap"><table class="data-table"><thead><tr>
+      <th>الاسم</th><th>الفصل</th><th>🔓 فتح القفل عن بُعد</th><th>👁️ عرض فصله</th></tr></thead><tbody>
+      ${list.map((s, i) => {
+        const realIdx = allServants.indexOf(s);
+        return `<tr>
+          <td style="font-weight:700;">${escapeHtml(s.name || '')}</td>
+          <td>${s.class_name ? '🏫 ' + escapeHtml(s.class_name) : '<span style="color:#aaa;">— غير مسجَّل —</span>'}</td>
+          <td>${unlockAvail
+              ? `<button class="tg-sw${s.unlocked ? ' on' : ''}" role="switch" aria-checked="${s.unlocked ? 'true' : 'false'}" onclick="toggleUnlock(${realIdx})" title="${s.unlocked ? 'مفتوح الآن — يقدر يعدّل بياناته' : 'مقفول'}"></button>`
+              : '<span style="color:#bbb;font-size:11.5px;">شغّل support_extra.sql</span>'}</td>
+          <td>${s.class_name ? `<button class="sm-btn" onclick="openServantChapter(${realIdx})">👁️ فتح</button>` : '—'}</td>
+        </tr>`;
+      }).join('')}
+    </tbody></table></div>`;
+  }
+
+  async function toggleUnlock(i) {
+    const s = allServants[i];
+    if (!s) return;
+    const want = !s.unlocked;
+    if (want && !confirm('فتح قفل بيانات «' + s.name + '» يسمح له بتعديل اسمه ومرحلته ورقمه من جهازه مباشرة. متأكد؟')) return;
+    const { data, error } = await sb.rpc('admin_set_servant_unlock', { p_device: s.device_id, p_unlock: want });
+    if (error || data !== true) { alert('تعذر الحفظ: ' + (error ? error.message : 'غير معروف')); return; }
+    s.unlocked = want;
+    renderServants();
+  }
+
+  function openServantChapter(idx) {
+    const className = (allServants[idx] || {}).class_name;
+    const norm = x => (x || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    const target = allClasses.find(c => norm(c.class_name) === norm(className));
+    if (!target) { alert('لم يُعثر على فصل بهذا الاسم ضمن الفصول المُحمَّلة — افتح تبويب «🔄 حالة المزامنة» أولاً ثم أعد المحاولة.'); return; }
+    showChapterReadOnly(target);
+  }
+
+  function showChapterReadOnly(c) {
+    const d = c.data || {};
+    const stu = Array.isArray(d.students) ? d.students : [];
+    const srv = Array.isArray(d.servants) ? d.servants : [];
+    const rows = stu.map(x => `<tr><td>${escapeHtml(x.name || '')}</td><td>${escapeHtml(x.id || '')}</td></tr>`).join('') || '<tr><td colspan="2" style="color:#999;">لا يوجد مخدومون</td></tr>';
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${escapeHtml(c.class_name || '')} — عرض فقط</title>
+      <style>body{font-family:Cairo,Tahoma,sans-serif;padding:20px;background:#f5f0e8;}
+      table{width:100%;border-collapse:collapse;background:#fff;margin-top:14px;}
+      th,td{padding:8px 12px;border-bottom:1px solid #ddd;text-align:right;font-size:13.5px;}
+      th{background:#ede8dc;}h2{margin:0;}.m{color:#888;font-size:12.5px;}</style></head>
+      <body><h2>🏫 ${escapeHtml(c.class_name || 'بدون اسم')} <span class="m">(عرض فقط — كما يراه الخادم بالضبط)</span></h2>
+      <div class="m">المرحلة: ${escapeHtml(d.stage || '—')} • الفئة: ${d.gender === 'girls' ? 'بنات' : d.gender === 'boys' ? 'بنين' : '—'} • عدد الخدام: ${srv.length}</div>
+      <table><thead><tr><th>اسم المخدوم</th><th>الرقم</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+    win.document.close();
+  }
+
+  // ================== 💾 نسخ احتياطي واسترجاع ==================
+  function exportBackup() {
+    if (!allClasses.length) { alert('لم تُحمَّل بيانات الفصول بعد — افتح تبويب «🔄 حالة المزامنة» أولاً.'); return; }
+    const blob = new Blob([JSON.stringify(allClasses, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'church-backup-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  let _backupData = null;
+  function loadBackupFile(ev) {
+    const file = ev.target.files[0];
+    const box = document.getElementById('bkChapters');
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        _backupData = JSON.parse(reader.result);
+        if (!Array.isArray(_backupData)) throw new Error('bad');
+      } catch (e) { box.innerHTML = '<div style="color:var(--accent);font-size:13px;">⚠️ الملف غير صالح — تأكد أنه نسخة احتياطية مصدَّرة من هذه الصفحة.</div>'; _backupData = null; return; }
+      box.innerHTML = `<div style="font-size:12.5px;color:#666;margin-bottom:8px;">${_backupData.length} فصل في الملف. اختر واحداً للاستعادة:</div>` +
+        _backupData.map((c, i) => `<div class="item" style="padding:8px 12px;margin-bottom:6px;">
+          <div class="top"><span>🏫 ${escapeHtml(c.class_name || 'بدون اسم')} <span class="time">(${c.updated_at ? new Date(c.updated_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) : '—'})</span></span>
+          <button class="sm-btn" style="background:var(--accent);color:#fff;" onclick="restoreChapter(${i})">⬆️ استرجاع هذا الفصل</button></div>
+        </div>`).join('');
+    };
+    reader.readAsText(file);
+  }
+
+  async function restoreChapter(i) {
+    const c = _backupData && _backupData[i];
+    if (!c) return;
+    if (!confirm('⚠️ سيُستبدل محتوى فصل «' + (c.class_name || '') + '» بالكامل بما في النسخة الاحتياطية (تاريخ النسخة: ' + (c.updated_at || '—') + '). لا يمكن التراجع إلا برفع نسخة أخرى. متأكد؟')) return;
+    const { error } = await sb.from('class_records').update({ data: c.data, class_name: c.class_name }).eq('class_id', c.class_id);
+    if (error) { alert('تعذر الاسترجاع: ' + error.message); return; }
+    alert('✅ تم استرجاع فصل «' + (c.class_name || '') + '» بنجاح.');
+    loadAll(false);
+  }
+
+  // ================== 📈 التحليلات ==================
+  async function takeSnapshot() {
+    const { data, error } = await sb.rpc('admin_take_snapshot');
+    if (error) { alert('تعذر أخذ اللقطة: ' + error.message); return; }
+    loadSnapshots();
+  }
+
+  async function loadSnapshots() {
+    const wrap = document.getElementById('snapList');
+    const { data, error } = await sb.rpc('admin_list_snapshots');
+    if (error) {
+      const missing = error.code === 'PGRST202' || error.code === '42883' || /could not find|does not exist|schema cache/i.test(error.message || '');
+      wrap.innerHTML = `<div class="empty-state" style="padding:20px;"><div class="ic">⚠️</div>${missing ? 'شغّل ملف support_extra.sql أولاً.' : 'تعذر التحميل: ' + escapeHtml(error.message || '')}</div>`;
+      return;
+    }
+    const rows = data || [];
+    if (!rows.length) { wrap.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="ic">📭</div>لا توجد لقطات بعد — اضغط «خذ لقطة الآن».</div>'; return; }
+    wrap.innerHTML = `<div class="sv-wrap"><table class="data-table"><thead><tr><th>التاريخ</th><th>فصول</th><th>مخدومون</th><th>خدام</th><th>حجم القاعدة</th></tr></thead><tbody>
+      ${rows.slice().reverse().map(r => `<tr>
+        <td>${new Date(r.taken_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+        <td>${r.chapters_count}</td><td>${r.students_count}</td><td>${r.servants_count}</td>
+        <td>${r.db_size_bytes != null ? (r.db_size_bytes / 1048576).toFixed(1) + ' MB' : '—'}</td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+  }
+
+  function renderActivity() {
+    const counts = allClasses.map(c => ({ name: c.class_name || 'بدون اسم', n: ((c.data && c.data.activityLog) || []).length }));
+    const sorted = counts.slice().sort((a, b) => b.n - a.n);
+    const top = sorted.filter(x => x.n > 0).slice(0, 8);
+    const low = sorted.filter(x => x.n === 0);
+    const bar = (x, max) => `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div style="flex:0 0 140px;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(x.name)}</div>
+      <div style="flex:1;background:var(--cream);border-radius:6px;height:16px;overflow:hidden;"><div style="width:${max ? (x.n / max * 100) : 0}%;background:var(--accent2);height:100%;"></div></div>
+      <div style="flex:0 0 30px;text-align:left;font-size:12px;color:#888;">${x.n}</div></div>`;
+    const maxN = top.length ? top[0].n : 1;
+    document.getElementById('topActive').innerHTML = top.length ? top.map(x => bar(x, maxN)).join('') : '<div style="color:#999;font-size:13px;">لا يوجد نشاط مسجَّل في أي فصل بعد.</div>';
+    document.getElementById('lowActive').innerHTML = low.length
+      ? `<div style="font-size:12.5px;color:#666;margin-bottom:8px;">${low.length} فصل بلا أي نشاط مسجَّل في سجله:</div>` + low.slice(0, 20).map(x => `<span class="chip" style="margin:3px;display:inline-block;">🏫 ${escapeHtml(x.name)}</span>`).join('')
+      : '<div style="color:#1a7a4a;font-size:13px;">كل الفصول عليها نشاط مسجَّل.</div>';
+  }
+
+  // ================== 🧯 أخطاء المتصفح من أجهزة الخدام ==================
+  let allErrors = [];
+  async function loadErrors() {
+    const wrap = document.getElementById('errList');
+    const { data, error } = await sb.rpc('admin_list_client_errors', { p_limit: 300 });
+    if (error) {
+      const missing = error.code === 'PGRST202' || error.code === '42883' || /could not find|does not exist|schema cache/i.test(error.message || '');
+      wrap.innerHTML = `<div class="empty-state"><div class="ic">⚠️</div>${missing ? 'شغّل ملف support_extra.sql أولاً.' : 'تعذر التحميل: ' + escapeHtml(error.message || '')}</div>`;
+      return;
+    }
+    allErrors = data || [];
+    const open = allErrors.filter(e => !e.resolved).length;
+    const badge = document.getElementById('errBadge');
+    if (open > 0) { badge.textContent = open; badge.style.display = 'inline-block'; } else { badge.style.display = 'none'; }
+    renderErrors();
+  }
+
+  function renderErrors() {
+    const wrap = document.getElementById('errList');
+    const q = (document.getElementById('errSearch').value || '').trim().toLowerCase();
+    const list = allErrors.filter(e => !q || ((e.message || '') + ' ' + (e.url || '')).toLowerCase().includes(q));
+    if (!list.length) { wrap.innerHTML = '<div class="empty-state"><div class="ic">📭</div>' + (allErrors.length ? 'لا توجد نتائج مطابقة.' : 'لا توجد أخطاء مسجَّلة — ولا بأس بذلك!') + '</div>'; return; }
+    wrap.innerHTML = list.map(e => `<div class="item" style="border-right-color:${e.resolved ? '#999' : 'var(--accent)'};opacity:${e.resolved ? '.6' : '1'};">
+      <div class="top">
+        <div><b>${escapeHtml(e.message || 'بدون رسالة')}</b></div>
+        <button class="sm-btn" onclick="toggleErrorResolved(${e.id}, ${!e.resolved})">${e.resolved ? '↩️ إعادة فتح' : '✅ تمت المعالجة'}</button>
+      </div>
+      <div class="time">${new Date(e.created_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })} ${e.url ? ' • ' + escapeHtml(e.url) : ''}</div>
+      ${e.stack ? `<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:12px;color:#888;">تفاصيل تقنية</summary><pre style="white-space:pre-wrap;font-size:11.5px;color:#666;margin-top:6px;">${escapeHtml(e.stack)}</pre></details>` : ''}
+    </div>`).join('');
+  }
+
+  async function toggleErrorResolved(id, resolved) {
+    const { error } = await sb.rpc('admin_mark_error_resolved', { p_id: id, p_resolved: resolved });
+    if (error) { alert('تعذر الحفظ: ' + error.message); return; }
+    const e = allErrors.find(x => x.id === id); if (e) e.resolved = resolved;
+    const open = allErrors.filter(e => !e.resolved).length;
+    const badge = document.getElementById('errBadge');
+    if (open > 0) { badge.textContent = open; badge.style.display = 'inline-block'; } else { badge.style.display = 'none'; }
+    renderErrors();
+  }
+
+    // ================== المساعد الذكي ==================
   const AI_KEY_SESSION = 'support_ai_key_v1';
   (function initAiKey() {
     try {
