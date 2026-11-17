@@ -102,6 +102,12 @@
   else normProfile(profile);
   var admin = readJSON(sessionStorage, ADMIN_KEY);
   if (!(admin && admin.email)) admin = null;
+  // جلسة مشرف قديمة بحساب دعم فني: نمسحها ونحوّل لصفحة الدعم بدل الدخول كمشرف عام
+  if (admin && SUPPORT_EMAILS.indexOf(String(admin.email).trim().toLowerCase()) !== -1) {
+    try { sessionStorage.removeItem(ADMIN_KEY); sessionStorage.removeItem('wg-admin-auth'); } catch (e) {}
+    admin = null;
+    location.replace('./support.html');
+  }
 
   var forceOpen = false;
   var unlocked = false;   // المشرف العام سمح بتعديل بيانات الخادم في هذه الجلسة
