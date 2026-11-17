@@ -384,6 +384,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       <button class="btn btn-outline" id="navPastoral" onclick="showView('pastoral')">💙 متابعة رعوية</button>
       <button class="btn btn-outline" id="navChapters" onclick="showView('chapters')">🗂️ إدارة الفصول</button>
       <button class="btn btn-outline" id="navServants" onclick="showView('servants')">🧑‍🤝‍🧑 قائمة الخدام</button>
+      <button class="btn btn-outline" onclick="location.href='./church-servants.html'">⛪ خدام الكنيسة</button>
       <button class="btn btn-outline" id="navAnnouncements" onclick="showView('announcements')">📢 الإعلانات</button>
       <button class="btn btn-outline" id="navReasons" onclick="showView('reasons')">📊 أسباب الغياب</button>
       <button class="btn btn-outline" id="navDups" onclick="showView('dups')">🧬 المتكررون</button>
@@ -744,7 +745,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
               <td style="font-weight:700;">${escapeHtml(s.name || '')}</td>
               <td>${escapeHtml(s.role || s.job || '—')}</td>
               <td>${escapeHtml(s.phone || '—')}</td>
-              <td><button class="sv-edit" title="حذف الخادم" style="color:var(--accent);" onclick="deleteServantAdmin('${escapeHtml(String(s.sid))}')">🗑️</button></td>
+              <td style="white-space:nowrap;"><button class="sv-edit" title="نقل لفصل آخر" style="color:#2980b9;" onclick="transferServantDialog('${escapeHtml(String(s.sid))}')">🔀</button>
+                <button class="sv-edit" title="حذف الخادم" style="color:var(--accent);" onclick="deleteServantAdmin('${escapeHtml(String(s.sid))}')">🗑️</button></td>
             </tr>`).join('')}
         </tbody>
       </table>`;
@@ -1070,6 +1072,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       case 'followup_undo': return { icon: '↩️', html: 'إلغاء افتقاد ' + who + ' بواسطة ' + by };
       case 'delete_student': return { icon: '🗑️', html: 'حذف المخدوم ' + who + ' بواسطة ' + by };
       case 'transfer_student': return { icon: '🔀', html: (x.dir === 'in' ? 'وصل ' + who + ' من «' : 'انتقل ' + who + ' إلى «') + escapeHtml(x.other || '') + '» بواسطة ' + by };
+      case 'transfer_servant': return { icon: '🔀', html: (x.dir === 'in' ? 'وصل الخادم ' + who + ' من «' : 'انتقل الخادم ' + who + ' إلى «') + escapeHtml(x.other || '') + '» بواسطة ' + by };
       case 'delete_servant': return { icon: '🗑️', html: 'حذف الخادم ' + who + ' بواسطة ' + by };
       case 'delete_all': return { icon: '⚠️', html: 'حذف جميع المخدومين والخدام بواسطة ' + by };
       case 'delete_all_students': return { icon: '⚠️', html: 'حذف جميع المخدومين' + (x.count ? ' (' + x.count + ')' : '') + ' بواسطة ' + by };
@@ -1661,6 +1664,120 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     renderAttendancePanel(sd);
     renderClassGrid();
     showToast('🔀 تم نقل «' + (st.name || '') + '» إلى «' + (tgt.class_name || 'الفصل الجديد') + '»');
+  }
+
+  // ================== نقل خادم إلى فصل آخر بكل سجله ==================
+  // ينقل حضوره (servantsAttendance[date][sid]) واعترافه وحضور القداس من نسخة الفصل المصدر إلى الهدف
+  function moveServantRecords(src, dst, oldSid, newSid) {
+    const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+    const sa = src.servantsAttendance;
+    if (sa && typeof sa === 'object') {
+      Object.keys(sa).forEach(date => {
+        const v = sa[date];
+        if (v && typeof v === 'object' && !Array.isArray(v) && has(v, oldSid)) {
+          if (!dst.servantsAttendance || typeof dst.servantsAttendance !== 'object') dst.servantsAttendance = {};
+          dst.servantsAttendance[date] = dst.servantsAttendance[date] || {};
+          dst.servantsAttendance[date][newSid] = v[oldSid];
+          delete v[oldSid];
+        }
+      });
+    }
+    ['servantConfessions', 'servantMass'].forEach(k => {
+      const o = src[k];
+      if (o && typeof o === 'object' && has(o, oldSid)) {
+        if (!dst[k] || typeof dst[k] !== 'object') dst[k] = {};
+        dst[k][newSid] = o[oldSid];
+        delete o[oldSid];
+      }
+    });
+  }
+
+  function transferServantDialog(sid) {
+    const cls = currentDetailClass;
+    if (!cls) return;
+    const sv = ((cls.data || {}).servants || []).find(x => String(x.sid) === String(sid));
+    if (!sv) return;
+    const opts = (allClasses || []).filter(c => c.class_id !== cls.class_id)
+      .sort((a, b) => (a.class_name || '').localeCompare(b.class_name || '', 'ar'))
+      .map(c => `<option value="${escapeHtml(c.class_id)}">${escapeHtml(c.class_name || 'بدون اسم')}</option>`).join('');
+    const old = document.getElementById('transferOverlay'); if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'transferOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl;';
+    ov.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:18px;font-family:inherit;">
+      <div style="font-weight:900;font-size:16px;margin-bottom:6px;">🔀 نقل الخادم «${escapeHtml(sv.name || '')}»</div>
+      <div style="font-size:12.5px;color:#666;margin-bottom:12px;line-height:1.7;">من فصل «${escapeHtml(cls.class_name || '—')}» إلى الفصل الذي تختاره، مع سجل حضوره واعترافه وحضور القداس.</div>
+      <select id="transferTarget" style="width:100%;padding:10px;border:2px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;">
+        <option value="">— اختر الفصل —</option>${opts}</select>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button class="btn btn-blue" id="transferGo" style="flex:1;">نقل</button>
+        <button class="btn btn-outline" onclick="document.getElementById('transferOverlay').remove()">إلغاء</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    document.getElementById('transferGo').onclick = () => {
+      const t = document.getElementById('transferTarget').value;
+      if (!t) { showToast('⚠️ اختر الفصل أولاً'); return; }
+      transferServantAdmin(sid, t);
+    };
+  }
+
+  async function transferServantAdmin(sid, targetId) {
+    const src = currentDetailClass;
+    if (!src || targetId === src.class_id) return;
+    const tgt = (allClasses || []).find(c => c.class_id === targetId);
+    if (!tgt) return;
+    const btn = document.getElementById('transferGo');
+    if (btn) { btn.disabled = true; btn.textContent = 'جاري النقل...'; }
+    const fail = m => { if (btn) { btn.disabled = false; btn.textContent = 'نقل'; } showToast(m); };
+
+    // أحدث نسخة من السحابة للفصلين حتى لا نكتب فوق تعديلات الخدام
+    const [rs, rt] = await Promise.all([
+      sb.from('class_records').select('data').eq('class_id', src.class_id).single(),
+      sb.from('class_records').select('data').eq('class_id', targetId).single()
+    ]);
+    if (rs.error || !rs.data || rt.error || !rt.data) { fail('⚠️ تعذر قراءة بيانات الفصلين: ' + ((rs.error || rt.error || {}).message || '')); return; }
+    const sd = rs.data.data || {}, td = rt.data.data || {};
+    const sv = (sd.servants || []).find(x => String(x.sid) === String(sid));
+    if (!sv) { fail('هذا الخادم لم يعد موجوداً في الفصل'); return; }
+    if (!Array.isArray(td.servants)) td.servants = [];
+
+    if (td.servants.some(x => normNameAr(x.name) === normNameAr(sv.name)) &&
+        !confirm('⚠️ يوجد في الفصل الهدف خادم بنفس الاسم «' + (sv.name || '') + '». هل تريد المتابعة؟')) { fail('تم الإلغاء'); return; }
+
+    // رقم الخادم: نبقيه إن كان غير مستخدم في الفصل الهدف (يحافظ على بطاقة QR)، وإلا نضيف له لاحقة
+    let newSid = sv.sid;
+    if (td.servants.some(x => String(x.sid) === String(newSid))) {
+      let n = 1; while (td.servants.some(x => String(x.sid) === String(sv.sid) + '-' + n)) n++;
+      newSid = String(sv.sid) + '-' + n;
+    }
+
+    moveServantRecords(sd, td, sv.sid, newSid);
+    td.servants.push({ ...sv, sid: newSid });
+    sd.servants = (sd.servants || []).filter(x => String(x.sid) !== String(sid));
+
+    const by = (window._adminEmail ? window._adminEmail.split('@')[0] : 'مشرف') + ' (' + adminAsLabel() + ')';
+    const now = new Date().toISOString();
+    [[sd, 'out', tgt.class_name], [td, 'in', src.class_name]].forEach(([d, dir, other]) => {
+      if (!Array.isArray(d.activityLog)) d.activityLog = [];
+      d.activityLog.push({ t: 'transfer_servant', dir, other: other || '', by, at: now, studentName: sv.name });
+      if (d.activityLog.length > 300) d.activityLog = d.activityLog.slice(-300);
+    });
+
+    const write = (id, d) => sb.from('class_records').update({ data: d, updated_at: now }).eq('class_id', id).select('class_id');
+    // نكتب الفصل الهدف أولاً: لو فشل ما بعده يبقى الخادم في فصله (لا فقد بيانات)
+    const w1 = await write(targetId, td);
+    if (w1.error || !w1.data || !w1.data.length) { fail('تعذر الكتابة في الفصل الهدف: ' + (w1.error ? w1.error.message : 'الحساب لا يملك صلاحية تعديل بيانات الفصل (شغّل ملف delete_student_policy.sql على Supabase).')); return; }
+    tgt.data = td; tgt.updated_at = now;
+    const w2 = await write(src.class_id, sd);
+    if (w2.error || !w2.data || !w2.data.length) {
+      alert('⚠️ تم نسخ «' + (sv.name || '') + '» إلى الفصل الجديد، لكن تعذر حذفه من الفصل القديم (' + (w2.error ? w2.error.message : 'بدون صلاحية') + ').\nاحذفه من الفصل القديم يدوياً حتى لا يتكرر.');
+      renderClassGrid(); return;
+    }
+    src.data = sd; src.updated_at = now;
+    const ov = document.getElementById('transferOverlay'); if (ov) ov.remove();
+    renderServantsPanel(sd);
+    renderClassGrid();
+    showToast('🔀 تم نقل الخادم «' + (sv.name || '') + '» إلى «' + (tgt.class_name || 'الفصل الجديد') + '»');
   }
 
   // ================== إعلانات المشرف العام للخدام ==================

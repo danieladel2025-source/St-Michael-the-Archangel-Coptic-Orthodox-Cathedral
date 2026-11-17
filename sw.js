@@ -10,6 +10,7 @@ const PRECACHE_URLS = [
   './index.html',
   './admin.html',
   './support.html',
+  './church-servants.html',
   './library.html',
   './qr-map.js',
   './qr-map.css',

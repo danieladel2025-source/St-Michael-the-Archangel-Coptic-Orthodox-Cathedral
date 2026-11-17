@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>⛪ خدام الكنيسة</title>
+<meta name="theme-color" content="#121a2b">
+<link rel="icon" href="./icons/icon-96.png">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --ink:#0d1117; --navy:#121a2b; --paper:#f5f0e8; --cream:#ede8dc; --accent:#c8392b;
+    --blue:#2980b9; --gold:#d4a017; --green:#1a7a4a; --line:#b5a98a; --purple:#6c2d85;
+    --shadow:rgba(13,17,23,.14);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%;overflow-x:hidden}
+  body{font-family:'Cairo',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:hidden}
+  button,input,select,textarea{font-family:inherit}
+  a{color:inherit}
+
+  /* ===== الدخول ===== */
+  #loginScreen{min-height:100vh;display:none;align-items:center;justify-content:center;padding:18px;background:var(--navy)}
+  .login-box{background:#fff;border-radius:18px;padding:26px 22px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+  .login-box h1{font-size:20px;font-weight:900;text-align:center;margin-bottom:4px}
+  .login-box p{font-size:12.5px;color:#777;text-align:center;margin-bottom:16px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12.5px;font-weight:700;margin-bottom:4px;color:#444}
+  .field input,.field select,.field textarea{width:100%;padding:10px 12px;border:2px solid #ddd;border-radius:10px;font-size:14px;background:#fff}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--blue)}
+  .err{display:none;background:#fdecea;color:#a32619;border-radius:10px;padding:9px 12px;font-size:12.5px;margin-bottom:10px}
+
+  /* ===== الأزرار ===== */
+  .btn{border:2px solid transparent;border-radius:10px;padding:9px 14px;font-weight:700;font-size:13.5px;cursor:pointer;background:var(--navy);color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+  .btn:disabled{opacity:.6;cursor:default}
+  .btn-outline{background:transparent;border-color:rgba(255,255,255,.45);color:#fff}
+  .btn-light{background:#fff;border-color:#d8d0bd;color:var(--ink)}
+  .btn-blue{background:var(--blue)} .btn-red{background:var(--accent)} .btn-green{background:var(--green)}
+  .login-box .btn{width:100%}
+
+  /* ===== الرأس ===== */
+  header.top{background:var(--navy);color:#fff;padding:12px 14px;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px var(--shadow)}
+  .top-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .top h1{font-size:18px;font-weight:900;flex:1;min-width:150px}
+  .top h1 small{display:block;font-size:11.5px;font-weight:400;opacity:.7}
+  .top .btns{display:flex;gap:6px;flex-wrap:wrap}
+  .top .btn{padding:7px 11px;font-size:12.5px}
+
+  main{max-width:1100px;margin:0 auto;padding:12px 12px 60px}
+
+  /* ===== الإحصاءات ===== */
+  .kpis{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:thin}
+  .kpi{flex:0 0 auto;min-width:92px;background:#fff;border:2px solid #e3dccb;border-radius:14px;padding:8px 12px;text-align:center;cursor:pointer;transition:.15s}
+  .kpi .n{font-size:21px;font-weight:900;line-height:1.1}
+  .kpi .l{font-size:11.5px;color:#666;font-weight:700;margin-top:2px;white-space:nowrap}
+  .kpi.on{border-color:var(--blue);background:#eaf4fb}
+
+  /* ===== الفلاتر ===== */
+  .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+  .filters .search{grid-column:1/-1}
+  .filters input,.filters select{width:100%;padding:10px 12px;border:2px solid #ddd;border-radius:10px;font-size:13.5px;background:#fff}
+  .filters input:focus,.filters select:focus{outline:none;border-color:var(--blue)}
+  @media(min-width:760px){.filters{grid-template-columns:2fr 1fr 1fr 1fr}.filters .search{grid-column:auto}}
+  .count-line{font-size:12.5px;color:#666;margin:2px 2px 8px}
+
+  /* ===== الأقسام والبطاقات ===== */
+  .sec-head{display:flex;align-items:center;gap:8px;margin:16px 2px 8px;font-weight:900;font-size:15px}
+  .sec-head .pill{background:var(--navy);color:#fff;border-radius:20px;padding:1px 10px;font-size:12px}
+  .grid{display:grid;grid-template-columns:1fr;gap:10px}
+  @media(min-width:760px){.grid{grid-template-columns:1fr 1fr}}
+  .card{background:#fff;border:1px solid #e3dccb;border-radius:14px;box-shadow:0 2px 8px var(--shadow);overflow:hidden;border-right:5px solid var(--tc,#999)}
+  .c-top{display:flex;gap:10px;align-items:center;padding:11px 12px;cursor:pointer}
+  .avatar{width:54px;height:54px;border-radius:50%;background:var(--cream);display:flex;align-items:center;justify-content:center;font-size:26px;flex:0 0 auto;overflow:hidden;border:2px solid #e3dccb}
+  .avatar img{width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+  .c-main{flex:1;min-width:0}
+  .c-name{font-weight:900;font-size:15.5px;line-height:1.3;word-break:break-word}
+  .badge{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:1px 10px;font-size:12px;font-weight:800;background:var(--tbg,#eee);color:var(--tfg,#333);margin-top:3px}
+  .chev{font-size:13px;color:#999;transition:.2s}
+  .card.open .chev{transform:rotate(180deg)}
+  .c-loc{display:flex;flex-wrap:wrap;gap:5px;padding:0 12px 11px}
+  .chip{font-size:11.5px;font-weight:700;border-radius:8px;padding:2px 8px;background:#f1ede2;color:#4a4333}
+  .chip.blue{background:#e3f1fb;color:#1c6591} .chip.pink{background:#fde8ef;color:#a3235a}
+  .chip.green{background:#e3f5ea;color:#17683f} .chip.gray{background:#eee;color:#777}
+  .c-more{display:none;border-top:1px dashed #e3dccb;padding:10px 12px 12px;background:#fcfaf5}
+  .card.open .c-more{display:block}
+  .kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:13.5px}
+  .kv .k{color:#888;font-weight:700}
+  .kv .v{word-break:break-word}
+  .kv a.act{display:inline-block;margin:1px 0 1px 6px;padding:2px 9px;border-radius:8px;background:#e3f5ea;color:#17683f;font-weight:700;font-size:12.5px;text-decoration:none}
+  .kv a.act.wa{background:#dcf8e6} .kv a.act.map{background:#e3f1fb;color:#1c6591}
+  .att span{margin-left:10px;font-weight:800}
+  .c-actions{display:flex;gap:8px;margin-top:10px}
+  .c-actions .btn{padding:6px 12px;font-size:12.5px}
+
+  .empty{text-align:center;color:#777;padding:40px 10px}
+  .empty .ic{font-size:38px;margin-bottom:6px}
+  .note{background:#fff8e1;border:1px solid #f0dc9b;color:#7a5b00;border-radius:12px;padding:10px 12px;font-size:12.5px;margin-bottom:12px;line-height:1.8}
+  .note code{background:#fff;padding:0 5px;border-radius:5px;direction:ltr;display:inline-block}
+
+  /* ===== نافذة الإضافة ===== */
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:none;align-items:center;justify-content:center;padding:14px}
+  .ov.on{display:flex}
+  .modal{background:#fff;border-radius:16px;width:100%;max-width:470px;max-height:92vh;overflow-y:auto;padding:18px}
+  .modal h3{font-size:16.5px;font-weight:900;margin-bottom:12px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .m-actions{display:flex;gap:8px;margin-top:6px}
+  .m-actions .btn{flex:1}
+
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 18px;border-radius:12px;font-size:13px;z-index:400;display:none;max-width:90vw;text-align:center}
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:none;align-items:center;justify-content:center;padding:16px}
+  .lightbox.on{display:flex}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:10px}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  @media print{
+    header.top .btns,.filters,.kpis,.c-actions,.note,.chev{display:none!important}
+    body{background:#fff}
+    .c-more{display:block!important}
+    .card{break-inside:avoid;box-shadow:none}
+    .grid{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== الدخول (لو لا توجد جلسة مشرف) ===== -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>⛪ خدام الكنيسة</h1>
+    <p>هذه الصفحة للمشرفين فقط — سجّل الدخول بنفس حساب لوحة المشرفين.</p>
+    <div class="err" id="loginErr"></div>
+    <div class="field"><label>البريد الإلكتروني</label><input type="email" id="lgEmail" autocomplete="username" dir="ltr"></div>
+    <div class="field"><label>كلمة المرور</label><input type="password" id="lgPass" autocomplete="current-password" dir="ltr"></div>
+    <button class="btn btn-blue" id="lgBtn" onclick="doLogin()">دخول</button>
+  </div>
+</div>
+
+<!-- ===== الصفحة ===== -->
+<div id="app" style="display:none">
+  <header class="top">
+    <div class="top-row">
+      <h1>⛪ خدام الكنيسة<small id="subLine">—</small></h1>
+      <div class="btns">
+        <button class="btn btn-blue" onclick="openStaffModal()">➕ إضافة</button>
+        <button class="btn btn-outline" onclick="exportCsv()">⬇️ Excel</button>
+        <button class="btn btn-outline" onclick="window.print()">🖨️ طباعة</button>
+        <button class="btn btn-outline" onclick="loadAll()">⟳ تحديث</button>
+        <a class="btn btn-outline" href="./admin.html">→ اللوحة</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="notes"></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="filters">
+      <input class="search" type="search" id="fQ" placeholder="🔍 ابحث بالاسم أو الهاتف أو الفصل أو المسمى..." oninput="render()">
+      <select id="fGroup" onchange="render()"></select>
+      <select id="fGender" onchange="render()">
+        <option value="">👥 الكل (بنين وبنات)</option>
+        <option value="boys">👦 بنين</option>
+        <option value="girls">👧 بنات</option>
+      </select>
+      <select id="fClass" onchange="render()"></select>
+    </div>
+    <div class="count-line" id="countLine"></div>
+    <div id="list"><div class="empty"><div class="ic">⏳</div>جاري التحميل...</div></div>
+  </main>
+</div>
+
+<!-- ===== نافذة إضافة/تعديل ===== -->
+<div class="ov" id="staffOv">
+  <div class="modal">
+    <h3 id="stTitle">➕ إضافة عضو خدمة</h3>
+    <div class="field"><label>الاسم *</label><input type="text" id="stName"></div>
+    <div class="field"><label>المسمى الوظيفي *</label>
+      <select id="stRole">
+        <option value="priest">✝️ أب كاهن</option>
+        <option value="general">🌟 أمين خدمة عام</option>
+        <option value="supervisor">🧭 مشرف</option>
+        <option value="coordinator">⭐ أمين خدمة</option>
+        <option value="assistant">🧑‍💼 أمين مساعد</option>
+        <option value="servant">👤 خادم</option>
+      </select></div>
+    <div class="row2">
+      <div class="field"><label>📞 الهاتف</label><input type="tel" id="stPhone" dir="ltr"></div>
+      <div class="field"><label>📱 هاتف احتياطي</label><input type="tel" id="stPhone2" dir="ltr"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>المرحلة</label><select id="stStage"></select></div>
+      <div class="field"><label>الفئة</label>
+        <select id="stGender"><option value="">— غير محدد —</option><option value="boys">👦 بنين</option><option value="girls">👧 بنات</option></select></div>
+    </div>
+    <div class="field"><label>الفصل (اختياري)</label><input type="text" id="stClass" list="classList" placeholder="اتركه فارغاً لو غير تابع لفصل"><datalist id="classList"></datalist></div>
+    <div class="row2">
+      <div class="field"><label>تاريخ الميلاد</label><input type="date" id="stDob"></div>
+      <div class="field"><label>العنوان</label><input type="text" id="stAddr"></div>
+    </div>
+    <div class="field"><label>ملاحظات</label><textarea id="stNotes" rows="2"></textarea></div>
+    <div class="m-actions">
+      <button class="btn btn-blue" id="stSave" onclick="saveStaff()">💾 حفظ</button>
+      <button class="btn btn-light" onclick="closeStaffModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lb" onclick="this.classList.remove('on')"><img id="lbImg" alt=""></div>
+<div class="toast" id="toast"></div>
+
+<script>
+  // ================== الاتصال بالسحابة (نفس مشروع لوحة المشرفين) ==================
+  const SUPABASE_URL      = 'https://tnpokrdrhactzjrhlyjv.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRucG9rcmRyaGFjdHpqcmhseWp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMTg4MDYsImV4cCI6MjEwNjc5NDgwNn0.GAR0ckTxCGwHg4LeR1GAU5CTXnDLLpQkuY2lL6BycBw';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ================== المراحل والمسميات ==================
+  const STAGE_NAMES = {
+    nursery:'حضانة', kg1:'KG1 (روضة أولى)', kg2:'KG2 (روضة ثانية)',
+    p1:'الأول الابتدائي', p2:'الثاني الابتدائي', p3:'الثالث الابتدائي', p4:'الرابع الابتدائي', p5:'الخامس الابتدائي', p6:'السادس الابتدائي',
+    e1:'الأول الإعدادي', e2:'الثاني الإعدادي', e3:'الثالث الإعدادي',
+    s1:'الأول الثانوي', s2:'الثاني الثانوي', s3:'الثالث الثانوي',
+    u1:'الفرقة الأولى (جامعة)', u2:'الفرقة الثانية (جامعة)', u3:'الفرقة الثالثة (جامعة)', u4:'الفرقة الرابعة (جامعة)', u5:'الفرقة الخامسة فأعلى (جامعة)',
+    grad:'اجتماع شباب(بيك هنقدر)', youth:'خريجين'
+  };
+  const GROUP_NAMES = { kg:'الحضانة ورياض الأطفال', prim:'المرحلة الابتدائية', prep:'المرحلة الإعدادية', sec:'المرحلة الثانوية', uni:'المرحلة الجامعية', grad:'الشباب والخريجين' };
+  const GROUP_ORDER = ['kg','prim','prep','sec','uni','grad'];
+  const STAGE_TO_GROUP = { nursery:'kg', kg1:'kg', kg2:'kg', p1:'prim', p2:'prim', p3:'prim', p4:'prim', p5:'prim', p6:'prim', e1:'prep', e2:'prep', e3:'prep',
+    s1:'sec', s2:'sec', s3:'sec', u1:'uni', u2:'uni', u3:'uni', u4:'uni', u5:'uni', grad:'grad', youth:'grad' };
+
+  const TITLES = {
+    priest:     { label:'أب كاهن',       icon:'✝️', rank:6, c:'#8e24aa', bg:'#f3e5f5', fg:'#6a1b9a' },
+    general:    { label:'أمين خدمة عام', icon:'🌟', rank:5, c:'#d4a017', bg:'#fdf0d5', fg:'#8a5a06' },
+    supervisor: { label:'مشرف',          icon:'🧭', rank:4, c:'#c8392b', bg:'#fdecea', fg:'#a32619' },
+    coordinator:{ label:'أمين خدمة',     icon:'⭐', rank:3, c:'#2980b9', bg:'#e3f1fb', fg:'#1c6591' },
+    assistant:  { label:'أمين مساعد',    icon:'🧑‍💼', rank:2, c:'#1a7a4a', bg:'#e3f5ea', fg:'#17683f' },
+    servant:    { label:'خادم',          icon:'👤', rank:1, c:'#8a8a8a', bg:'#eeeeee', fg:'#555' }
+  };
+  const TITLE_ORDER = ['priest','general','supervisor','coordinator','assistant','servant'];
+
+  // ================== أدوات ==================
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const norm = t => String(t || '').replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/\s+/g, ' ').trim().toLowerCase();
+  const digits = p => String(p || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[^\d+]/g, '');
+  const safeImg = u => /^(data:image\/|https?:\/\/)/i.test(String(u || '')) ? u : '';
+  const safeUrl = u => /^https?:\/\//i.test(String(u || '')) ? u : '';
+  function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = 'none', 3200); }
+  function waLink(p) {
+    let d = digits(p).replace(/^\+/, '');
+    if (!d) return '';
+    if (d.startsWith('00')) d = d.slice(2); else if (d.startsWith('0')) d = '20' + d.slice(1);
+    return 'https://wa.me/' + d;
+  }
+  function ageOf(dob) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dob || ''));
+    if (!m) return '';
+    const t = new Date(); let a = t.getFullYear() - +m[1];
+    if (t.getMonth() + 1 < +m[2] || (t.getMonth() + 1 === +m[2] && t.getDate() < +m[3])) a--;
+    return a >= 0 && a < 120 ? a + ' سنة' : '';
+  }
+  function mapLinkOf(p) {
+    const lat = parseFloat(p.lat), lng = parseFloat(p.lng);
+    if (isFinite(lat) && isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && (lat || lng))
+      return 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng;
+    return safeUrl(p.mapUrl);
+  }
+
+  // تحديد المسمى الوظيفي من النص الحر المكتوب في خانة «الدور / المسمى»
+  function titleFromText(txt) {
+    const t = norm(txt);
+    if (!t) return 'servant';
+    if (/(^| )(ابونا|ابينا|القمص|القس|قمص|قس|كاهن|الكاهن|راعي)( |$)|(^| )(ال)?اب( |$)/.test(t) && !/اعتراف|روحي/.test(t)) return 'priest';
+    if (/امين خدمه عام|امين عام|امين الخدمه العام/.test(t)) return 'general';
+    if (/مشرف/.test(t)) return 'supervisor';
+    if (/مساعد/.test(t)) return 'assistant';
+    if (/امين/.test(t)) return 'coordinator';
+    return 'servant';
+  }
+  const higher = (a, b) => (TITLES[a].rank >= TITLES[b].rank ? a : b);
+
+  // ================== الحالة ==================
+  let PEOPLE = [];
+  let VIEW = [];
+  let staffAvail = false, devicesAvail = false, rolesAvail = false;
+  let titleFilter = 'all';
+  let editingStaffId = null;
+  let STAFF = [];
+
+  // ================== تسجيل الدخول ==================
+  async function doLogin() {
+    const em = document.getElementById('lgEmail').value.trim(), pw = document.getElementById('lgPass').value;
+    const eb = document.getElementById('loginErr'), btn = document.getElementById('lgBtn');
+    eb.style.display = 'none';
+    if (!em || !pw) { eb.textContent = 'أدخل البريد وكلمة المرور.'; eb.style.display = 'block'; return; }
+    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> جاري الدخول...';
+    const { error } = await sb.auth.signInWithPassword({ email: em, password: pw });
+    btn.disabled = false; btn.textContent = 'دخول';
+    if (error) { eb.textContent = 'فشل الدخول: البريد أو كلمة المرور غير صحيحة.'; eb.style.display = 'block'; return; }
+    start();
+  }
+  function start() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadAll();
+  }
+  (async () => {
+    const { data } = await sb.auth.getSession();
+    if (data && data.session && data.session.user) start();
+    else document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('lgPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  })();
+
+  // ================== تحميل البيانات ==================
+  async function loadAll() {
+    document.getElementById('list').innerHTML = '<div class="empty"><div class="ic">⏳</div>جاري تحميل بيانات الخدام من كل الفصول...</div>';
+    const [rc, rd] = await Promise.all([
+      sb.from('class_records').select('class_id, class_name, data, updated_at'),
+      sb.rpc('admin_list_servants_phone')
+    ]);
+    if (rc.error) {
+      document.getElementById('list').innerHTML = '<div class="empty"><div class="ic">⚠️</div>تعذر تحميل الفصول: ' + esc(rc.error.message) + '<br><small>تأكد أنك مسجّل الدخول بحساب مشرف.</small></div>';
+      return;
+    }
+    const classes = rc.data || [];
+    devicesAvail = !rd.error;
+    const devices = rd.error ? [] : (rd.data || []);
+
+    try {   // الفصل التابع له كل خادم مسجّل
+      const r = await sb.rpc('admin_list_servant_classes');
+      if (!r.error && Array.isArray(r.data)) { const m = {}; r.data.forEach(x => m[x.device_id] = x.class_name || ''); devices.forEach(d => d.class_name = m[d.device_id] || ''); }
+    } catch (e) {}
+    rolesAvail = false;
+    try {   // الصفات: أمين خدمة / أمين مساعد
+      const r = await sb.rpc('admin_list_servant_roles');
+      if (!r.error && Array.isArray(r.data)) {
+        rolesAvail = true; const m = {}; r.data.forEach(x => m[x.device_id] = x);
+        devices.forEach(d => { const x = m[d.device_id]; d.role_type = x && (x.role_type === 'assistant' || x.role_type === 'coordinator') ? x.role_type : 'servant'; d.stage_group = d.role_type === 'servant' ? '' : ((x && x.stage_group) || ''); });
+      }
+    } catch (e) {}
+    staffAvail = false; STAFF = [];
+    try {   // قيادات الخدمة المُدخلة يدوياً (church_staff.sql)
+      const r = await sb.from('church_staff').select('*').order('name');
+      if (!r.error) { staffAvail = true; STAFF = r.data || []; }
+    } catch (e) {}
+
+    build(classes, devices, STAFF);
+    fillFilters(classes);
+    render();
+  }
+
+  // ================== بناء القائمة الموحّدة ==================
+  function build(classes, devices, staff) {
+    const rows = [];
+    const byName = {};
+    const add = r => { rows.push(r); (byName[norm(r.name)] = byName[norm(r.name)] || []).push(r); return r; };
+
+    // 1) خدام الفصول (القوائم داخل سجل كل فصل) — فيها كل البيانات التفصيلية
+    classes.forEach(c => {
+      const d = c.data || {};
+      const stage = STAGE_NAMES[d.stage] ? d.stage : '';
+      const att = d.servantsAttendance || {}, conf = d.servantConfessions || {}, mass = d.servantMass || {};
+      (d.servants || []).forEach(sv => {
+        if (!sv || !sv.name) return;
+        let p = 0, l = 0, a = 0;
+        Object.keys(att).forEach(date => {
+          const day = new Date(date + 'T12:00:00').getDay();
+          if (day !== 5) return;   // نفس منطق التطبيق: الجمعة فقط
+          const st = (att[date] || {})[sv.sid];
+          if (st === 'present') p++; else if (st === 'late') l++; else if (st === 'absent') a++;
+        });
+        const ttl = titleFromText(sv.role);
+        add({
+          src: ['فصل'], name: sv.name.trim(), roleText: (sv.role || '').trim(), title: ttl,
+          phone: sv.phone || '', phone2: sv.phone2 || '', dob: sv.dob || '', address: sv.address || '', notes: sv.notes || '',
+          photo: safeImg(sv.photo), map: mapLinkOf(sv),
+          classId: c.class_id, className: c.class_name || d.className || '',
+          stage, group: STAGE_TO_GROUP[stage] || '', gender: (d.gender === 'boys' || d.gender === 'girls') ? d.gender : '',
+          att: { p, l, a }, conf: conf[sv.sid] || 0, mass: mass[sv.sid] || 0,
+          device: false, staffId: null, updatedAt: c.updated_at || ''
+        });
+      });
+    });
+
+    // 2) دمج/إضافة مصدر آخر (خادم مسجّل بجهاز أو عضو من جدول القيادات)
+    function overlay(o) {
+      const cands = byName[norm(o.name)] || [];
+      let hit = null;
+      if (cands.length) {
+        if (o.className) hit = cands.find(r => norm(r.className) === norm(o.className)) || null;
+        if (!hit && cands.length === 1) hit = cands[0];
+        if (!hit && !o.className) hit = cands.find(r => (!o.stage || r.stage === o.stage) && (!o.gender || r.gender === o.gender)) || null;
+      }
+      if (hit) {
+        hit.title = higher(hit.title, o.title);
+        ['phone','phone2','dob','address','notes'].forEach(k => { if (!hit[k] && o[k]) hit[k] = o[k]; });
+        if (!hit.stage && o.stage) { hit.stage = o.stage; }
+        if (!hit.group && o.group) hit.group = o.group;
+        if (!hit.gender && o.gender) hit.gender = o.gender;
+        if (!hit.className && o.className) hit.className = o.className;
+        if (o.device) hit.device = true;
+        if (o.staffId) hit.staffId = o.staffId;
+        hit.src.push(o.srcLabel);
+      } else {
+        add({
+          src: [o.srcLabel], name: o.name.trim(), roleText: '', title: o.title,
+          phone: o.phone || '', phone2: o.phone2 || '', dob: o.dob || '', address: o.address || '', notes: o.notes || '',
+          photo: '', map: '', classId: '', className: o.className || '',
+          stage: o.stage || '', group: o.group || '', gender: o.gender || '',
+          att: null, conf: 0, mass: 0, device: !!o.device, staffId: o.staffId || null, updatedAt: ''
+        });
+      }
+    }
+    devices.forEach(d => {
+      if (!d.name) return;
+      const stage = STAGE_NAMES[d.stage] ? d.stage : '';
+      overlay({
+        srcLabel: 'جهاز مسجّل', name: d.name, title: d.role_type === 'coordinator' ? 'coordinator' : d.role_type === 'assistant' ? 'assistant' : 'servant',
+        phone: d.phone, className: d.class_name, stage, group: (d.role_type && d.role_type !== 'servant' && d.stage_group) ? d.stage_group : (STAGE_TO_GROUP[stage] || ''),
+        gender: d.gender === 'girls' ? 'girls' : (d.gender === 'boys' ? 'boys' : ''), device: true
+      });
+    });
+    staff.forEach(s => {
+      if (!s.name) return;
+      const stage = STAGE_NAMES[s.stage] ? s.stage : '';
+      overlay({
+        srcLabel: 'قيادات الخدمة', name: s.name, title: TITLES[s.title] ? s.title : 'supervisor',
+        phone: s.phone, phone2: s.phone2, dob: s.dob, address: s.address, notes: s.notes, className: s.class_name,
+        stage, group: s.stage_group || STAGE_TO_GROUP[stage] || '', gender: s.gender, staffId: s.id
+      });
+    });
+
+    // ترتيب: الأعلى مسمّى ثم المرحلة ثم الفصل ثم الاسم
+    rows.forEach(r => { r.stageName = r.stage ? STAGE_NAMES[r.stage] : ''; r.groupName = r.group ? GROUP_NAMES[r.group] : ''; });
+    rows.sort((a, b) =>
+      (TITLES[b.title].rank - TITLES[a.title].rank) ||
+      ((GROUP_ORDER.indexOf(a.group) + 99) % 99 - (GROUP_ORDER.indexOf(b.group) + 99) % 99) ||
+      a.className.localeCompare(b.className, 'ar') || a.name.localeCompare(b.name, 'ar'));
+    PEOPLE = rows;
+  }
+
+  function fillFilters(classes) {
+    const g = document.getElementById('fGroup'), c = document.getElementById('fClass');
+    const gv = g.value, cv = c.value;
+    g.innerHTML = '<option value="">🎓 كل المراحل</option>' + GROUP_ORDER.map(k => `<option value="${k}">${GROUP_NAMES[k]}</option>`).join('') + '<option value="none">— بدون مرحلة محددة —</option>';
+    const names = [...new Set(PEOPLE.map(p => p.className).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'));
+    c.innerHTML = '<option value="">🏫 كل الفصول</option>' + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    g.value = gv; c.value = cv;
+    document.getElementById('classList').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
+  }
+
+  // ================== العرض ==================
+  function applyFilters() {
+    const q = norm(document.getElementById('fQ').value), g = document.getElementById('fGroup').value,
+          ge = document.getElementById('fGender').value, cl = document.getElementById('fClass').value;
+    return PEOPLE.filter(p =>
+      (titleFilter === 'all' || p.title === titleFilter) &&
+      (!g || (g === 'none' ? !p.group : p.group === g)) &&
+      (!ge || p.gender === ge) && (!cl || p.className === cl) &&
+      (!q || norm([p.name, p.phone, p.phone2, p.className, p.stageName, p.groupName, p.roleText, TITLES[p.title].label].join(' ')).includes(q)));
+  }
+
+  function render() {
+    // الإحصاءات (حسب المسمى) — بعد تطبيق باقي الفلاتر عدا فلتر المسمى
+    const saveTf = titleFilter; titleFilter = 'all'; const base = applyFilters(); titleFilter = saveTf;
+    const cnt = {}; base.forEach(p => cnt[p.title] = (cnt[p.title] || 0) + 1);
+    document.getElementById('kpis').innerHTML =
+      `<div class="kpi${titleFilter === 'all' ? ' on' : ''}" onclick="setTitle('all')"><div class="n">${base.length}</div><div class="l">👥 الكل</div></div>` +
+      TITLE_ORDER.map(k => `<div class="kpi${titleFilter === k ? ' on' : ''}" onclick="setTitle('${k}')" style="${titleFilter === k ? '' : ''}"><div class="n" style="color:${TITLES[k].c}">${cnt[k] || 0}</div><div class="l">${TITLES[k].icon} ${TITLES[k].label}</div></div>`).join('');
+
+    VIEW = applyFilters();
+    document.getElementById('subLine').textContent = PEOPLE.length + ' شخص في الخدمة';
+    document.getElementById('countLine').textContent = VIEW.length === PEOPLE.length ? '' : 'يظهر ' + VIEW.length + ' من ' + PEOPLE.length;
+
+    // التنبيهات
+    const notes = [];
+    if (!staffAvail) notes.push('لإضافة <b>الآباء الكهنة والمشرفين</b> الذين ليسوا ضمن فصل بعينه، شغّل ملف <code>church_staff.sql</code> مرة واحدة في Supabase ← SQL Editor، ثم اضغط «تحديث». (الخدام المسجّلون داخل الفصول يظهرون الآن بدونه.)');
+    if (!devicesAvail) notes.push('تعذر قراءة الخدام المسجّلين بالأجهزة — شغّل ملف <code>servant_phone.sql</code> لتظهر أرقامهم وصفاتهم.');
+    document.getElementById('notes').innerHTML = notes.map(n => `<div class="note">ℹ️ ${n}</div>`).join('');
+
+    const list = document.getElementById('list');
+    if (!VIEW.length) { list.innerHTML = '<div class="empty"><div class="ic">📭</div>' + (PEOPLE.length ? 'لا توجد نتائج مطابقة.' : 'لا يوجد خدام مسجّلون بعد.') + '</div>'; return; }
+
+    let html = '', lastT = '';
+    VIEW.forEach((p, i) => {
+      if (p.title !== lastT) {
+        if (lastT) html += '</div>';
+        const n = VIEW.filter(x => x.title === p.title).length;
+        html += `<div class="sec-head" style="color:${TITLES[p.title].fg}">${TITLES[p.title].icon} ${TITLES[p.title].label} <span class="pill" style="background:${TITLES[p.title].c}">${n}</span></div><div class="grid">`;
+        lastT = p.title;
+      }
+      html += cardHtml(p, i);
+    });
+    list.innerHTML = html + '</div>';
+  }
+
+  function cardHtml(p, i) {
+    const T = TITLES[p.title];
+    const genderChip = p.gender === 'girls' ? '<span class="chip pink">👧 بنات</span>' : p.gender === 'boys' ? '<span class="chip blue">👦 بنين</span>' : '';
+    const loc =
+      (p.className ? `<span class="chip green">🏫 ${esc(p.className)}</span>` : '<span class="chip gray">🏫 بدون فصل</span>') +
+      (p.stageName ? `<span class="chip">🎓 ${esc(p.stageName)}</span>` : (p.groupName ? `<span class="chip">🎓 كل ${esc(p.groupName)}</span>` : '<span class="chip gray">🎓 مرحلة غير محددة</span>')) +
+      (p.groupName && p.stageName ? `<span class="chip">${esc(p.groupName)}</span>` : '') + genderChip;
+    const avatar = p.photo ? `<img src="${esc(p.photo)}" alt="" onclick="event.stopPropagation();zoom(${i})">` : T.icon;
+    const showRoleText = p.roleText && norm(p.roleText) !== norm(T.label);
+    const wa = waLink(p.phone), wa2 = waLink(p.phone2);
+    const kv = [];
+    kv.push(['المسمى الوظيفي', `<b style="color:${T.fg}">${T.icon} ${T.label}</b>`]);
+    if (showRoleText) kv.push(['المكتوب بالفصل', esc(p.roleText)]);
+    kv.push(['الفصل', p.className ? esc(p.className) : '—']);
+    kv.push(['المرحلة', p.stageName ? esc(p.stageName) : (p.groupName ? 'كل ' + esc(p.groupName) : '—')]);
+    kv.push(['الفئة', p.gender === 'girls' ? '👧 بنات' : p.gender === 'boys' ? '👦 بنين' : '—']);
+    kv.push(['الهاتف', p.phone ? `<a href="tel:${esc(digits(p.phone))}" dir="ltr">${esc(p.phone)}</a> <a class="act" href="tel:${esc(digits(p.phone))}">📞 اتصال</a>${wa ? `<a class="act wa" target="_blank" rel="noopener" href="${esc(wa)}">💬 واتساب</a>` : ''}` : '—']);
+    if (p.phone2) kv.push(['هاتف احتياطي', `<a href="tel:${esc(digits(p.phone2))}" dir="ltr">${esc(p.phone2)}</a>${wa2 ? ` <a class="act wa" target="_blank" rel="noopener" href="${esc(wa2)}">💬</a>` : ''}`]);
+    kv.push(['تاريخ الميلاد', p.dob ? esc(p.dob) + (ageOf(p.dob) ? ' — ' + ageOf(p.dob) : '') : '—']);
+    kv.push(['العنوان', (p.address ? esc(p.address) : '—') + (p.map ? ` <a class="act map" target="_blank" rel="noopener" href="${esc(p.map)}">📍 الموقع</a>` : '')]);
+    if (p.att) {
+      const tot = p.att.p + p.att.l + p.att.a;
+      kv.push(['حضور الخدمة', tot ? `<span class="att"><span style="color:#1a7a4a">✅ ${p.att.p}</span><span style="color:#b8860b">⏰ ${p.att.l}</span><span style="color:#c8392b">❌ ${p.att.a}</span></span>` : 'لا يوجد سجل']);
+      kv.push(['الاعتراف / القداس', `✝️ ${p.conf} &nbsp; ⛪ ${p.mass}`]);
+    }
+    kv.push(['جهاز مسجّل', p.device ? '✅ نعم' : '— لا']);
+    if (p.notes) kv.push(['ملاحظات', esc(p.notes)]);
+    kv.push(['المصدر', esc([...new Set(p.src)].join(' + ')) + (p.updatedAt ? ' — آخر تحديث ' + esc(new Date(p.updatedAt).toLocaleDateString('ar-EG')) : '')]);
+
+    const actions = p.staffId ? `<div class="c-actions"><button class="btn btn-light" onclick="openStaffModal('${esc(p.staffId)}')">✏️ تعديل</button><button class="btn btn-red" onclick="deleteStaff('${esc(p.staffId)}')">🗑️ حذف</button></div>` : '';
+    return `<div class="card${p._open ? ' open' : ''}" style="--tc:${T.c}" id="c${i}">
+      <div class="c-top" onclick="toggle(${i})">
+        <div class="avatar">${avatar}</div>
+        <div class="c-main"><div class="c-name">${esc(p.name)}</div>
+          <span class="badge" style="--tbg:${T.bg};--tfg:${T.fg}">${T.icon} ${T.label}</span>${showRoleText ? ` <span class="chip">${esc(p.roleText)}</span>` : ''}</div>
+        <span class="chev">▼</span>
+      </div>
+      <div class="c-loc">${loc}</div>
+      <div class="c-more"><div class="kv">${kv.map(([k, v]) => `<div class="k">${k}</div><div class="v">${v}</div>`).join('')}</div>${actions}</div>
+    </div>`;
+  }
+
+  function toggle(i) { const p = VIEW[i]; if (!p) return; p._open = !p._open; document.getElementById('c' + i).classList.toggle('open', p._open); }
+  function setTitle(k) { titleFilter = k; render(); }
+  function zoom(i) { const p = VIEW[i]; if (!p || !p.photo) return; document.getElementById('lbImg').src = p.photo; document.getElementById('lb').classList.add('on'); }
+
+  // ================== تصدير Excel (CSV) ==================
+  function exportCsv() {
+    const rows = VIEW.length ? VIEW : PEOPLE;
+    const head = ['الاسم','المسمى الوظيفي','المكتوب بالفصل','الفصل','المرحلة','الفئة','الهاتف','هاتف احتياطي','تاريخ الميلاد','العنوان','حضور','تأخير','غياب','اعتراف','قداس','جهاز مسجّل','ملاحظات'];
+    const cell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const lines = [head.map(cell).join(',')].concat(rows.map(p => [
+      p.name, TITLES[p.title].label, p.roleText, p.className, p.stageName || (p.groupName ? 'كل ' + p.groupName : ''),
+      p.gender === 'girls' ? 'بنات' : p.gender === 'boys' ? 'بنين' : '', p.phone, p.phone2, p.dob, p.address,
+      p.att ? p.att.p : '', p.att ? p.att.l : '', p.att ? p.att.a : '', p.att ? p.conf : '', p.att ? p.mass : '', p.device ? 'نعم' : 'لا', p.notes
+    ].map(cell).join(',')));
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'خدام_الكنيسة_' + new Date().toISOString().slice(0, 10) + '.csv'; a.click(); URL.revokeObjectURL(a.href);
+    toast('⬇️ تم تصدير ' + rows.length + ' شخص');
+  }
+
+  // ================== إضافة/تعديل/حذف القيادات ==================
+  function stageOptions() {
+    let h = '<option value="">— غير محددة —</option>';
+    GROUP_ORDER.forEach(g => {
+      h += `<optgroup label="${GROUP_NAMES[g]}"><option value="g:${g}">كل ${GROUP_NAMES[g]}</option>` +
+        Object.keys(STAGE_TO_GROUP).filter(s => STAGE_TO_GROUP[s] === g).map(s => `<option value="${s}">${STAGE_NAMES[s]}</option>`).join('') + '</optgroup>';
+    });
+    return h;
+  }
+  function openStaffModal(id) {
+    if (!staffAvail) {
+      alert('لإضافة الآباء الكهنة والمشرفين يدويًا، شغّل ملف church_staff.sql مرة واحدة في Supabase (SQL Editor) ثم اضغط «تحديث».');
+      return;
+    }
+    editingStaffId = id || null;
+    const s = id ? STAFF.find(x => x.id === id) : null;
+    document.getElementById('stTitle').textContent = s ? '✏️ تعديل بيانات «' + s.name + '»' : '➕ إضافة عضو خدمة';
+    document.getElementById('stStage').innerHTML = stageOptions();
+    const set = (k, v) => document.getElementById(k).value = v || '';
+    set('stName', s && s.name); set('stRole', s ? s.title : 'priest'); set('stPhone', s && s.phone); set('stPhone2', s && s.phone2);
+    set('stGender', s && s.gender); set('stClass', s && s.class_name); set('stDob', s && s.dob); set('stAddr', s && s.address); set('stNotes', s && s.notes);
+    set('stStage', s ? (s.stage || (s.stage_group ? 'g:' + s.stage_group : '')) : '');
+    document.getElementById('staffOv').classList.add('on');
+  }
+  function closeStaffModal() { document.getElementById('staffOv').classList.remove('on'); editingStaffId = null; }
+
+  async function saveStaff() {
+    const v = k => document.getElementById(k).value.trim();
+    if (!v('stName')) { toast('⚠️ اكتب الاسم'); return; }
+    const st = v('stStage');
+    const rec = {
+      name: v('stName'), title: v('stRole'), phone: v('stPhone'), phone2: v('stPhone2'), address: v('stAddr'), dob: v('stDob') || null,
+      stage: st && !st.startsWith('g:') ? st : '', stage_group: st ? (st.startsWith('g:') ? st.slice(2) : (STAGE_TO_GROUP[st] || '')) : '',
+      gender: v('stGender'), class_name: v('stClass'), notes: v('stNotes'), updated_at: new Date().toISOString()
+    };
+    const btn = document.getElementById('stSave'); btn.disabled = true;
+    const r = editingStaffId ? await sb.from('church_staff').update(rec).eq('id', editingStaffId) : await sb.from('church_staff').insert(rec);
+    btn.disabled = false;
+    if (r.error) { toast('⚠️ تعذر الحفظ: ' + r.error.message); return; }
+    closeStaffModal(); toast('✅ تم الحفظ'); loadAll();
+  }
+  async function deleteStaff(id) {
+    const s = STAFF.find(x => x.id === id); if (!s) return;
+    if (!confirm('🗑️ حذف «' + s.name + '» من قيادات الخدمة؟\n(لا يؤثر على سجله داخل الفصول إن وُجد)')) return;
+    const r = await sb.from('church_staff').delete().eq('id', id);
+    if (r.error) { toast('⚠️ تعذر الحذف: ' + r.error.message); return; }
+    toast('🗑️ تم الحذف'); loadAll();
+  }
+  document.getElementById('staffOv').addEventListener('click', e => { if (e.target.id === 'staffOv') closeStaffModal(); });
+</script>
+</body>
+</html>
