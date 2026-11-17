@@ -332,7 +332,7 @@
       '#welcomeGate .wg-card{background:var(--paper,#f5f0e8);width:100%;max-width:460px;margin:auto;border-radius:18px;',
       ' padding:26px 20px 24px;box-shadow:0 20px 60px rgba(0,0,0,.5);border-top:5px solid var(--gold,#d4a017)}',
       '#welcomeGate .wg-icon{text-align:center;line-height:0;margin:-6px -6px 6px}',
-      '#welcomeGate .wg-icon img{display:block;width:100%;max-height:215px;object-fit:cover;object-position:top center;',
+      '#welcomeGate .wg-icon img{display:block;width:100%;height:auto;max-height:none;object-fit:contain;',
       ' border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.18)}',
       '#welcomeGate .wg-warn{background:#fff7e0;color:#7a5600;border:1px solid #f0cf72;border-radius:10px;',
       ' padding:10px 12px;font-size:12.5px;font-weight:700;line-height:1.7;margin-top:14px}',
@@ -616,9 +616,7 @@
           '<label for="wgAdminName">اسمك (اختياري — يظهر في سجل النشاط)</label>' +
           '<input id="wgAdminName" type="text" autocomplete="name" placeholder="مثال: أبونا / أ. مينا">' +
           '<label for="wgAdminTitle">الصفة</label>' +
-          '<select id="wgAdminTitle"><option value="general">🛡️ أمين خدمة عام</option><option value="priest">✝️ أب كاهن مشرف</option></select>' +
-          '<div class="wg-hint">نفس بيانات الدخول إلى لوحة المشرفين. ستظهر لك كل الفصول.</div>' +
-        '</div>' +
+          '<select id="wgAdminTitle"><option value="general">🛡️ أمين خدمة عام</option><option value="priest">✝️ أب كاهن مشرف</option></select>' +        '</div>' +
 
         '<div id="wgError" class="wg-error" hidden></div>' +
         '<button type="button" id="wgSubmit" class="wg-go">متابعة ←</button>' +
