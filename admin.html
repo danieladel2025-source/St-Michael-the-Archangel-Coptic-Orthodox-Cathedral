@@ -173,6 +173,10 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   .an-item .an-act { display:flex; gap:8px; flex-wrap:wrap; }
   .sv-phone { direction:ltr; unicode-bidi:plaintext; font-weight:700; color:var(--accent2); text-decoration:none; white-space:nowrap; }
   .sv-edit { border:none; background:var(--cream); border-radius:8px; padding:3px 8px; cursor:pointer; font-size:12px; }
+  .tg-sw { width:42px; height:24px; border:none; border-radius:20px; background:#c9c9c9; position:relative; cursor:pointer; transition:background .2s; flex:0 0 auto; }
+  .tg-sw::after { content:''; position:absolute; top:3px; right:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:right .2s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .tg-sw.on { background:var(--green,#1a7a4a); }
+  .tg-sw.on::after { right:21px; }
   .empty-state { text-align:center; padding:70px 20px; color:#999; }
   .empty-state .ic { font-size:44px; margin-bottom:12px; }
 
@@ -341,8 +345,6 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     .stu-info-grid { grid-template-columns:1fr; }
   }
 </style>
-<link rel="stylesheet" href="./mobile-fit.css">
-<script src="./auto-update.js" defer></script>
 </head>
 <body>
 
@@ -387,6 +389,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       <button class="btn btn-outline" id="navDups" onclick="showView('dups')">🧬 المتكررون</button>
       <button class="btn btn-outline" id="navPromotion" onclick="showView('promotion')">🎓 الترقية السنوية</button>
       <button class="btn btn-outline" id="navSecurity" onclick="showView('security')">🛡️ التحذيرات الأمنية<span id="securityBadge" style="display:none;background:var(--accent,#c8392b);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-right:6px;"></span></button>
+      <button class="btn btn-outline" id="navHealth" onclick="showView('health')">🩺 سلامة البيانات</button>
+      <button class="btn btn-outline" id="navSyslog" onclick="showView('syslog')">🧾 سجل النظام</button>
       <button class="btn btn-outline" onclick="loadAllClasses()">⟳ تحديث</button>
       <button class="btn btn-outline" data-ar-toggle></button>
       <button class="btn btn-red" onclick="deleteAllClasses()">🗑️ حذف كل الفصول</button>
@@ -418,6 +422,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     <div id="dupsView" style="display:none;"></div>
     <div id="securityView" style="display:none;"></div>
     <div id="promotionView" style="display:none;"></div>
+    <div id="healthView" style="display:none;"></div>
+    <div id="syslogView" style="display:none;"></div>
   </div>
 </div>
 
@@ -485,6 +491,9 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRucG9rcmRyaGFjdHpqcmhseWp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMTg4MDYsImV4cCI6MjEwNjc5NDgwNn0.GAR0ckTxCGwHg4LeR1GAU5CTXnDLLpQkuY2lL6BycBw';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  // حساب الدعم الفني — يُحوَّل تلقائياً لصفحة support.html بدل لوحة المشرفين
+  const SUPPORT_EMAIL = 'daniel.adel@gmail.com';
+
   let allClasses = [];
   let currentDetailClass = null;
 
@@ -513,6 +522,14 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     if (error) {
       errBox.textContent = 'فشل الدخول: البريد أو كلمة المرور غير صحيحة.';
       errBox.style.display = 'block';
+      return;
+    }
+
+    // حساب الدعم الفني: يُحوَّل لصفحة الدعم بدل لوحة المشرفين العادية
+    const loggedEmail = ((data.user && data.user.email) || '').trim().toLowerCase();
+    if (loggedEmail === SUPPORT_EMAIL) {
+      btn.textContent = 'جاري التحويل...';
+      location.href = './support.html';
       return;
     }
 
@@ -564,6 +581,8 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
   (async () => {
     const { data } = await sb.auth.getSession();
     if (data && data.session && data.session.user) {
+      const em = (data.session.user.email || '').trim().toLowerCase();
+      if (em === SUPPORT_EMAIL) { location.href = './support.html'; return; }
       showDashboard(data.session.user);
     }
   })();
@@ -969,6 +988,10 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     document.getElementById('navPastoral').style.opacity = name === 'pastoral' ? '1' : '.65';
     document.getElementById('navChapters').style.opacity = name === 'chapters' ? '1' : '.65';
     document.getElementById('navSecurity').style.opacity = name === 'security' ? '1' : '.65';
+    document.getElementById('healthView').style.display = name === 'health' ? 'block' : 'none';
+    document.getElementById('navHealth').style.opacity = name === 'health' ? '1' : '.65';
+    document.getElementById('syslogView').style.display = name === 'syslog' ? 'block' : 'none';
+    document.getElementById('navSyslog').style.opacity = name === 'syslog' ? '1' : '.65';
     if (name === 'pastoral') renderPastoralView();
     if (name === 'chapters') loadChaptersAdmin();
     if (name === 'servants') loadServantsAdmin();
@@ -977,6 +1000,120 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     if (name === 'dups') renderDupsAdmin();
     if (name === 'security') loadSecurityEvents();
     if (name === 'promotion') loadPromotionAdmin();
+    if (name === 'health') renderHealthView();
+    if (name === 'syslog') renderSyslogView();
+  }
+
+  // ================== 🩺 سلامة البيانات (تشخيص أعطال داخلية) ==================
+  function renderHealthView() {
+    const wrap = document.getElementById('healthView');
+    if (!wrap) return;
+    if (!(allClasses || []).length) {
+      wrap.innerHTML = '<div class="empty-state"><div class="ic">⏳</div>افتح «📚 الفصول» أولاً ليكتمل تحميل البيانات، ثم عد لهذه الصفحة.</div>';
+      return;
+    }
+
+    const noStage = [], corrupted = [], emptyOld = [];
+    const nameKey = c => (c.class_name || '').trim().replace(/\s+/g, ' ').toLowerCase() + '|' + ((c.data || {}).stage || '') + '|' + ((c.data || {}).gender || '');
+    const byName = new Map();
+
+    allClasses.forEach(c => {
+      const d = c.data;
+      const stu = (d && Array.isArray(d.students)) ? d.students : null;
+      const srv = (d && Array.isArray(d.servants)) ? d.servants : null;
+      if (!d || !stu || !srv) { corrupted.push(c); return; }   // سجل بصيغة غير متوقعة
+      const hasData = stu.length > 0 || srv.length > 0;
+      if (hasData && (!d.stage || !(d.gender === 'boys' || d.gender === 'girls'))) noStage.push(c);
+      if (!hasData) emptyOld.push(c);
+      if ((c.class_name || '').trim()) {
+        const k = nameKey(c);
+        if (!byName.has(k)) byName.set(k, []);
+        byName.get(k).push(c);
+      }
+    });
+    const dupNames = [...byName.values()].filter(g => g.length > 1);
+
+    const card = (c) => `
+      <div class="gsearch-result" onclick="openDetail('${escapeHtml(c.class_id)}')">
+        <div><div class="name">🏫 ${escapeHtml(c.class_name || 'بدون اسم')}</div>
+        <div class="cls">${c.data ? (((c.data.students || []).length) + ' مخدوم • ' + ((c.data.servants || []).length) + ' خادم') : 'لا توجد بيانات مقروءة'}</div></div>
+        <span class="chip blue">فتح ←</span>
+      </div>`;
+    const section = (title, icon, list, emptyMsg, renderItem) => `
+      <div class="an-item" style="border-right-color:${list.length ? '#c8392b' : '#1a7a4a'}">
+        <div style="font-weight:900;margin-bottom:8px;">${icon} ${title} <span class="chip ${list.length ? '' : 'green'}">${list.length}</span></div>
+        ${list.length ? list.map(renderItem).join('') : `<div style="color:#1a7a4a;font-size:13px;">${emptyMsg}</div>`}
+      </div>`;
+
+    wrap.innerHTML = `
+      <div class="summary-pill" style="margin-bottom:14px;display:inline-block;">🩺 فحص ${allClasses.length} فصل</div>
+      ${section('فصول عليها بيانات لكن بلا مرحلة أو فئة محدّدة (لن تظهر لأصحابها بشكل صحيح)', '⚠️', noStage,
+          'لا توجد مشكلة — كل الفصول التي بها بيانات محدَّد لها مرحلة وفئة.', card)}
+      ${section('فصول سجلّها غير مفهوم في السحابة (يحتاج فتحاً يدوياً للتأكد)', '🧩', corrupted,
+          'لا توجد سجلات تالفة.', card)}
+      ${section('فصول متطابقة الاسم ضمن نفس المرحلة والفئة (قد تُربك تسجيل الخدام الجدد)', '🧬', dupNames,
+          'لا توجد أسماء فصول متكررة في نفس المرحلة والفئة.', g => `
+            <div style="margin-bottom:10px;">${g.map(card).join('')}</div>`)}
+      ${section('فصول فارغة تماماً (بلا مخدومين ولا خدام) — للمتابعة فقط، قد تكون فصولاً جديدة', '📭', emptyOld,
+          'لا توجد فصول فارغة.', card)}
+    `;
+  }
+
+  // ================== 🧾 سجل نشاط النظام (موحّد من كل الفصول) ==================
+  function _sysActivityDescribe(x) {
+    const by  = '<b>' + escapeHtml(x.by || 'غير معروف') + '</b>';
+    const who = '<b>' + escapeHtml(x.studentName || 'مخدوم') + '</b>';
+    const m   = x.method === 'phone' ? ' — 📱 بالهاتف' : (x.method === 'visit' ? ' — 🏠 بالزيارة' : '');
+    switch (x.t) {
+      case 'followup_done': return { icon: '✅', html: 'تم افتقاد ' + who + ' بواسطة ' + by + m };
+      case 'followup_type': return { icon: x.method === 'visit' ? '🏠' : '📱', html: 'تسجيل افتقاد ' + who + m + ' بواسطة ' + by };
+      case 'followup_undo': return { icon: '↩️', html: 'إلغاء افتقاد ' + who + ' بواسطة ' + by };
+      case 'delete_student': return { icon: '🗑️', html: 'حذف المخدوم ' + who + ' بواسطة ' + by };
+      case 'transfer_student': return { icon: '🔀', html: (x.dir === 'in' ? 'وصل ' + who + ' من «' : 'انتقل ' + who + ' إلى «') + escapeHtml(x.other || '') + '» بواسطة ' + by };
+      case 'delete_servant': return { icon: '🗑️', html: 'حذف الخادم ' + who + ' بواسطة ' + by };
+      case 'delete_all': return { icon: '⚠️', html: 'حذف جميع المخدومين والخدام بواسطة ' + by };
+      case 'delete_all_students': return { icon: '⚠️', html: 'حذف جميع المخدومين' + (x.count ? ' (' + x.count + ')' : '') + ' بواسطة ' + by };
+      case 'delete_log': return { icon: '🧹', html: 'مسح سجل النشاط بواسطة ' + by };
+      default: return { icon: '•', html: escapeHtml(x.t || '') + ' بواسطة ' + by };
+    }
+  }
+
+  function renderSyslogView() {
+    const wrap = document.getElementById('syslogView');
+    if (!wrap) return;
+    if (!(allClasses || []).length) {
+      wrap.innerHTML = '<div class="empty-state"><div class="ic">⏳</div>افتح «📚 الفصول» أولاً ليكتمل تحميل البيانات، ثم عد لهذه الصفحة.</div>';
+      return;
+    }
+    const prev = document.getElementById('sysSearch');
+    const q = ((prev && prev.value) || '').trim().toLowerCase();
+
+    const all = [];
+    allClasses.forEach(c => ((c.data && c.data.activityLog) || []).forEach(x => all.push(Object.assign({}, x, { _class: c.class_name || 'بدون اسم' }))));
+    all.sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+    const filtered = all.filter(x => !q || (x._class + ' ' + (x.by || '') + ' ' + (x.studentName || '') + ' ' + (x.other || '')).toLowerCase().includes(q)).slice(0, 250);
+
+    let html = `<div class="sv-bar">
+      <input type="text" class="search-box" id="sysSearch" placeholder="🔍 ابحث باسم خادم أو مخدوم أو فصل..." value="${escapeHtml(prev ? prev.value : '')}" oninput="renderSyslogView(); const e=document.getElementById('sysSearch'); e.focus(); e.setSelectionRange(e.value.length,e.value.length);">
+      <span class="summary-pill">🧾 ${all.length} حركة مسجَّلة${filtered.length < all.length ? ' • يُعرض آخر ' + filtered.length : ''}</span>
+    </div>`;
+
+    if (!filtered.length) {
+      html += '<div class="empty-state"><div class="ic">📭</div>' + (all.length ? 'لا توجد نتائج مطابقة.' : 'لا يوجد نشاط مسجَّل بعد في أي فصل.') + '</div>';
+    } else {
+      html += filtered.map(x => {
+        const d = _sysActivityDescribe(x);
+        const t = x.at ? new Date(x.at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+        return `<div class="an-item" style="border-right-color:#555;">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <div>${d.icon} ${d.html}</div>
+            <span class="chip blue">🏫 ${escapeHtml(x._class)}</span>
+          </div>
+          <div style="font-size:11.5px;color:#999;margin-top:4px;">${escapeHtml(t)}</div>
+        </div>`;
+      }).join('');
+    }
+    wrap.innerHTML = html;
   }
 
   // ================== التحذيرات الأمنية (محاولات تخمين كلمة سر الفصول) ==================
@@ -1172,6 +1309,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
     s1:'sec', s2:'sec', s3:'sec', u1:'uni', u2:'uni', u3:'uni', u4:'uni', u5:'uni', grad:'grad', youth:'grad' };
   const ROLE_NAMES = { servant:'خادم', assistant:'أمين مساعد', coordinator:'أمين خدمة' };
   let rolesAvail = false;
+  let transferAvail = false;
   const isSecRole = s => !!s && (s.role_type === 'assistant' || s.role_type === 'coordinator') && !!GROUP_NAMES[s.stage_group];
   let allServants = [];
 
@@ -1206,6 +1344,19 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
         });
       }
     } catch (e) {}
+    transferAvail = false;
+    try {      // صلاحية «نقل مخدوم» (servant_perms.sql + admin_transfer_perms.sql)
+      const rp = await sb.rpc('admin_list_transfer_perms');
+      if (!rp.error && Array.isArray(rp.data)) {
+        transferAvail = true;
+        const pm = {}; rp.data.forEach(x => { pm[x.device_id] = x; });
+        allServants.forEach(s => {
+          const x = pm[s.device_id];
+          s.can_transfer = !!(x && x.can_transfer);
+          s.transfer_granted_by = (x && x.granted_by_name) || '';
+        });
+      }
+    } catch (e) {}
     renderServantsAdmin();
   }
 
@@ -1230,7 +1381,7 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
       html += '<div class="empty-state"><div class="ic">📭</div>' + (allServants.length ? 'لا توجد نتائج مطابقة.' : 'لا يوجد خدام مسجّلون بعد.') + '</div>';
     } else {
       html += `<div class="sv-wrap"><table class="data-table"><thead><tr>
-        <th>#</th><th>الاسم</th><th>الفصل / المرحلة</th><th>الصفة</th><th>اسم الفصل التابع له</th><th>رقم الهاتف</th><th></th></tr></thead><tbody>
+        <th>#</th><th>الاسم</th><th>الفصل / المرحلة</th><th>الصفة</th><th>اسم الفصل التابع له</th><th>رقم الهاتف</th><th>🔀 نقل مخدوم</th><th></th></tr></thead><tbody>
         ${rows.map(({ s, i }, n) => `<tr>
           <td>${n + 1}</td>
           <td style="font-weight:700;">${escapeHtml(s.name || '')}</td>
@@ -1241,11 +1392,30 @@ html.ar-r #splashScreen,html.ar-r-chapter #chapterGate,html.ar-r-dash #loginScre
               <button class="sv-edit" title="تعديل اسم الفصل" onclick="editServantClass(${i})">✏️</button></td>
           <td>${s.phone ? `<a class="sv-phone" href="tel:${escapeHtml(s.phone)}">📞 ${escapeHtml(s.phone)}</a>` : '<span style="color:#aaa;">— لم يُسجَّل —</span>'}
               <button class="sv-edit" title="تعديل الرقم" onclick="editServantPhone(${i})">✏️</button></td>
+          <td>${isSecRole(s)
+              ? '<span class="chip green" title="الأمين يملكها دائماً بحكم صفته">✅ دائماً</span>'
+              : (transferAvail
+                  ? `<button class="tg-sw${s.can_transfer ? ' on' : ''}" role="switch" aria-checked="${s.can_transfer ? 'true' : 'false'}" title="${s.can_transfer ? ('ممنوحة' + (s.transfer_granted_by ? ' من ' + escapeHtml(s.transfer_granted_by) : '')) : 'غير ممنوحة'}" onclick="toggleTransferPerm(${i})"></button>`
+                  : '<span style="color:#bbb;font-size:11.5px;">شغّل admin_transfer_perms.sql</span>')}</td>
           <td><button class="sv-edit" title="حذف الخادم" style="color:var(--accent);" onclick="deleteRegisteredServant(${i})">🗑️</button></td>
         </tr>`).join('')}
       </tbody></table></div>`;
     }
     wrap.innerHTML = html;
+  }
+
+  async function toggleTransferPerm(i) {
+    const s = allServants[i];
+    if (!s || isSecRole(s)) return;
+    const want = !s.can_transfer;
+    const { data, error } = await sb.rpc('admin_set_transfer_perm', { p_device: s.device_id, p_allowed: want });
+    if (error || data !== true) {
+      showToast(error ? 'تعذر الحفظ: ' + (error.message || '') : 'تعذر تغيير هذه الصلاحية.');
+      return;
+    }
+    s.can_transfer = want;
+    s.transfer_granted_by = want ? 'المشرف العام' : '';
+    renderServantsAdmin();
   }
 
   async function deleteRegisteredServant(i) {

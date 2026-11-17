@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>لوحة الدعم الفني — كاتدرائية رئيس الملائكة الجليل ميخائيل - طنطا</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --ink:#0d1117; --navy:#121a2b; --paper:#f5f0e8; --cream:#ede8dc;
+    --accent:#c8392b; --accent2:#2980b9; --gold:#d4a017; --green:#1a7a4a;
+    --line:#b5a98a; --shadow:rgba(13,17,23,0.14);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; overflow-x:hidden; }
+  body {
+    max-width:100vw; overflow-x:hidden; font-family:'Cairo',sans-serif;
+    background:var(--paper); color:var(--ink); min-height:100vh;
+  }
+  /* ===== شاشة الدخول ===== */
+  #loginScreen { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .login-card {
+    background:#fff; width:100%; max-width:400px; border-radius:14px;
+    box-shadow:0 20px 50px var(--shadow); border-top:6px solid var(--accent2); padding:36px 32px 30px;
+  }
+  .seal {
+    width:64px; height:64px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--navy), var(--ink));
+    border:3px solid var(--accent2); color:var(--accent2);
+    display:flex; align-items:center; justify-content:center; font-size:28px; margin:0 auto 16px;
+    box-shadow:0 4px 14px rgba(0,0,0,.25);
+  }
+  .login-title { text-align:center; font-size:19px; font-weight:900; }
+  .login-sub { text-align:center; font-size:12.5px; color:#8a8272; margin:4px 0 24px; }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:12.5px; font-weight:700; color:#555; margin-bottom:6px; }
+  .field input {
+    width:100%; padding:11px 14px; border:1.5px solid var(--cream); border-radius:9px;
+    font-family:inherit; font-size:14px; background:#fbfaf7;
+  }
+  .field input:focus { outline:none; border-color:var(--accent2); }
+  .login-btn {
+    width:100%; padding:12px; border:none; border-radius:9px; background:var(--ink); color:#fff;
+    font-family:inherit; font-size:15px; font-weight:700; cursor:pointer; margin-top:6px;
+  }
+  .login-btn:disabled { opacity:.6; cursor:default; }
+  .login-error {
+    background:#fee2e2; color:#991b1b; border:1px solid #fecaca; border-radius:8px;
+    padding:9px 12px; font-size:12.5px; margin-bottom:14px; display:none;
+  }
+  .login-note { text-align:center; font-size:11.5px; color:#999; margin-top:16px; line-height:1.8; }
+
+  /* ===== اللوحة ===== */
+  #dashScreen { display:none; }
+  .header {
+    background:var(--navy); color:var(--paper); padding:16px 26px;
+    display:flex; align-items:center; justify-content:space-between;
+    box-shadow:0 4px 20px var(--shadow); position:sticky; top:0; z-index:100; flex-wrap:wrap; gap:12px;
+  }
+  .header-brand { display:flex; align-items:center; gap:12px; }
+  .header-icon {
+    width:42px; height:42px; background:var(--accent2); color:#fff; border-radius:10px;
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+  }
+  .header h1 { font-size:18px; font-weight:900; }
+  .header-subtitle { font-size:11.5px; color:#a8b0c0; margin-top:2px; }
+  .header-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .btn { border:none; border-radius:8px; padding:9px 16px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+  .btn-outline { background:transparent; border:1.5px solid rgba(245,240,232,.4); color:var(--paper); }
+  .btn-red { background:var(--accent); color:#fff; }
+
+  .container { max-width:1180px; margin:0 auto; padding:22px 18px 60px; }
+  .nav-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+  .nav-row button { opacity:.65; }
+  .nav-row button.active { opacity:1; }
+
+  .cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(230px,100%),1fr)); gap:14px; margin-bottom:18px; }
+  .metric { background:#fff; border:1px solid var(--cream); border-radius:12px; padding:16px; box-shadow:0 4px 12px var(--shadow); border-right:5px solid var(--accent2); }
+  .metric.ok { border-right-color:var(--green); }
+  .metric.warn { border-right-color:var(--gold); }
+  .metric.bad { border-right-color:var(--accent); }
+  .metric .lbl { font-size:12px; color:#888; font-weight:700; margin-bottom:4px; }
+  .metric .val { font-size:20px; font-weight:900; }
+  .metric .sub { font-size:11px; color:#aaa; margin-top:4px; }
+
+  .panel { display:none; }
+  .panel.active { display:block; }
+  .empty-state { text-align:center; padding:60px 20px; color:#999; }
+  .empty-state .ic { font-size:40px; margin-bottom:10px; }
+  .search-box { width:100%; padding:11px 16px; border-radius:10px; border:1.5px solid var(--cream); background:#fff; font-family:inherit; font-size:14px; margin-bottom:14px; }
+  .search-box:focus { outline:none; border-color:var(--accent2); }
+  .chip { background:var(--cream); border-radius:16px; padding:4px 11px; font-size:11.5px; font-weight:700; color:#5a5342; display:inline-block; }
+  .chip.green { background:#dcfce7; color:#166534; }
+  .chip.red { background:#fee2e2; color:#991b1b; }
+  .chip.blue { background:#dbeafe; color:#1d4ed8; }
+  .item { background:#fff; border:1px solid var(--cream); border-right:5px solid #999; border-radius:12px; padding:12px 14px; margin-bottom:10px; }
+  .item .top { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; }
+  .item .time { font-size:11px; color:#999; margin-top:4px; }
+
+  /* ===== المساعد الذكي ===== */
+  .ai-box { background:#fff; border:1px solid var(--cream); border-radius:14px; padding:16px; box-shadow:0 4px 12px var(--shadow); }
+  .ai-key-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .ai-key-row input[type=password] { flex:1; min-width:200px; padding:10px 12px; border:1.5px solid var(--cream); border-radius:9px; font-family:inherit; font-size:13px; }
+  .ai-warn { background:#fff8e1; border:1px solid #f0cf72; color:#7a5600; border-radius:9px; padding:10px 12px; font-size:12px; line-height:1.8; margin-bottom:12px; }
+  .ai-log { max-height:420px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; margin-bottom:12px; padding:4px; }
+  .ai-msg { max-width:88%; padding:10px 13px; border-radius:12px; font-size:13.5px; line-height:1.8; white-space:pre-wrap; }
+  .ai-msg.user { background:var(--accent2); color:#fff; align-self:flex-start; border-bottom-left-radius:3px; }
+  .ai-msg.bot { background:#f3f1ec; color:var(--ink); align-self:flex-end; border-bottom-right-radius:3px; }
+  .ai-msg.sys { background:#fdf0d5; color:#8a5a06; align-self:center; font-size:12px; }
+  .ai-input-row { display:flex; gap:8px; }
+  .ai-input-row textarea { flex:1; padding:10px 12px; border:1.5px solid var(--cream); border-radius:9px; font-family:inherit; font-size:14px; resize:vertical; min-height:44px; max-height:140px; }
+  .ai-input-row button { border:none; border-radius:9px; background:var(--ink); color:#fff; padding:0 18px; font-family:inherit; font-weight:700; cursor:pointer; }
+  .ai-input-row button:disabled { opacity:.5; cursor:wait; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="seal">🛠️</div>
+    <div class="login-title">لوحة الدعم الفني</div>
+    <div class="login-sub">كاتدرائية رئيس الملائكة الجليل ميخائيل — طنطا</div>
+    <div class="login-error" id="loginError"></div>
+    <div class="field">
+      <label>البريد الإلكتروني</label>
+      <input type="email" id="loginEmail" placeholder="support@example.com" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>كلمة المرور</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">دخول</button>
+    <div class="login-note">هذه الصفحة مخصصة لحساب الدعم الفني فقط.<br>أي حساب آخر سيُعاد توجيهه تلقائياً إلى لوحة المشرفين.</div>
+  </div>
+</div>
+
+<div id="dashScreen">
+  <div class="header">
+    <div class="header-brand">
+      <div class="header-icon">🛠️</div>
+      <div>
+        <h1>لوحة الدعم الفني</h1>
+        <div class="header-subtitle" id="userEmailLabel"></div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a href="./admin.html" class="btn btn-outline" style="text-decoration:none;">🔒 لوحة المشرفين</a>
+      <button class="btn btn-outline" onclick="loadAll(true)">⟳ تحديث</button>
+      <button class="btn btn-red" onclick="doLogout()">خروج</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="nav-row">
+      <button class="btn btn-outline active" id="navSync" onclick="showPanel('sync')">🔄 حالة المزامنة والأخطاء</button>
+      <button class="btn btn-outline" id="navLoad" onclick="showPanel('load')">📊 تحميل قاعدة البيانات</button>
+      <button class="btn btn-outline" id="navAi" onclick="showPanel('ai')">🤖 المساعد الذكي</button>
+    </div>
+
+    <!-- ========== حالة المزامنة والأخطاء ========== -->
+    <div class="panel active" id="panel-sync">
+      <div id="syncCards" class="cards"></div>
+      <input type="text" class="search-box" id="syncSearch" placeholder="🔍 ابحث باسم الفصل..." oninput="renderSync()">
+      <div id="syncList"><div class="empty-state"><div class="ic">⏳</div>جاري التحميل...</div></div>
+    </div>
+
+    <!-- ========== تحميل قاعدة البيانات ========== -->
+    <div class="panel" id="panel-load">
+      <div id="loadCards" class="cards"><div class="empty-state"><div class="ic">⏳</div>جاري القياس...</div></div>
+      <div class="item" style="border-right-color:var(--accent2);">
+        <b>كيف تُقرأ هذه الأرقام؟</b>
+        <div style="font-size:12.5px;color:#666;margin-top:6px;line-height:1.9;">
+          • <b>الاتصالات النشطة الآن</b>: كل اتصال مفتوح بقاعدة البيانات هذه اللحظة من أي تطبيق متصل. ارتفاعها المستمر قرب الحد الأقصى يعني ضغطاً حقيقياً.<br>
+          • <b>الكتابة خلال آخر ساعة/يوم</b>: عدد الفصول التي حُفظت حديثاً — مؤشر على حجم الاستخدام الفعلي الآن.<br>
+          • <b>حجم قاعدة البيانات</b>: حجم كل البيانات المخزّنة. قارنه بحد خطتك في Supabase (Settings → Billing) لمعرفة المساحة المتبقية.<br>
+          • زمن الاستجابة هو وقت الرحلة الكاملة لهذا الفحص نفسه، كمؤشر تقريبي على سرعة استجابة قاعدة البيانات الآن.
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== المساعد الذكي ========== -->
+    <div class="panel" id="panel-ai">
+      <div class="ai-box">
+        <div class="ai-warn">
+          ⚠️ يحتاج هذا المساعد مفتاح Anthropic API الخاص بك. يُرسَل من متصفحك مباشرة إلى Anthropic ولا يمر على أي خادم تابع للكنيسة،
+          لكنه يظهر في أدوات المطوّرين (Network) على هذا الجهاز — استخدمه فقط على جهاز تثق فيه، ولا تتركه محفوظاً على جهاز مشترك.
+        </div>
+        <div class="ai-key-row">
+          <input type="password" id="aiKey" placeholder="مفتاح Anthropic API (يبدأ بـ sk-ant-...)" autocomplete="off">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#666;white-space:nowrap;">
+            <input type="checkbox" id="aiRemember" style="width:auto;"> تذكّره في هذا المتصفح
+          </label>
+        </div>
+        <div class="ai-log" id="aiLog">
+          <div class="ai-msg sys">🤖 اسأل المساعد عن حالة الفصول، احتمالات الخطأ، أو ما تعنيه أرقام تحميل قاعدة البيانات. يرى المساعد نفس التشخيص الظاهر في التبويبين السابقين فقط — لا يرى بيانات المخدومين الشخصية.</div>
+        </div>
+        <div class="ai-input-row">
+          <textarea id="aiInput" placeholder="مثال: ليه فيه فصول متكررة الاسم؟ وإيه اللي يستاهل اهتمام دلوقتي؟" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aiSend();}"></textarea>
+          <button id="aiSendBtn" onclick="aiSend()">إرسال</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL      = 'https://tnpokrdrhactzjrhlyjv.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRucG9rcmRyaGFjdHpqcmhseWp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyMTg4MDYsImV4cCI6MjEwNjc5NDgwNn0.GAR0ckTxCGwHg4LeR1GAU5CTXnDLLpQkuY2lL6BycBw';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // الحساب الوحيد المسموح له بفتح هذه اللوحة — أي حساب آخر يُعاد توجيهه إلى لوحة المشرفين العادية
+  const SUPPORT_EMAIL = 'daniel.adel@gmail.com';
+
+  function escapeHtml(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+  }
+
+  // ================== الدخول ==================
+  async function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const btn = document.getElementById('loginBtn');
+    const errBox = document.getElementById('loginError');
+    errBox.style.display = 'none';
+    if (!email || !password) { errBox.textContent = 'من فضلك أدخل البريد الإلكتروني وكلمة المرور.'; errBox.style.display = 'block'; return; }
+    btn.disabled = true; btn.textContent = 'جاري الدخول...';
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    btn.disabled = false; btn.textContent = 'دخول';
+    if (error) { errBox.textContent = 'فشل الدخول: البريد أو كلمة المرور غير صحيحة.'; errBox.style.display = 'block'; return; }
+    await routeAfterLogin(data.user, errBox);
+  }
+
+  async function routeAfterLogin(user, errBox) {
+    const em = ((user && user.email) || '').trim().toLowerCase();
+    if (em !== SUPPORT_EMAIL) {
+      await sb.auth.signOut();
+      if (errBox) { errBox.textContent = 'هذا الحساب ليس حساب الدعم الفني — جاري تحويلك للوحة المشرفين...'; errBox.style.display = 'block'; }
+      setTimeout(() => { location.href = './admin.html'; }, 1200);
+      return;
+    }
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashScreen').style.display = 'block';
+    document.getElementById('userEmailLabel').textContent = user.email;
+    loadAll(false);
+  }
+
+  async function doLogout() {
+    await sb.auth.signOut();
+    document.getElementById('dashScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+  }
+
+  // دخول تلقائي لو كانت هناك جلسة محفوظة بالفعل (مثلاً بعد تسجيل الدخول من admin.html)
+  (async function boot() {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session && session.user) await routeAfterLogin(session.user, null);
+    } catch (e) {}
+  })();
+
+  // ================== التنقل بين التبويبات ==================
+  function showPanel(name) {
+    ['sync', 'load', 'ai'].forEach(n => {
+      document.getElementById('panel-' + n).classList.toggle('active', n === name);
+      document.getElementById('nav' + n[0].toUpperCase() + n.slice(1)).classList.toggle('active', n === name);
+    });
+  }
+
+  // ================== تحميل البيانات ==================
+  let allClasses = [];
+
+  async function loadAll(manual) {
+    const { data, error } = await sb.from('class_records').select('class_id, class_name, data, updated_at').order('updated_at', { ascending: false });
+    if (!error) { allClasses = data || []; renderSync(); }
+    else if (manual) alert('تعذر تحميل الفصول: ' + error.message);
+    loadDbHealth();
+  }
+
+  // ---------- حالة المزامنة والأخطاء ----------
+  function renderSync() {
+    const wrap = document.getElementById('syncList');
+    const cards = document.getElementById('syncCards');
+    if (!allClasses.length) { wrap.innerHTML = '<div class="empty-state"><div class="ic">⏳</div>جاري التحميل...</div>'; return; }
+
+    const now = Date.now();
+    const DAY = 86400000;
+    const rows = allClasses.map(c => {
+      const d = c.data;
+      const stu = (d && Array.isArray(d.students)) ? d.students : null;
+      const srv = (d && Array.isArray(d.servants)) ? d.servants : null;
+      const corrupted = !d || !stu || !srv;
+      const hasData = !corrupted && (stu.length > 0 || srv.length > 0);
+      const noStage = !corrupted && hasData && (!d.stage || !(d.gender === 'boys' || d.gender === 'girls'));
+      const age = c.updated_at ? (now - new Date(c.updated_at).getTime()) : Infinity;
+      let freshness = 'never';
+      if (c.updated_at) { if (age < DAY) freshness = 'today'; else if (age < 7 * DAY) freshness = 'week'; else if (age < 30 * DAY) freshness = 'month'; else freshness = 'stale'; }
+      return { c, corrupted, noStage, freshness, stuN: stu ? stu.length : 0, srvN: srv ? srv.length : 0 };
+    });
+
+    const nCorrupted = rows.filter(r => r.corrupted).length;
+    const nNoStage = rows.filter(r => r.noStage).length;
+    const nStale = rows.filter(r => r.freshness === 'stale' || r.freshness === 'never').length;
+    const nToday = rows.filter(r => r.freshness === 'today').length;
+
+    cards.innerHTML = `
+      <div class="metric ok"><div class="lbl">فصول متزامنة اليوم</div><div class="val">${nToday}</div><div class="sub">من ${rows.length} فصل</div></div>
+      <div class="metric ${nStale ? 'warn' : 'ok'}"><div class="lbl">لم تُزامن منذ أكثر من شهر</div><div class="val">${nStale}</div><div class="sub">قد تحتاج متابعة مع الخادم</div></div>
+      <div class="metric ${nCorrupted ? 'bad' : 'ok'}"><div class="lbl">سجلات تالفة/غير مفهومة</div><div class="val">${nCorrupted}</div><div class="sub">تحتاج فتحاً يدوياً للتأكد</div></div>
+      <div class="metric ${nNoStage ? 'warn' : 'ok'}"><div class="lbl">بيانات بلا مرحلة/فئة</div><div class="val">${nNoStage}</div><div class="sub">لن تظهر بشكل صحيح لأصحابها</div></div>
+    `;
+
+    const q = (document.getElementById('syncSearch').value || '').trim().toLowerCase();
+    const freshLabel = { today: ['🟢 اليوم', 'green'], week: ['🟡 خلال أسبوع', ''], month: ['🟠 خلال شهر', ''], stale: ['🔴 متوقفة منذ شهر+', 'red'], never: ['⚪ لم تُزامن قط', 'red'] };
+    const filtered = rows.filter(r => !q || (r.c.class_name || '').toLowerCase().includes(q))
+      .sort((a, b) => (a.corrupted === b.corrupted ? 0 : a.corrupted ? -1 : 1));
+
+    if (!filtered.length) { wrap.innerHTML = '<div class="empty-state"><div class="ic">📭</div>لا توجد نتائج مطابقة.</div>'; return; }
+    wrap.innerHTML = filtered.map(r => {
+      const fl = freshLabel[r.freshness];
+      const t = r.c.updated_at ? new Date(r.c.updated_at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) : 'لم تُزامن قط';
+      return `<div class="item" style="border-right-color:${r.corrupted ? 'var(--accent)' : (r.noStage ? 'var(--gold)' : '#999')}">
+        <div class="top">
+          <div><b>🏫 ${escapeHtml(r.c.class_name || 'بدون اسم')}</b> &nbsp; <span class="chip ${fl[1]}">${fl[0]}</span></div>
+          <div>${r.corrupted ? '<span class="chip red">🧩 سجل تالف</span>' : `<span class="chip">👦 ${r.stuN} مخدوم</span> <span class="chip">🧑‍🤝‍🧑 ${r.srvN} خادم</span>`} ${r.noStage ? '<span class="chip red">⚠️ بلا مرحلة/فئة</span>' : ''}</div>
+        </div>
+        <div class="time">آخر مزامنة: ${escapeHtml(t)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ---------- تحميل قاعدة البيانات ----------
+  async function loadDbHealth() {
+    const wrap = document.getElementById('loadCards');
+    const t0 = performance.now();
+    const { data, error } = await sb.rpc('admin_db_health');
+    const ms = Math.round(performance.now() - t0);
+    if (error) {
+      const missing = error.code === 'PGRST202' || error.code === '42883' || /could not find|does not exist|schema cache/i.test(error.message || '');
+      wrap.innerHTML = `<div class="empty-state"><div class="ic">⚠️</div>${missing ? 'شغّل ملف admin_db_health.sql على Supabase أولاً.' : 'تعذر القياس: ' + escapeHtml(error.message || '')}</div>`;
+      return;
+    }
+    const h = data || {};
+    const conn = h.active_connections, maxc = h.max_connections;
+    const connPct = (conn != null && maxc) ? Math.round((conn / maxc) * 100) : null;
+    const connCls = connPct == null ? '' : connPct > 80 ? 'bad' : connPct > 50 ? 'warn' : 'ok';
+    const latCls = ms > 1500 ? 'bad' : ms > 600 ? 'warn' : 'ok';
+    wrap.innerHTML = `
+      <div class="metric ${connCls}"><div class="lbl">الاتصالات النشطة الآن</div><div class="val">${conn != null ? conn : '—'}${maxc ? ' / ' + maxc : ''}</div><div class="sub">${connPct != null ? connPct + '٪ من الحد الأقصى' : 'غير متاح من هذا الحساب'}</div></div>
+      <div class="metric ${latCls}"><div class="lbl">زمن استجابة الفحص</div><div class="val">${ms} ms</div><div class="sub">${ms > 1500 ? 'بطيء — راقب الأداء' : ms > 600 ? 'مقبول' : 'سريع'}</div></div>
+      <div class="metric"><div class="lbl">حجم قاعدة البيانات</div><div class="val">${escapeHtml(h.db_size_pretty || '—')}</div><div class="sub">قارنه بحد خطتك في Supabase</div></div>
+      <div class="metric"><div class="lbl">حجم جدول الفصول</div><div class="val">${escapeHtml(h.class_records_table_pretty || '—')}</div><div class="sub">${h.class_records_rows != null ? h.class_records_rows + ' فصل' : ''}</div></div>
+      <div class="metric"><div class="lbl">كتابة خلال آخر ساعة</div><div class="val">${h.writes_last_hour != null ? h.writes_last_hour : '—'}</div><div class="sub">فصل تمت مزامنته</div></div>
+      <div class="metric"><div class="lbl">كتابة خلال آخر يوم</div><div class="val">${h.writes_last_day != null ? h.writes_last_day : '—'}</div><div class="sub">فصل تمت مزامنته</div></div>
+    `;
+    window._lastHealth = h; window._lastHealthMs = ms;
+  }
+
+  // ================== المساعد الذكي ==================
+  const AI_KEY_SESSION = 'support_ai_key_v1';
+  (function initAiKey() {
+    try {
+      const saved = sessionStorage.getItem(AI_KEY_SESSION) || localStorage.getItem(AI_KEY_SESSION);
+      if (saved) { document.getElementById('aiKey').value = saved; if (localStorage.getItem(AI_KEY_SESSION)) document.getElementById('aiRemember').checked = true; }
+    } catch (e) {}
+  })();
+
+  let aiHistory = [];
+
+  function aiAppend(role, text) {
+    const log = document.getElementById('aiLog');
+    const div = document.createElement('div');
+    div.className = 'ai-msg ' + role;
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function buildDiagnosticContext() {
+    const rows = allClasses.map(c => {
+      const d = c.data;
+      const stu = (d && Array.isArray(d.students)) ? d.students : null;
+      const srv = (d && Array.isArray(d.servants)) ? d.servants : null;
+      const corrupted = !d || !stu || !srv;
+      return {
+        name: c.class_name || 'بدون اسم',
+        updated_at: c.updated_at,
+        corrupted,
+        students: stu ? stu.length : null,
+        servants: srv ? srv.length : null,
+        stage: corrupted ? null : d.stage,
+        gender: corrupted ? null : d.gender
+      };
+    });
+    return { generated_at: new Date().toISOString(), total_chapters: rows.length, db_health: window._lastHealth || null, latency_ms: window._lastHealthMs || null, chapters: rows };
+  }
+
+  async function aiSend() {
+    const input = document.getElementById('aiInput');
+    const keyEl = document.getElementById('aiKey');
+    const btn = document.getElementById('aiSendBtn');
+    const q = input.value.trim();
+    const key = keyEl.value.trim();
+    if (!q) return;
+    if (!key) { aiAppend('sys', '⚠️ أدخل مفتاح Anthropic API أولاً.'); return; }
+    try {
+      if (document.getElementById('aiRemember').checked) localStorage.setItem(AI_KEY_SESSION, key);
+      else { sessionStorage.setItem(AI_KEY_SESSION, key); localStorage.removeItem(AI_KEY_SESSION); }
+    } catch (e) {}
+
+    aiAppend('user', q);
+    input.value = '';
+    btn.disabled = true; btn.textContent = '...';
+    aiHistory.push({ role: 'user', content: q });
+
+    try {
+      const ctx = buildDiagnosticContext();
+      const sys = 'أنت مساعد صيانة تقني لتطبيق متابعة خدمة كنسية (فصول/مخدومين/خدام) مبني على Supabase. ' +
+        'لديك تشخيص آلي لحالة الفصول وتحميل قاعدة البيانات فقط (لا ترى بيانات المخدومين الشخصية). ' +
+        'أجب بالعربية، بإيجاز ووضوح، واقترح خطوات عملية محددة عند وجود مشكلة. بيانات التشخيص الحالية:\n' + JSON.stringify(ctx);
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1024,
+          system: sys,
+          messages: aiHistory.slice(-12)
+        })
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error((body && body.error && body.error.message) || ('HTTP ' + res.status));
+      const text = (body.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim() || '(لا يوجد رد نصي)';
+      aiAppend('bot', text);
+      aiHistory.push({ role: 'assistant', content: text });
+    } catch (e) {
+      aiAppend('sys', '⚠️ تعذر الاتصال بالمساعد: ' + (e && e.message ? e.message : 'خطأ غير معروف') + '\n(تأكد من صحة المفتاح ومن رصيده على console.anthropic.com)');
+    } finally {
+      btn.disabled = false; btn.textContent = 'إرسال';
+    }
+  }
+</script>
+</body>
+</html>

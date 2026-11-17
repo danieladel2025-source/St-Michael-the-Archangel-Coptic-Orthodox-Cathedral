@@ -16,6 +16,7 @@
 
   var PROFILE_KEY     = 'church_user_profile_v1';   // بيانات الخادم (تبقى على الجهاز)
   var ADMIN_KEY       = 'church_admin_session_v1';  // جلسة المشرف العام (sessionStorage فقط)
+  var SUPPORT_EMAIL   = 'daniel.adel@gmail.com';     // حساب الدعم الفني — يُحوَّل لصفحة support.html بدل الدخول كمشرف عام
   var ADMIN_EMAIL_KEY = 'church_admin_email_v1';    // لتعبئة البريد تلقائياً (بدون كلمة المرور)
   var FORCE_KEY       = 'church_welcome_force_v1';  // لفتح صفحة الترحيب بعد "تغيير بياناتي"
   var CHAPTER_SESSION = 'absence_active_chapter_v1';
@@ -860,6 +861,26 @@
     var email = $('wgEmail').value.trim();
     var pass = $('wgPass').value;
     if (!email || !pass) return showError('من فضلك أدخل البريد الإلكتروني وكلمة المرور');
+
+    // حساب الدعم الفني: نفس شاشة الدخول، لكن يُحوَّل لصفحة الدعم بدل الدخول كمشرف عام هنا
+    if (String(email).trim().toLowerCase() === SUPPORT_EMAIL) {
+      busy(true, 'جاري التحقق...');
+      try {
+        // عميل بتخزين افتراضي (localStorage) ليشارك الجلسة مع صفحة support.html عند التحويل
+        var sup = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        var supRes = await sup.auth.signInWithPassword({ email: email, password: pass });
+        if (supRes.error) {
+          var bad = supRes.error.status === 400 || /invalid login/i.test(supRes.error.message || '');
+          throw new Error(bad ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'تعذر الاتصال — تحقق من الإنترنت ثم أعد المحاولة');
+        }
+        location.href = './support.html';
+      } catch (e) {
+        busy(false);
+        showError(e && e.message ? e.message : 'تعذر التحقق، حاول مرة أخرى');
+      }
+      return;
+    }
+
     busy(true, 'جاري التحقق...');
     try {
       var user = await verifyAdmin(email, pass);
