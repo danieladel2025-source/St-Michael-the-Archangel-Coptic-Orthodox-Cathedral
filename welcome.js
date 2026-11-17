@@ -102,12 +102,7 @@
   else normProfile(profile);
   var admin = readJSON(sessionStorage, ADMIN_KEY);
   if (!(admin && admin.email)) admin = null;
-  // جلسة مشرف قديمة بحساب دعم فني: نمسحها ونحوّل لصفحة الدعم بدل الدخول كمشرف عام
-  if (admin && SUPPORT_EMAILS.indexOf(String(admin.email).trim().toLowerCase()) !== -1) {
-    try { sessionStorage.removeItem(ADMIN_KEY); sessionStorage.removeItem('wg-admin-auth'); } catch (e) {}
-    admin = null;
-    location.replace('./support.html');
-  }
+  function isSupportEmail(e) { return SUPPORT_EMAILS.indexOf(String(e || '').trim().toLowerCase()) !== -1; }
 
   var forceOpen = false;
   var unlocked = false;   // المشرف العام سمح بتعديل بيانات الخادم في هذه الجلسة
@@ -610,7 +605,7 @@
 
         '<div id="wgAdmin" hidden>' +
           '<label for="wgEmail">البريد الإلكتروني</label>' +
-          '<input id="wgEmail" type="email" dir="ltr" autocomplete="username" placeholder="name@example.com">' +
+          '<input id="wgEmail" type="email" dir="ltr" autocomplete="off" placeholder="name@example.com">' +
           '<label for="wgPass">كلمة المرور</label>' +
           '<input id="wgPass" type="password" dir="ltr" autocomplete="current-password" placeholder="********">' +
           '<label for="wgAdminName">اسمك (اختياري — يظهر في سجل النشاط)</label>' +
@@ -748,7 +743,7 @@
     }
     fillClassList();
     applyLock();
-    try { $('wgEmail').value = localStorage.getItem(ADMIN_EMAIL_KEY) || ''; } catch (e) {}
+    try { localStorage.removeItem(ADMIN_EMAIL_KEY); } catch (e) {}   // لا نعرض بريداً محفوظاً في شاشة الترحيب
     try { var at = localStorage.getItem(ADMIN_TITLE_KEY); if (at === 'priest' || at === 'general') $('wgAdminTitle').value = at; } catch (e) {}
   }
 
@@ -867,32 +862,17 @@
     var pass = $('wgPass').value;
     if (!email || !pass) return showError('من فضلك أدخل البريد الإلكتروني وكلمة المرور');
 
-    // حساب الدعم الفني: نفس شاشة الدخول، لكن يُحوَّل لصفحة الدعم بدل الدخول كمشرف عام هنا
-    if (SUPPORT_EMAILS.indexOf(String(email).trim().toLowerCase()) !== -1) {
-      busy(true, 'جاري التحقق...');
-      try {
-        // عميل بتخزين افتراضي (localStorage) ليشارك الجلسة مع صفحة support.html عند التحويل
-        var sup = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        var supRes = await sup.auth.signInWithPassword({ email: email, password: pass });
-        if (supRes.error) {
-          var bad = supRes.error.status === 400 || /invalid login/i.test(supRes.error.message || '');
-          throw new Error(bad ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'تعذر الاتصال — تحقق من الإنترنت ثم أعد المحاولة');
-        }
-        location.href = './support.html';
-      } catch (e) {
-        busy(false);
-        showError(e && e.message ? e.message : 'تعذر التحقق، حاول مرة أخرى');
-      }
-      return;
-    }
-
     busy(true, 'جاري التحقق...');
     try {
       var user = await verifyAdmin(email, pass);
+      // حسابات الدعم الفني مشرفون أيضاً: نفتح لهم جلسة صفحة الدعم (تخزين افتراضي) ليدخلوها دون تسجيل ثانٍ
+      if (isSupportEmail(email)) {
+        try { await window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY).auth.signInWithPassword({ email: email, password: pass }); } catch (e0) {}
+      }
       var atitle = $('wgAdminTitle') && $('wgAdminTitle').value === 'priest' ? 'priest' : 'general';
       admin = { email: (user && user.email) || email, name: $('wgAdminName').value.trim(), title: atitle };
       writeJSON(sessionStorage, ADMIN_KEY, admin);
-      try { localStorage.setItem(ADMIN_EMAIL_KEY, email); localStorage.setItem(ADMIN_TITLE_KEY, atitle); if (admin.name) localStorage.setItem('wg_admin_name', admin.name); } catch (e) {}
+      try { localStorage.setItem(ADMIN_TITLE_KEY, atitle); if (admin.name) localStorage.setItem('wg_admin_name', admin.name); } catch (e) {}
       $('wgPass').value = '';
       busy(false);
       finish('🛡️ أهلاً ' + adminName() + ' — تظهر لك كل الفصول');
@@ -1227,6 +1207,7 @@
           '<button type="button" class="wg-btn" id="wgChangeBtn">' +
             (r === 'admin' ? '🚪 تسجيل الخروج' : '🔒 تغيير البيانات (للمشرف)') + '</button>' +
           (r === 'admin' ? '<button type="button" class="wg-btn" id="wgServBtn">👥 الخدام المسجّلون</button>' : '') +
+          (r === 'admin' && isSupportEmail(admin && admin.email) ? '<button type="button" class="wg-btn" id="wgSupBtn">🛠️ لوحة الدعم الفني</button>' : '') +
           (r === 'admin' && profile ? '<button type="button" class="wg-btn" id="wgUnlockBtn">✏️ تعديل بيانات الخادم</button>' : '') +
           (r === 'servant' ? '<button type="button" class="wg-btn" id="wgAnnBtn">📢 الإعلانات <span class="wg-badge" id="wgAnnBadge" style="display:none"></span></button>' : '') +
           (r === 'servant' ? '<div class="wg-team" id="wgTeam" style="display:none"></div>' : '');
@@ -1235,6 +1216,7 @@
         if ($('wgTeamBtn')) $('wgTeamBtn').addEventListener('click', openPermTeam);
         if ($('wgUnlockBtn')) $('wgUnlockBtn').addEventListener('click', adminUnlockProfile);
         if ($('wgServBtn')) $('wgServBtn').addEventListener('click', openServants);
+        if ($('wgSupBtn')) $('wgSupBtn').addEventListener('click', function () { location.href = './support.html'; });
         if ($('wgAnnBtn')) { $('wgAnnBtn').addEventListener('click', function () { showAnnouncements(false); }); updateAnnBtn(); ensureAnnLoaded(); }
         if (r === 'servant') { renderTeam(); startTeam(); }
       }
