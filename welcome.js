@@ -16,6 +16,7 @@
 
   var PROFILE_KEY     = 'church_user_profile_v1';   // بيانات الخادم (تبقى على الجهاز)
   var ADMIN_KEY       = 'church_admin_session_v1';  // جلسة المشرف العام (sessionStorage فقط)
+  var SUPPORT_EMAILS  = ['daniel.adel@gmail.com', 'admin.support@gmail.com'];
   var SUPPORT_EMAIL   = 'daniel.adel@gmail.com';     // حساب الدعم الفني — يُحوَّل لصفحة support.html بدل الدخول كمشرف عام
   var ADMIN_EMAIL_KEY = 'church_admin_email_v1';    // لتعبئة البريد تلقائياً (بدون كلمة المرور)
   var FORCE_KEY       = 'church_welcome_force_v1';  // لفتح صفحة الترحيب بعد "تغيير بياناتي"
@@ -863,7 +864,7 @@
     if (!email || !pass) return showError('من فضلك أدخل البريد الإلكتروني وكلمة المرور');
 
     // حساب الدعم الفني: نفس شاشة الدخول، لكن يُحوَّل لصفحة الدعم بدل الدخول كمشرف عام هنا
-    if (String(email).trim().toLowerCase() === SUPPORT_EMAIL) {
+    if (SUPPORT_EMAILS.indexOf(String(email).trim().toLowerCase()) !== -1) {
       busy(true, 'جاري التحقق...');
       try {
         // عميل بتخزين افتراضي (localStorage) ليشارك الجلسة مع صفحة support.html عند التحويل

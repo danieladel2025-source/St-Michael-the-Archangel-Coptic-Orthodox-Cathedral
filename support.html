@@ -72,8 +72,15 @@
 
   .container { max-width:1180px; margin:0 auto; padding:22px 18px 60px; }
   .nav-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
-  .nav-row button { opacity:.65; }
-  .nav-row button.active { opacity:1; }
+  .nav-row button { background:#fff; color:var(--ink); border:1.5px solid var(--line); }
+  .nav-row button.active { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .nav-row button.danger { color:var(--accent); border-color:var(--accent); }
+  .nav-row button.danger.active { background:var(--accent); color:#fff; }
+  .wipe-opt { display:flex; align-items:flex-start; gap:8px; padding:8px 0; font-size:13.5px; line-height:1.7; border-bottom:1px dashed var(--cream); }
+  .wipe-opt input { margin-top:5px; }
+  .wipe-log { font-size:12.5px; line-height:1.9; margin-top:12px; white-space:pre-wrap; }
+  .btn-wipe { background:var(--accent); color:#fff; padding:11px 20px; font-size:14px; }
+  .btn-wipe:disabled { opacity:.45; cursor:default; }
 
   .cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(230px,100%),1fr)); gap:14px; margin-bottom:18px; }
   .metric { background:#fff; border:1px solid var(--cream); border-radius:12px; padding:16px; box-shadow:0 4px 12px var(--shadow); border-right:5px solid var(--accent2); }
@@ -181,6 +188,30 @@
       <button class="btn btn-outline" id="navAnalytics" onclick="showPanel('analytics')">📈 التحليلات</button>
       <button class="btn btn-outline" id="navErrors" onclick="showPanel('errors')">🧯 الأخطاء<span id="errBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-right:6px;"></span></button>
       <button class="btn btn-outline" id="navAi" onclick="showPanel('ai')">🤖 المساعد الذكي</button>
+      <button class="btn btn-outline danger" id="navWipe" onclick="showPanel('wipe')">🗑️ مسح كلي</button>
+    </div>
+
+    <!-- ========== مسح كلي ========== -->
+    <div class="panel" id="panel-wipe">
+      <div class="item" style="border-right-color:var(--accent);">
+        <b>🗑️ مسح كلي لبيانات البرنامج</b>
+        <div style="font-size:12.5px;color:#991b1b;margin:6px 0 10px;line-height:1.9;">
+          ⚠️ عملية نهائية لا يمكن التراجع عنها. يُنزَّل تلقائياً ملف نسخة احتياطية قبل المسح (يمكنك إلغاء ذلك أدناه). اختر ما تريد مسحه:
+        </div>
+        <label class="wipe-opt"><input type="checkbox" class="wipe-chk" value="classes" checked> <span><b>كل الفصول</b> (المخدومون، الخدام، الحضور، الافتقاد، سجل النشاط)</span></label>
+        <label class="wipe-opt"><input type="checkbox" class="wipe-chk" value="servants" checked> <span><b>الخدام المسجّلون</b> (الملفات، الصفات، الصلاحيات، فتح القفل، أسماء الفصول)</span></label>
+        <label class="wipe-opt"><input type="checkbox" class="wipe-chk" value="announcements" checked> <span><b>الإعلانات</b></span></label>
+        <label class="wipe-opt"><input type="checkbox" class="wipe-chk" value="errors" checked> <span><b>سجل الأخطاء</b> من أجهزة الخدام</span></label>
+        <label class="wipe-opt"><input type="checkbox" class="wipe-chk" value="snapshots" checked> <span><b>لقطات النمو</b></span></label>
+        <label class="wipe-opt"><input type="checkbox" class="wipe-chk" value="local" checked> <span><b>بيانات هذا المتصفح</b> (الإعدادات المحفوظة ومفتاح المساعد)</span></label>
+        <label class="wipe-opt" style="border-bottom:none;"><input type="checkbox" id="wipeBackup" checked> <span>تنزيل نسخة احتياطية تلقائياً قبل المسح</span></label>
+        <div class="field" style="margin-top:12px;">
+          <label>للتأكيد اكتب كلمة: <b>مسح</b></label>
+          <input type="text" id="wipeConfirm" placeholder="مسح" autocomplete="off" oninput="document.getElementById('wipeBtn').disabled = this.value.trim() !== 'مسح'">
+        </div>
+        <button class="btn btn-wipe" id="wipeBtn" disabled onclick="doWipeAll()">🗑️ مسح كلي الآن</button>
+        <div class="wipe-log" id="wipeLog"></div>
+      </div>
     </div>
 
     <!-- ========== حالة المزامنة والأخطاء ========== -->
@@ -291,7 +322,7 @@
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // الحساب الوحيد المسموح له بفتح هذه اللوحة — أي حساب آخر يُعاد توجيهه إلى لوحة المشرفين العادية
-  const SUPPORT_EMAIL = 'daniel.adel@gmail.com';
+  const SUPPORT_EMAILS = ['daniel.adel@gmail.com', 'admin.support@gmail.com'];
 
   function escapeHtml(str) {
     return String(str == null ? '' : str).replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
@@ -314,7 +345,7 @@
 
   async function routeAfterLogin(user, errBox) {
     const em = ((user && user.email) || '').trim().toLowerCase();
-    if (em !== SUPPORT_EMAIL) {
+    if (!SUPPORT_EMAILS.includes(em)) {
       await sb.auth.signOut();
       if (errBox) { errBox.textContent = 'هذا الحساب ليس حساب الدعم الفني — جاري تحويلك للوحة المشرفين...'; errBox.style.display = 'block'; }
       setTimeout(() => { location.href = './admin.html'; }, 1200);
@@ -344,7 +375,7 @@
 
   // ================== التنقل بين التبويبات ==================
   function showPanel(name) {
-    ['sync', 'load', 'servants', 'backup', 'analytics', 'errors', 'ai'].forEach(n => {
+    ['sync', 'load', 'servants', 'backup', 'analytics', 'errors', 'ai', 'wipe'].forEach(n => {
       document.getElementById('panel-' + n).classList.toggle('active', n === name);
       document.getElementById('nav' + n[0].toUpperCase() + n.slice(1)).classList.toggle('active', n === name);
     });
@@ -355,6 +386,8 @@
 
   // ================== تحميل البيانات ==================
   let allClasses = [];
+  let classesLoaded = false;
+  let classesError = '';
 
   function initThresholdInputs() {
     const t = alertThresholds();
@@ -367,8 +400,10 @@
     initThresholdInputs();
     loadErrors();
     const { data, error } = await sb.from('class_records').select('class_id, class_name, data, updated_at').order('updated_at', { ascending: false });
-    if (!error) { allClasses = data || []; renderSync(); }
-    else if (manual) alert('تعذر تحميل الفصول: ' + error.message);
+    classesLoaded = true;
+    if (!error) { allClasses = data || []; classesError = ''; }
+    else { classesError = error.message || 'خطأ غير معروف'; if (manual) alert('تعذر تحميل الفصول: ' + classesError); }
+    renderSync();
     loadDbHealth();
   }
 
@@ -376,7 +411,9 @@
   function renderSync() {
     const wrap = document.getElementById('syncList');
     const cards = document.getElementById('syncCards');
-    if (!allClasses.length) { wrap.innerHTML = '<div class="empty-state"><div class="ic">⏳</div>جاري التحميل...</div>'; return; }
+    if (!classesLoaded) { wrap.innerHTML = '<div class="empty-state"><div class="ic">⏳</div>جاري التحميل...</div>'; return; }
+    if (classesError) { cards.innerHTML = ''; wrap.innerHTML = '<div class="empty-state"><div class="ic">⚠️</div>تعذر تحميل الفصول: ' + escapeHtml(classesError) + '</div>'; return; }
+    if (!allClasses.length) { cards.innerHTML = ''; wrap.innerHTML = '<div class="empty-state"><div class="ic">📭</div>لا توجد فصول مسجّلة.</div>'; return; }
 
     const now = Date.now();
     const DAY = 86400000;
@@ -508,7 +545,8 @@
     ]);
     if (r1.error) {
       const missing = r1.error.code === 'PGRST202' || r1.error.code === '42883' || /could not find|does not exist|schema cache/i.test(r1.error.message || '');
-      wrap.innerHTML = `<div class="empty-state"><div class="ic">⚠️</div>${missing ? 'شغّل ملفات servant_profiles.sql الخاصة بالخدام أولاً.' : 'تعذر التحميل: ' + escapeHtml(r1.error.message || '')}</div>`;
+      const denied = /not allowed|not authorized|permission denied/i.test(r1.error.message || '');
+      wrap.innerHTML = `<div class="empty-state"><div class="ic">⚠️</div>${missing ? 'شغّل ملفات servant_profiles.sql الخاصة بالخدام أولاً.' : denied ? 'السيرفر رفض الطلب (not allowed): دالة admin_list_servants_phone على Supabase لا تعتبر حساب الدعم الفني مشرفاً — أضف بريد الدعم لشرط الصلاحية داخل الدالة.' : 'تعذر التحميل: ' + escapeHtml(r1.error.message || '')}</div>`;
       return;
     }
     allServants = r1.data || [];
@@ -700,6 +738,67 @@
   }
 
     // ================== المساعد الذكي ==================
+  // ================== 🗑️ مسح كلي ==================
+  function wipeLog(t) { const l = document.getElementById('wipeLog'); l.textContent += t + '\n'; }
+
+  async function doWipeAll() {
+    const scopes = Array.from(document.querySelectorAll('.wipe-chk:checked')).map(x => x.value);
+    if (!scopes.length) { alert('اختر شيئاً واحداً على الأقل للمسح.'); return; }
+    if (document.getElementById('wipeConfirm').value.trim() !== 'مسح') return;
+    if (!confirm('⚠️ تأكيد أخير: سيتم مسح البيانات المحددة نهائياً من السيرفر. هل أنت متأكد؟')) return;
+    const btn = document.getElementById('wipeBtn');
+    btn.disabled = true;
+    document.getElementById('wipeLog').textContent = '';
+
+    // 1) نسخة احتياطية تلقائية
+    if (document.getElementById('wipeBackup').checked) {
+      const { data, error } = await sb.from('class_records').select('class_id, class_name, data, updated_at');
+      if (error) {
+        wipeLog('⛔ تعذر أخذ النسخة الاحتياطية (' + error.message + ') — أُوقف المسح حفاظاً على بياناتك.');
+        btn.disabled = false; return;
+      }
+      const blob = new Blob([JSON.stringify(data || [], null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'church-backup-before-wipe-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      wipeLog('✅ تم تنزيل نسخة احتياطية (' + (data || []).length + ' فصل).');
+    }
+
+    // 2) المسح على السيرفر عبر الدالة (تغطي كل الجداول)
+    const serverScopes = scopes.filter(s => s !== 'local');
+    let serverDone = false;
+    if (serverScopes.length) {
+      const { data, error } = await sb.rpc('support_wipe_all', { p_scopes: serverScopes });
+      if (!error) {
+        serverDone = true;
+        wipeLog('✅ تم المسح على السيرفر:\n' + (typeof data === 'string' ? data : JSON.stringify(data)));
+      } else {
+        const missing = error.code === 'PGRST202' || error.code === '42883' || /could not find|does not exist|schema cache/i.test(error.message || '');
+        wipeLog('⚠️ ' + (missing ? 'دالة support_wipe_all غير مثبّتة — شغّل ملف support_wipe.sql على Supabase.' : 'رفض السيرفر: ' + error.message));
+        // محاولة بديلة للفصول فقط
+        if (serverScopes.includes('classes')) {
+          const r = await sb.from('class_records').delete().not('class_id', 'is', null);
+          if (r.error) wipeLog('⛔ تعذر مسح الفصول مباشرة: ' + r.error.message);
+          else { wipeLog('✅ تم مسح الفصول مباشرة.'); serverDone = true; }
+        }
+      }
+    }
+
+    // 3) بيانات المتصفح
+    if (scopes.includes('local')) {
+      try {
+        ['support_ai_key_v1', 'support_alert_thresholds_v1'].forEach(k => { localStorage.removeItem(k); sessionStorage.removeItem(k); });
+        document.getElementById('aiKey').value = '';
+        wipeLog('✅ تم مسح بيانات هذا المتصفح.');
+      } catch (e) {}
+    }
+
+    allClasses = []; classesLoaded = false;
+    if (serverDone) await loadAll(false);
+    btn.disabled = document.getElementById('wipeConfirm').value.trim() !== 'مسح';
+  }
+
   const AI_KEY_SESSION = 'support_ai_key_v1';
   (function initAiKey() {
     try {
