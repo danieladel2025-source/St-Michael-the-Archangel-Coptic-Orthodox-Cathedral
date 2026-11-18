@@ -186,6 +186,12 @@
     } catch (e) {}
     return cls;
   }
+  // السيرفر هو المرجع لاسم الفصل: لو للجهاز اسم محفوظ سابقاً يرجعه بدل المُدخل، فننبّه المستخدم بدل أن يتغيّر الاسم بصمت
+  function warnClassMismatch(entered, saved) {
+    if (saved && normName(saved) !== normName(entered)) {
+      alert('هذا الجهاز مسجّل مسبقاً بفصل «' + saved + '» (وليس «' + entered + '»).\nلا يمكن تغيير اسم الفصل إلا عن طريق المشرف العام من لوحة «الخدام المسجّلون».');
+    }
+  }
   // null = الدالة غير مثبّتة (servant_roles.sql) · {} = لا توجد صفة محفوظة · {role_type, stage_group}
   async function getRoleRemote() {
     var c = anonClient();
@@ -796,7 +802,7 @@
         if (nc && cl0.length < 2) return showError('من فضلك اكتب اسم الفصل التابع له');
         busy(true, 'جاري الحفظ...');
         if (np) { await savePhoneRemote(ph0); profile.phone = ph0; }
-        if (nc) { profile.class_name = await saveClassRemote(cl0); }
+        if (nc) { profile.class_name = await saveClassRemote(cl0); warnClassMismatch(cl0, profile.class_name); }
         busy(false);
         writeJSON(localStorage, PROFILE_KEY, profile);
         applyLock();
@@ -838,7 +844,7 @@
       }
       if (c) await savePhoneRemote(phone);
       saved.phone = phone;
-      saved.class_name = await saveClassRemote(cls);
+      saved.class_name = await saveClassRemote(cls); warnClassMismatch(cls, saved.class_name);
       saved.role_type = rtp; saved.stage_group = grp;
       var rrole = await saveRoleRemote(rtp, grp);          // السيرفر هو المرجع (أول تسجيل فقط)
       if (rrole && rrole.role_type) {
