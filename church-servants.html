@@ -144,7 +144,7 @@
       <h1>⛪ خدام الكنيسة<small id="subLine">—</small></h1>
       <div class="btns">
         <button class="btn btn-blue" onclick="openStaffModal()">➕ إضافة</button>
-        <button class="btn btn-outline" onclick="exportCsv()">⬇️ Excel</button>
+        <button class="btn btn-outline" onclick="exportXlsx()">⬇️ Excel</button>
         <button class="btn btn-outline" onclick="window.print()">🖨️ طباعة</button>
         <button class="btn btn-outline" onclick="loadAll()">⟳ تحديث</button>
         <a class="btn btn-outline" href="./admin.html">→ اللوحة</a>
@@ -375,7 +375,7 @@
           src: ['فصل'], name: sv.name.trim(), roleText: (sv.role || '').trim(), title: ttl,
           phone: sv.phone || '', phone2: sv.phone2 || '', dob: sv.dob || '', address: sv.address || '', notes: sv.notes || '',
           photo: safeImg(sv.photo), map: mapLinkOf(sv),
-          classId: c.class_id, className: c.class_name || d.className || '',
+          sid: sv.sid || '', classId: c.class_id, className: c.class_name || d.className || '',
           stage, group: STAGE_TO_GROUP[stage] || '', gender: (d.gender === 'boys' || d.gender === 'girls') ? d.gender : '',
           att: { p, l, a }, conf: conf[sv.sid] || 0, mass: mass[sv.sid] || 0,
           device: false, staffId: null, updatedAt: c.updated_at || ''
@@ -540,6 +540,201 @@
   function toggle(i) { const p = VIEW[i]; if (!p) return; p._open = !p._open; document.getElementById('c' + i).classList.toggle('open', p._open); }
   function setTitle(k) { titleFilter = k; render(); }
   function zoom(i) { const p = VIEW[i]; if (!p || !p.photo) return; document.getElementById('lbImg').src = p.photo; document.getElementById('lb').classList.add('on'); }
+
+  // ================== تصدير Excel (.xlsx) منسّق + رمز QR لكل خادم ==================
+  function loadLibOnce(src, ready) {
+    return new Promise((res, rej) => {
+      if (ready()) return res();
+      const el = document.createElement('script');
+      el.src = src;
+      el.onload = () => ready() ? res() : rej(new Error('lib-not-ready'));
+      el.onerror = () => rej(new Error('lib-load-failed'));
+      document.head.appendChild(el);
+    });
+  }
+  // نفس صيغة رمز الحضور في التطبيق (?qr=v.<sid>&c=<classId>) لخدام الفصول،
+  // وللباقين (آباء/مشرفين/مسجّلين بالجهاز) بطاقة اتصال vCard فيها الاسم والمسمى والهاتف
+  function qrTextFor(p) {
+    if (p.sid && p.classId) {
+      if (/^https?:$/.test(location.protocol)) {
+        return location.origin + location.pathname.replace(/[^/]*$/, '') + '?qr=v.' + encodeURIComponent(p.sid) + '&c=' + encodeURIComponent(p.classId);
+      }
+      return 'CHQR|v|' + p.sid + '|' + p.classId;
+    }
+    const tel = String(p.phone || '').replace(/[^\d+]/g, '');
+    if (!tel) return '';
+    return ['BEGIN:VCARD', 'VERSION:3.0', 'FN:' + p.name, 'TITLE:' + TITLES[p.title].label,
+      'ORG:كاتدرائية رئيس الملائكة ميخائيل - طنطا', 'TEL;TYPE=CELL:' + tel, 'END:VCARD'].join('\n');
+  }
+  // يرسم الرمز على canvas مباشرة (PNG واضح الحواف) ويرجع base64
+  function qrPngBase64(text, cellPx, margin) {
+    if (qrcode.stringToBytesFuncs && qrcode.stringToBytesFuncs['UTF-8']) qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+    const q = qrcode(0, 'M'); q.addData(text); q.make();
+    const n = q.getModuleCount(), size = (n + margin * 2) * cellPx;
+    const cv = document.createElement('canvas'); cv.width = cv.height = size;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, size, size); g.fillStyle = '#000';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect((c + margin) * cellPx, (r + margin) * cellPx, cellPx, cellPx);
+    return cv.toDataURL('image/png').split(',')[1];
+  }
+
+  async function exportXlsx() {
+    const rows = VIEW.length ? VIEW : PEOPLE;
+    if (!rows.length) { toast('لا يوجد أشخاص للتصدير'); return; }
+    toast('⏳ جاري تجهيز ملف Excel...');
+    try {
+      await loadLibOnce('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js', () => typeof ExcelJS !== 'undefined');
+      let qrOk = true;
+      try { await loadLibOnce('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4', () => typeof qrcode === 'function'); } catch (e) { qrOk = false; }
+
+      const C = {
+        navyDark: '1A237E', navyMid: '283593', white: 'FFFFFF', ink: '1A1A2E',
+        rowAlt: 'F5F6FA', rowWhite: 'FFFFFF', border: 'CFD8DC',
+        greenBg: 'E8F5E9', greenFont: '1B5E20', redBg: 'FFEBEE', redFont: 'B71C1C', amberBg: 'FFF8E1', amberFont: 'E65100'
+      };
+      const FONT = 'Cairo';
+      const fill = c => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + c } });
+      const hex = c => String(c || '').replace('#', '').toUpperCase();
+      const border = (cell, color, style) => { const b = { style: style || 'thin', color: { argb: 'FF' + (color || C.border) } }; cell.border = { top: b, bottom: b, left: b, right: b }; };
+      const today = new Date().toISOString().slice(0, 10);
+
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'كاتدرائية رئيس الملائكة الجليل ميخائيل - طنطا';
+      wb.created = new Date();
+
+      // ---------- ورقة 1: الخدام ----------
+      const ws = wb.addWorksheet('خدام الكنيسة', {
+        properties: { tabColor: { argb: 'FF' + C.navyDark } },
+        views: [{ rightToLeft: true, state: 'frozen', ySplit: 3, xSplit: 2 }]
+      });
+      const cols = [
+        { h: 'م', w: 6 }, { h: 'الاسم', w: 26 }, { h: 'رمز QR', w: 16 }, { h: 'المسمى الوظيفي', w: 16 },
+        { h: 'المكتوب بالفصل', w: 18 }, { h: 'الفصل', w: 20 }, { h: 'المرحلة', w: 22 }, { h: 'الفئة', w: 9 },
+        { h: 'الهاتف', w: 16 }, { h: 'هاتف احتياطي', w: 16 }, { h: 'تاريخ الميلاد', w: 13 }, { h: 'العنوان', w: 28 },
+        { h: 'حضور', w: 8 }, { h: 'تأخير', w: 8 }, { h: 'غياب', w: 8 }, { h: 'اعتراف', w: 8 }, { h: 'قداس', w: 8 },
+        { h: 'جهاز مسجّل', w: 11 }, { h: 'ملاحظات', w: 28 }
+      ];
+      const N = cols.length, QR_COL = 3;                 // رمز QR هو العمود الثالث
+      ws.columns = cols.map(c => ({ width: c.w }));
+
+      // عنوان رئيسي مدمج
+      ws.mergeCells(1, 1, 1, N);
+      const t = ws.getCell('A1');
+      t.value = 'خدام الكنيسة  —  ' + today + '   |   الإجمالي: ' + rows.length + ' شخص';
+      t.font = { name: FONT, size: 15, bold: true, color: { argb: 'FF' + C.white } };
+      t.fill = fill(C.navyDark);
+      t.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rtl' };
+      ws.getRow(1).height = 38;
+      ws.getRow(2).height = 5;
+
+      // رأس الأعمدة
+      const hr = ws.getRow(3); hr.height = 28;
+      cols.forEach((c, i) => {
+        const cell = hr.getCell(i + 1);
+        cell.value = c.h;
+        cell.font = { name: FONT, size: 11, bold: true, color: { argb: 'FF' + C.white } };
+        cell.fill = fill(C.navyMid);
+        cell.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rtl' };
+        border(cell, C.navyMid, 'medium');
+      });
+      ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: N } };
+
+      const QR_PX = 84, ROW_PT = 70;
+      const QR_CELL_W = cols[QR_COL - 1].w * 7 + 5, ROW_PX = ROW_PT * 96 / 72;
+      let qrCount = 0;
+
+      rows.forEach((p, i) => {
+        const r = ws.getRow(4 + i);
+        const tt = TITLES[p.title];
+        const vals = [
+          i + 1, p.name, '', tt.label, p.roleText || '', p.className || '',
+          p.stageName || (p.groupName ? 'كل ' + p.groupName : ''),
+          p.gender === 'girls' ? 'بنات' : p.gender === 'boys' ? 'بنين' : '',
+          p.phone || '', p.phone2 || '', p.dob || '', p.address || '',
+          p.att ? p.att.p : '', p.att ? p.att.l : '', p.att ? p.att.a : '', p.att ? p.conf : '', p.att ? p.mass : '',
+          p.device ? 'نعم' : 'لا', p.notes || ''
+        ];
+        r.height = ROW_PT;
+        const bg = i % 2 ? C.rowAlt : C.rowWhite;
+        vals.forEach((v, ci) => {
+          const cell = r.getCell(ci + 1);
+          cell.value = v;
+          cell.font = { name: FONT, size: 10, color: { argb: 'FF' + C.ink } };
+          cell.fill = fill(bg);
+          cell.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rtl', wrapText: true };
+          border(cell);
+        });
+        r.getCell(2).font = { name: FONT, size: 11, bold: true, color: { argb: 'FF' + C.ink } };
+        // الهاتف نص (يحفظ الصفر الأول) + اتجاه يسار لليمين
+        [9, 10].forEach(ci => { const c = r.getCell(ci); c.numFmt = '@'; c.value = String(vals[ci - 1] || ''); c.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'ltr' }; });
+        // لون المسمى الوظيفي
+        const tc = r.getCell(4);
+        tc.fill = fill(hex(tt.bg)); tc.font = { name: FONT, size: 10, bold: true, color: { argb: 'FF' + hex(tt.fg) } }; border(tc, hex(tt.c));
+        // تلوين الغياب والحضور
+        if (p.att) {
+          if (p.att.a > 0) { const c = r.getCell(15); c.fill = fill(C.redBg); c.font = { name: FONT, size: 10, bold: true, color: { argb: 'FF' + C.redFont } }; }
+          if (p.att.l > 0) { const c = r.getCell(14); c.fill = fill(C.amberBg); c.font = { name: FONT, size: 10, bold: true, color: { argb: 'FF' + C.amberFont } }; }
+          if (p.att.p > 0) { const c = r.getCell(13); c.fill = fill(C.greenBg); c.font = { name: FONT, size: 10, bold: true, color: { argb: 'FF' + C.greenFont } }; }
+        }
+        // رمز QR
+        const text = qrOk ? qrTextFor(p) : '';
+        if (text) {
+          try {
+            const id = wb.addImage({ base64: qrPngBase64(text, 8, 3), extension: 'png' });
+            ws.addImage(id, {
+              tl: { nativeCol: QR_COL - 1, nativeColOff: Math.max(0, Math.round((QR_CELL_W - QR_PX) / 2 * 9525)),
+                    nativeRow: 3 + i, nativeRowOff: Math.max(0, Math.round((ROW_PX - QR_PX) / 2 * 9525)) },
+              ext: { width: QR_PX, height: QR_PX }, editAs: 'oneCell'
+            });
+            qrCount++;
+          } catch (e) { /* نتجاوز الرمز لهذا الشخص فقط */ }
+        } else {
+          r.getCell(QR_COL).value = '—';
+          r.getCell(QR_COL).font = { name: FONT, size: 10, color: { argb: 'FF9E9E9E' } };
+        }
+      });
+
+      ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '3:3' };
+      ws.headerFooter = { oddFooter: '&C&"Cairo"صفحة &P من &N' };
+
+      // ---------- ورقة 2: ملخص ----------
+      const ws2 = wb.addWorksheet('ملخص', { properties: { tabColor: { argb: 'FF4A148C' } }, views: [{ rightToLeft: true }] });
+      ws2.columns = [{ width: 28 }, { width: 14 }];
+      ws2.mergeCells(1, 1, 1, 2);
+      const t2 = ws2.getCell('A1');
+      t2.value = 'ملخص الخدام  —  ' + today;
+      t2.font = { name: FONT, size: 14, bold: true, color: { argb: 'FF' + C.white } };
+      t2.fill = fill('4A148C'); t2.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rtl' };
+      ws2.getRow(1).height = 34;
+      const sum = [['المسمى الوظيفي', 'العدد']];
+      TITLE_ORDER.forEach(k => { const n = rows.filter(p => p.title === k).length; if (n) sum.push([TITLES[k].icon + ' ' + TITLES[k].label, n]); });
+      sum.push(['بنين', rows.filter(p => p.gender === 'boys').length], ['بنات', rows.filter(p => p.gender === 'girls').length],
+               ['مسجّلون بالجهاز', rows.filter(p => p.device).length], ['الإجمالي', rows.length]);
+      sum.forEach((row, i) => {
+        const r = ws2.getRow(3 + i); r.height = 24;
+        row.forEach((v, ci) => {
+          const c = r.getCell(ci + 1); c.value = v;
+          const head = i === 0, tot = i === sum.length - 1;
+          c.font = { name: FONT, size: 11, bold: head || tot, color: { argb: 'FF' + (head ? C.white : C.ink) } };
+          c.fill = fill(head ? C.navyMid : (tot ? 'E3F2FD' : (i % 2 ? C.rowWhite : C.rowAlt)));
+          c.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rtl' };
+          border(c);
+        });
+      });
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'خدام_الكنيسة_' + today + '.xlsx';
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 1000);
+      toast('⬇️ تم تصدير ' + rows.length + ' شخص' + (qrOk ? ' مع ' + qrCount + ' رمز QR' : ' (بدون QR — مكتبة QR لم تُحمَّل)'));
+    } catch (err) {
+      console.error('xlsx export failed', err);
+      toast('⚠️ تعذّر إنشاء ملف Excel المنسّق (تأكد من الإنترنت) — تم تصدير نسخة CSV');
+      exportCsv();
+    }
+  }
 
   // ================== تصدير Excel (CSV) ==================
   function exportCsv() {
