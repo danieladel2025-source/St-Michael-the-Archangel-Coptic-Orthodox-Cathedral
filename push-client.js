@@ -126,8 +126,9 @@
     }
     var c = client();
     if (!c) { st.status = 'waiting-login'; return Promise.resolve(); }
-    // الخادم المسجّل يشترك حتى لو لم يفتح فصله (ليصله إعلان المشرف)؛ أما إشعارات الدرس/الميلاد/الشات فتحتاج فتح الفصل مرة
-    if (cfg.role !== 'admin' && !chapter() && !hasProfile()) { st.status = 'waiting-chapter'; return Promise.resolve(); }
+    // كل جهاز يشترك فور السماح بالإشعارات — حتى لو كان جديداً وغير مسجّل ولم يفتح أي فصل —
+    // فيصله إعلان المشرف العام ورسائل الغرفة العامة. أما أعياد الميلاد وتنبيه الدرس ورسائل غرفة الفصل
+    // فتبدأ بعد أن يفتح الفصل (يُحدَّث اشتراكه تلقائياً عندها ويُربط بفصله).
     if (!force && Date.now() < st.nextTry) return Promise.resolve();
 
     st.busy = true;
@@ -226,7 +227,6 @@
       var c = client();
       add(!!c, 'الاتصال بقاعدة البيانات', c ? '' : (cfg.role === 'admin' ? 'سجّل دخول المشرف أولاً' : 'افتح فصلك (أدخل كلمة سر الفصل) ثم أعد التشخيص'));
       if (!c) return out;
-      if (cfg.role !== 'admin' && !chapter() && !hasProfile()) { add(false, 'تسجيل بيانات الخادم', 'سجّل بياناتك في صفحة الترحيب أو افتح فصلك أولاً'); return out; }
 
       // المفتاح العام — نتجاهل المخزَّن لنكشف أي تغيير في الأسرار
       try { localStorage.removeItem(KEY_CACHE); } catch (e) {}
@@ -417,9 +417,27 @@
       }).then(function () { st.sig = ''; st.status = 'disabled'; });
   }
 
+  // يطلب إذن الإشعارات تلقائياً عند أول ضغطة على الصفحة (مرة واحدة لكل جهاز) —
+  // المتصفحات لا تسمح بالطلب بدون تفاعل من المستخدم. إن رفض يبقى الشريط السفلي للتفعيل لاحقاً.
+  function autoAsk() {
+    try {
+      if (!supported() || Notification.permission !== 'default') return;
+      if (localStorage.getItem('pc_auto_asked') === '1') return;
+      var onClick = function () {
+        document.removeEventListener('click', onClick, true);
+        try { localStorage.setItem('pc_auto_asked', '1'); } catch (e) {}
+        try {
+          Promise.resolve(Notification.requestPermission()).then(function () { tick(true).then(updateBar); });
+        } catch (e) { updateBar(); }
+      };
+      document.addEventListener('click', onClick, true);
+    } catch (e) {}
+  }
+
   function init(options) {
     cfg = options || {};
     cfg.role = cfg.role === 'admin' ? 'admin' : 'servant';
+    autoAsk();
     setTimeout(function () { tick(false).then(updateBar); }, 1500);
     setTimeout(updateBar, 2500);
     setInterval(function () { tick(false).then(updateBar); }, 10000);   // يلتقط منح الإذن/فتح الفصل/تغيير الإعدادات
