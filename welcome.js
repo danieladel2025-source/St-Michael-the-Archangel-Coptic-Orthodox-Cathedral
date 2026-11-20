@@ -15,7 +15,7 @@
   'use strict';
 
   var PROFILE_KEY     = 'church_user_profile_v1';   // بيانات الخادم (تبقى على الجهاز)
-  var ADMIN_KEY       = 'church_admin_session_v1';  // جلسة المشرف العام (sessionStorage فقط)
+  var ADMIN_KEY       = 'church_admin_session_v1';  // جلسة المشرف العام (تبقى على الجهاز حتى يضغط «تسجيل الخروج»)
   var SUPPORT_EMAILS  = ['daniel.adel@gmail.com', 'admin.support@gmail.com'];
   var SUPPORT_EMAIL   = 'daniel.adel@gmail.com';     // حساب الدعم الفني — يُحوَّل لصفحة support.html بدل الدخول كمشرف عام
   var ADMIN_EMAIL_KEY = 'church_admin_email_v1';    // لتعبئة البريد تلقائياً (بدون كلمة المرور)
@@ -49,16 +49,27 @@
   function anonClient() {
     return (typeof _supabaseClient !== 'undefined' && _supabaseClient) ? _supabaseClient : null;
   }
-  // عميل المشرف: تبقى جلسته في sessionStorage (خاصة بهذا التبويب فقط) ولا تُحفظ كلمة المرور
+  // عميل المشرف: تبقى جلسته على الجهاز (localStorage) مثل الخادم وأمين الخدمة، ولا تُحفظ كلمة المرور.
+  // تنتهي فقط عند الضغط على «تسجيل الخروج» (أو لو أبطلها السيرفر).
+  var ADMIN_AUTH_KEY = 'wg-admin-auth';
   var _adminSb = null;
   function adminClient() {
     if (_adminSb) return _adminSb;
     if (!(window.supabase && window.supabase.createClient) || typeof SUPABASE_URL === 'undefined') return null;
+    try {   // ترحيل جلسة قديمة كانت محفوظة في التبويب فقط
+      if (!localStorage.getItem(ADMIN_AUTH_KEY) && sessionStorage.getItem(ADMIN_AUTH_KEY)) {
+        localStorage.setItem(ADMIN_AUTH_KEY, sessionStorage.getItem(ADMIN_AUTH_KEY));
+      }
+      sessionStorage.removeItem(ADMIN_AUTH_KEY);
+    } catch (e) {}
     _adminSb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false,
-              storage: window.sessionStorage, storageKey: 'wg-admin-auth' }
+              storage: window.localStorage, storageKey: ADMIN_AUTH_KEY }
     });
     return _adminSb;
+  }
+  function clearAdminLocal() {
+    try { localStorage.removeItem(ADMIN_KEY); sessionStorage.removeItem(ADMIN_KEY); } catch (e) {}
   }
   function missingFn(err) {
     return !!err && (err.code === 'PGRST202' || err.code === '42883' || /could not find|does not exist|schema cache/i.test(err.message || ''));
@@ -100,7 +111,11 @@
   var profile = readJSON(localStorage, PROFILE_KEY);
   if (!profileValid(profile)) profile = null;
   else normProfile(profile);
-  var admin = readJSON(sessionStorage, ADMIN_KEY);
+  var admin = readJSON(localStorage, ADMIN_KEY);
+  if (!(admin && admin.email)) {                       // جلسة قديمة كانت في التبويب فقط → نرحّلها للجهاز
+    admin = readJSON(sessionStorage, ADMIN_KEY);
+    if (admin && admin.email) { writeJSON(localStorage, ADMIN_KEY, admin); try { sessionStorage.removeItem(ADMIN_KEY); } catch (e) {} }
+  }
   if (!(admin && admin.email)) admin = null;
   function isSupportEmail(e) { return SUPPORT_EMAILS.indexOf(String(e || '').trim().toLowerCase()) !== -1; }
 
@@ -186,12 +201,6 @@
     } catch (e) {}
     return cls;
   }
-  // السيرفر هو المرجع لاسم الفصل: لو للجهاز اسم محفوظ سابقاً يرجعه بدل المُدخل، فننبّه المستخدم بدل أن يتغيّر الاسم بصمت
-  function warnClassMismatch(entered, saved) {
-    if (saved && normName(saved) !== normName(entered)) {
-      alert('هذا الجهاز مسجّل مسبقاً بفصل «' + saved + '» (وليس «' + entered + '»).\nلا يمكن تغيير اسم الفصل إلا عن طريق المشرف العام من لوحة «الخدام المسجّلون».');
-    }
-  }
   // null = الدالة غير مثبّتة (servant_roles.sql) · {} = لا توجد صفة محفوظة · {role_type, stage_group}
   async function getRoleRemote() {
     var c = anonClient();
@@ -248,6 +257,14 @@
     if (!profile) return false;
     if (isSecProfile(profile)) return true;
     return !!perms.can_transfer;
+  }
+
+  // نقل الخادم من فصل لآخر: المشرف العام + الأمين المساعد + أمين الخدمة فقط
+  // (لا تكفي صلاحية «نقل مخدوم» الممنوحة لخادم عادي)
+  function canTransferServant() {
+    if (admin) return true;
+    if (!profile) return false;
+    return isSecProfile(profile);
   }
 
   function stageName() {
@@ -802,7 +819,7 @@
         if (nc && cl0.length < 2) return showError('من فضلك اكتب اسم الفصل التابع له');
         busy(true, 'جاري الحفظ...');
         if (np) { await savePhoneRemote(ph0); profile.phone = ph0; }
-        if (nc) { profile.class_name = await saveClassRemote(cl0); warnClassMismatch(cl0, profile.class_name); }
+        if (nc) { profile.class_name = await saveClassRemote(cl0); }
         busy(false);
         writeJSON(localStorage, PROFILE_KEY, profile);
         applyLock();
@@ -844,7 +861,7 @@
       }
       if (c) await savePhoneRemote(phone);
       saved.phone = phone;
-      saved.class_name = await saveClassRemote(cls); warnClassMismatch(cls, saved.class_name);
+      saved.class_name = await saveClassRemote(cls);
       saved.role_type = rtp; saved.stage_group = grp;
       var rrole = await saveRoleRemote(rtp, grp);          // السيرفر هو المرجع (أول تسجيل فقط)
       if (rrole && rrole.role_type) {
@@ -858,7 +875,8 @@
       writeJSON(localStorage, PROFILE_KEY, profile);
       admin = null;
       unlocked = false;
-      try { sessionStorage.removeItem(ADMIN_KEY); sessionStorage.removeItem(UNLOCK_KEY); } catch (e) {}
+      clearAdminLocal();
+      try { sessionStorage.removeItem(UNLOCK_KEY); } catch (e) {}
       applyLock();
       finish('👋 أهلاً ' + name + (isSecretary() ? ' — ' + roleLabel() + ' ' + stageName() : ''));
       return;
@@ -877,7 +895,7 @@
       }
       var atitle = $('wgAdminTitle') && $('wgAdminTitle').value === 'priest' ? 'priest' : 'general';
       admin = { email: (user && user.email) || email, name: $('wgAdminName').value.trim(), title: atitle };
-      writeJSON(sessionStorage, ADMIN_KEY, admin);
+      writeJSON(localStorage, ADMIN_KEY, admin);
       try { localStorage.setItem(ADMIN_TITLE_KEY, atitle); if (admin.name) localStorage.setItem('wg_admin_name', admin.name); } catch (e) {}
       $('wgPass').value = '';
       busy(false);
@@ -924,8 +942,9 @@
   async function adminLogout() {
     if (!confirm('هل تريد تسجيل الخروج من حساب المشرف العام؟')) return;
     try { var c = adminClient(); if (c) await c.auth.signOut(); } catch (e) {}
+    clearAdminLocal();
     try {
-      sessionStorage.removeItem(ADMIN_KEY);
+      localStorage.removeItem(ADMIN_AUTH_KEY);
       sessionStorage.removeItem(UNLOCK_KEY);
       sessionStorage.removeItem(CHAPTER_SESSION);
     } catch (e) {}
@@ -945,8 +964,8 @@
         try { await c.rpc('admin_unlock_servant_role', { p_device: deviceId() }); } catch (e2b) {}   // ليختار صفته من جديد
       } catch (e) { alert('تعذر الاتصال بالسيرفر — تحقق من الإنترنت.'); return; }
     }
+    clearAdminLocal();
     try {
-      sessionStorage.removeItem(ADMIN_KEY);
       sessionStorage.removeItem(CHAPTER_SESSION);
       sessionStorage.setItem(UNLOCK_KEY, '1');
     } catch (e) {}
@@ -1794,6 +1813,7 @@
     stageInScope: stageInScope,
     permissions: openPermissions,
     canTransfer: canTransfer,
+    canTransferServant: canTransferServant,
     refreshPerms: refreshPerms,
     openTeam: openPermTeam,
     role: role,
@@ -1819,6 +1839,22 @@
   };
 
   /* ---------------------------- التشغيل ---------------------------- */
+  // المشرف باقٍ مسجّلاً على الجهاز؛ نتأكد فقط أن جلسته ما زالت موجودة (لو أُلغيت من السيرفر نطلب دخولاً جديداً).
+  // لا نمسح شيئاً عند انقطاع الإنترنت.
+  if (admin) {
+    (async function () {
+      try {
+        var c = adminClient();
+        if (!c) return;
+        var r = await c.auth.getSession();
+        if (r && !r.error && r.data && !r.data.session) {
+          clearAdminLocal();
+          try { sessionStorage.removeItem(CHAPTER_SESSION); } catch (e) {}
+          location.reload();
+        }
+      } catch (e) {}
+    })();
+  }
   if (!role()) {
     // لا نترك فصلاً مفتوحاً من جلسة سابقة خلف صفحة الترحيب
     try { sessionStorage.removeItem(CHAPTER_SESSION); } catch (e) {}
